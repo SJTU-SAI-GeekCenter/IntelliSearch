@@ -1,0 +1,83 @@
+/**
+ * CSS Variables and Color Scheme
+ * @fileoverview Design tokens and color definitions for the AI Chat Application
+ */
+
+:root {
+    /* Primary color palette - Dark theme with green accents */
+    --bg: #0b0b0c;               /* Main background - Near black */
+    --panel: #101213;            /* Panel background - Dark gray */
+    --text: #e5f0e6;             /* Primary text color - Light greenish white */
+    --muted: #a6b5a8;            /* Muted text color - Desaturated green */
+    --primary: #145b57;          /* Primary color - Dark green */
+    --primary-600: #13524d;      /* Primary variant - Slightly lighter green */
+    --primary-700: #0b3f3b;      /* Primary dark - Very dark green */
+    --border: #1e2424;           /* Border color - Dark grayish green */
+    --danger: #ef4444;           /* Danger color - Red */
+    --success: #10b981;          /* Success color - Green */
+    --warning: #f59e0b;          /* Warning color - Orange */
+
+    /* Typography scale */
+    --font-size-xs: 12px;
+    --font-size-sm: 14px;
+    --font-size-base: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 24px;
+    --font-size-2xl: 32px;
+    --font-size-3xl: 48px;
+
+    /* Spacing scale */
+    --spacing-1: 4px;
+    --spacing-2: 8px;
+    --spacing-3: 12px;
+    --spacing-4: 16px;
+    --spacing-5: 20px;
+    --spacing-6: 24px;
+    --spacing-8: 32px;
+    --spacing-10: 40px;
+    --spacing-12: 48px;
+    --spacing-16: 64px;
+    --spacing-20: 80px;
+
+    /* Border radius */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 20px;
+    --radius-full: 50%;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+
+    /* Z-index scale */
+    --z-dropdown: 1000;
+    --z-sticky: 1020;
+    --z-fixed: 1030;
+    --z-modal-backdrop: 1040;
+    --z-modal: 1050;
+    --z-popover: 1060;
+    --z-tooltip: 1070;
+    --z-toast: 9999;
+
+    /* Animation durations */
+    --duration-fast: 0.2s;
+    --duration-normal: 0.3s;
+    --duration-slow: 0.5s;
+
+    /* Component-specific variables */
+    --sidebar-width: 280px;
+    --avatar-size: 36px;
+    --message-max-width: 70%;
+    --input-height: 44px;
+    --button-height: 40px;
+}

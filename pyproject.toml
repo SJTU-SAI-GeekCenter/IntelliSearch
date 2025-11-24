@@ -1,0 +1,28 @@
+[project]
+name = "IntelliSearch"
+version = "0.1.0"
+description = "IntelliSearch"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiohttp>=3.13.1",
+    "arxiv>=2.2.0",
+    "colorama>=0.4.6",
+    "dotenv>=0.9.9",
+    "fastapi>=0.119.0",
+    "fastmcp>=2.12.5",
+    "markdownify>=1.2.0",
+    "mcp>=1.16.0",
+    "openai>=2.5.0",
+    "prompt-toolkit>=3.0.52",
+    "pydantic>=2.12.3",
+    "pydantic-settings>=2.11.0",
+    "requests>=2.32.5",
+    "rich>=14.2.0",
+    "uvicorn>=0.38.0",
+    "wikipedia-mcp>=1.6.0",
+]
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple"
+default = true

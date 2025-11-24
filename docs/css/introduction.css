@@ -1,0 +1,480 @@
+/**
+ * Introduction page specific styles
+ * @fileoverview Landing page styling with hero section, features, and animations
+ */
+
+/* Import base CSS variables and styles */
+@import url('./variables.css');
+@import url('./base.css');
+@import url('./loading.css');
+
+/* Page-specific layout and overrides */
+body {
+    overflow-x: hidden;
+}
+
+#introduction-app {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--bg) 0%, var(--panel) 100%);
+}
+
+/* Main container */
+.intro-container {
+    max-width: 1200px;
+    width: 90%;
+    padding: 0 var(--spacing-5);
+    text-align: center;
+    margin: 0 auto;
+}
+
+/* Header section */
+.intro-header {
+    margin-bottom: var(--spacing-20);
+    padding-top: var(--spacing-16);
+}
+
+.intro-logo img {
+    width: 120px;
+    height: 120px;
+    border-radius: var(--radius-2xl);
+    margin-bottom: var(--spacing-8);
+    animation: logoFloat 4s ease-in-out infinite;
+    filter: drop-shadow(0 8px 32px rgba(127, 255, 212, 0.3));
+    transition: transform var(--transition-normal);
+}
+
+.intro-logo img:hover {
+    transform: scale(1.05);
+}
+
+@keyframes logoFloat {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+/* Title with gradient animation */
+.intro-title {
+    font-size: var(--font-size-3xl);
+    font-weight: 900;
+    margin: 0 0 var(--spacing-4) 0;
+    background: linear-gradient(45deg, #7fffd4, var(--primary), #9ae6b4, var(--primary));
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientShift 4s ease-in-out infinite;
+    letter-spacing: 2px;
+    line-height: 1.1;
+}
+
+@keyframes gradientShift {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+.intro-subtitle {
+    font-size: var(--font-size-xl);
+    color: var(--muted);
+    margin-bottom: var(--spacing-5);
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+/* Features section */
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-8);
+    margin-bottom: var(--spacing-16);
+    padding: 0 var(--spacing-4);
+}
+
+.feature-card {
+    background: linear-gradient(135deg, rgba(20, 91, 87, 0.1), rgba(20, 91, 87, 0.05));
+    border: 1px solid rgba(127, 255, 212, 0.2);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-10) var(--spacing-8);
+    text-align: center;
+    transition: all var(--transition-slow);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+/* Animated top border */
+.feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), #7fffd4, var(--primary));
+    background-size: 200% 100%;
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.feature-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(127, 255, 212, 0.2);
+    border-color: rgba(127, 255, 212, 0.4);
+}
+
+/* Feature icons */
+.feature-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-5);
+    display: block;
+    animation: iconBounce 2s ease-in-out infinite alternate;
+    transition: transform var(--transition-fast);
+}
+
+.feature-card:hover .feature-icon {
+    transform: scale(1.2);
+}
+
+@keyframes iconBounce {
+    0% {
+        transform: scale(1);
+    }
+    100% {
+        transform: scale(1.1);
+    }
+}
+
+.feature-card h3 {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-4);
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.feature-card p {
+    color: var(--muted);
+    line-height: 1.6;
+    margin: 0;
+    font-size: var(--font-size-sm);
+}
+
+/* Action buttons */
+.action-buttons {
+    display: flex;
+    gap: var(--spacing-5);
+    justify-content: center;
+    margin-bottom: var(--spacing-16);
+    flex-wrap: wrap;
+    padding: 0 var(--spacing-4);
+}
+
+.btn.large {
+    padding: var(--spacing-4) var(--spacing-8);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+    min-width: 180px;
+}
+
+.btn.large::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left var(--transition-slow);
+}
+
+.btn.large:hover::before {
+    left: 100%;
+}
+
+.btn.large:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px rgba(127, 255, 212, 0.3);
+}
+
+.btn.secondary {
+    background: transparent;
+    border: 2px solid var(--primary);
+    color: var(--primary);
+}
+
+.btn.secondary:hover {
+    background: var(--primary);
+    color: var(--bg);
+    border-color: var(--primary);
+}
+
+/* Statistics section */
+.intro-stats {
+    display: flex;
+    gap: var(--spacing-16);
+    justify-content: center;
+    flex-wrap: wrap;
+    padding-bottom: var(--spacing-16);
+    padding: 0 var(--spacing-4) var(--spacing-16);
+}
+
+.stat-item {
+    text-align: center;
+    padding: var(--spacing-6);
+    background: rgba(20, 91, 87, 0.05);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(127, 255, 212, 0.1);
+    min-width: 150px;
+    transition: all var(--transition-normal);
+}
+
+.stat-item:hover {
+    transform: translateY(-5px);
+    background: rgba(20, 91, 87, 0.1);
+    border-color: rgba(127, 255, 212, 0.3);
+}
+
+.stat-number {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--primary);
+    display: block;
+    margin-bottom: var(--spacing-2);
+    animation: numberCount 2s ease-out;
+    text-shadow: 0 2px 10px rgba(127, 255, 212, 0.3);
+}
+
+@keyframes numberCount {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.stat-label {
+    color: var(--muted);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+}
+
+/* Footer */
+.footer {
+    padding: var(--spacing-10) var(--spacing-5);
+    text-align: center;
+    border-top: 1px solid var(--border);
+    margin-top: var(--spacing-16);
+    background: linear-gradient(135deg, var(--panel), rgba(20, 91, 87, 0.02));
+}
+
+.footer-content {
+    color: var(--muted);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+}
+
+.footer-content p {
+    margin: 0;
+}
+
+/* Staggered animation for feature cards */
+.feature-card {
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.feature-card:nth-child(1) { animation-delay: 0.1s; }
+.feature-card:nth-child(2) { animation-delay: 0.2s; }
+.feature-card:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Animated stat counters */
+.stat-number {
+    opacity: 0;
+    animation: fadeInUp 0.6s ease-out forwards, numberPulse 2s ease-in-out infinite;
+}
+
+.stat-item:nth-child(1) .stat-number { animation-delay: 0.4s; }
+.stat-item:nth-child(2) .stat-number { animation-delay: 0.5s; }
+.stat-item:nth-child(3) .stat-number { animation-delay: 0.6s; }
+
+@keyframes numberPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Enhanced particle background interaction */
+.particles-canvas {
+    opacity: 0.8;
+}
+
+/* Scroll indicator */
+.scroll-indicator {
+    position: absolute;
+    bottom: var(--spacing-6);
+    left: 50%;
+    transform: translateX(-50%);
+    animation: scrollBounce 2s ease-in-out infinite;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.scroll-indicator::after {
+    content: '⌄';
+    font-size: var(--font-size-lg);
+    animation: scrollBounce 2s ease-in-out infinite;
+}
+
+@keyframes scrollBounce {
+    0%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    50% {
+        transform: translateX(-50%) translateY(10px);
+    }
+}
+
+/* Responsive design for introduction page */
+@media (max-width: 768px) {
+    .intro-container {
+        width: 95%;
+        padding: 0 var(--spacing-4);
+    }
+
+    .intro-title {
+        font-size: var(--font-size-2xl);
+    }
+
+    .intro-subtitle {
+        font-size: var(--font-size-base);
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-6);
+        padding: 0;
+    }
+
+    .feature-card {
+        padding: var(--spacing-8) var(--spacing-6);
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-4);
+    }
+
+    .btn.large {
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .intro-stats {
+        gap: var(--spacing-8);
+        padding: 0 var(--spacing-2) var(--spacing-12);
+    }
+
+    .stat-item {
+        min-width: 120px;
+        padding: var(--spacing-4);
+    }
+
+    .stat-number {
+        font-size: 28px;
+    }
+
+    .intro-header {
+        padding-top: var(--spacing-10);
+        margin-bottom: var(--spacing-12);
+    }
+
+    .intro-logo img {
+        width: 100px;
+        height: 100px;
+    }
+
+    .scroll-indicator {
+        display: none; /* Hide on mobile */
+    }
+}
+
+/* Tablet optimizations */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .intro-container {
+        max-width: 900px;
+    }
+
+    .feature-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-6);
+    }
+
+    .intro-stats {
+        gap: var(--spacing-12);
+    }
+}
+
+/* Large desktop optimizations */
+@media (min-width: 1400px) {
+    .intro-container {
+        max-width: 1400px;
+    }
+
+    .intro-title {
+        font-size: 80px;
+    }
+
+    .intro-subtitle {
+        font-size: 28px;
+    }
+
+    .feature-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--spacing-10);
+    }
+}

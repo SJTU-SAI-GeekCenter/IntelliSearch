@@ -1,0 +1,366 @@
+/**
+ * Settings panel styles
+ * @fileoverview Settings modal, form controls, and configuration UI
+ */
+
+/* Settings panel overlay */
+.settings-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-normal);
+}
+
+.settings-panel:not(.hidden) {
+    opacity: 1;
+    visibility: visible;
+}
+
+.settings-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+}
+
+/* Settings container */
+.settings-container {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: var(--shadow-2xl);
+    transform: scale(0.9) translateY(20px);
+    transition: transform var(--transition-normal);
+    position: relative;
+    z-index: var(--z-modal);
+}
+
+.settings-panel:not(.hidden) .settings-container {
+    transform: scale(1) translateY(0);
+}
+
+/* Settings header */
+.settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-6);
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, var(--panel), rgba(127, 255, 212, 0.05));
+}
+
+.settings-header h2 {
+    margin: 0;
+    font-size: var(--font-size-xl);
+    color: var(--text);
+    font-weight: 700;
+}
+
+.close-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 20px;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    background: var(--danger);
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Settings content area */
+.settings-content {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: var(--spacing-6);
+}
+
+/* Custom scrollbar for settings content */
+.settings-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+    background: var(--primary-600);
+    border-radius: var(--radius-sm);
+}
+
+/* Settings sections */
+.settings-section {
+    margin-bottom: var(--spacing-8);
+    position: relative;
+}
+
+.settings-section:last-child {
+    margin-bottom: 0;
+}
+
+.settings-section h3 {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-4);
+    color: var(--primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.settings-section h3::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    background: var(--primary);
+    border-radius: var(--radius-sm);
+}
+
+/* Setting items */
+.setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-4) 0;
+    border-bottom: 1px solid rgba(127, 255, 212, 0.1);
+    transition: background-color var(--transition-fast);
+}
+
+.setting-item:hover {
+    background-color: rgba(127, 255, 212, 0.02);
+    margin: 0 calc(-1 * var(--spacing-6));
+    padding-left: var(--spacing-6);
+    padding-right: var(--spacing-6);
+    border-radius: var(--radius-md);
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-label {
+    font-size: var(--font-size-base);
+    color: var(--text);
+    font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+.setting-description {
+    font-size: var(--font-size-xs);
+    color: var(--muted);
+    font-weight: normal;
+}
+
+.setting-control {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+/* Enhanced form controls for settings */
+.setting-control .select-input,
+.setting-control .range-input {
+    border-color: var(--border);
+    background: var(--bg);
+}
+
+.setting-control .select-input:hover {
+    border-color: var(--primary-600);
+}
+
+.setting-control .range-input:hover {
+    background: var(--primary-600);
+}
+
+/* Storage info display */
+#storage-info {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: var(--font-size-xs);
+    color: var(--primary);
+    padding: var(--spacing-1) var(--spacing-2);
+    background: rgba(127, 255, 212, 0.1);
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+}
+
+/* Settings footer */
+.settings-footer {
+    display: flex;
+    gap: var(--spacing-3);
+    justify-content: flex-end;
+    padding: var(--spacing-6);
+    border-top: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--panel), rgba(127, 255, 212, 0.02));
+}
+
+.settings-footer .btn {
+    min-width: 120px;
+}
+
+/* Advanced settings toggle */
+.advanced-settings {
+    margin-top: var(--spacing-6);
+    padding-top: var(--spacing-6);
+    border-top: 1px solid var(--border);
+}
+
+.advanced-settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: var(--spacing-2);
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition-fast);
+}
+
+.advanced-settings-header:hover {
+    background-color: rgba(127, 255, 212, 0.05);
+}
+
+.advanced-settings-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-normal);
+}
+
+.advanced-settings-content.expanded {
+    max-height: 1000px;
+}
+
+/* Settings categories */
+.settings-category {
+    background: linear-gradient(135deg, var(--panel), rgba(127, 255, 212, 0.02));
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    border: 1px solid rgba(127, 255, 212, 0.1);
+}
+
+.settings-category h4 {
+    font-size: var(--font-size-sm);
+    color: var(--primary);
+    margin: 0 0 var(--spacing-3) 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+/* Tooltip for settings */
+.setting-tooltip {
+    position: relative;
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background: var(--primary-600);
+    color: white;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+    cursor: help;
+    margin-left: var(--spacing-2);
+}
+
+.setting-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg);
+    color: var(--text);
+    padding: var(--spacing-2);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-fast);
+    z-index: var(--z-tooltip);
+    border: 1px solid var(--border);
+}
+
+.setting-tooltip:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-4px);
+}
+
+/* Responsive settings */
+@media (max-width: 768px) {
+    .settings-container {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .setting-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-3);
+    }
+
+    .setting-control {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .settings-footer {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .settings-footer .btn {
+        flex: 1;
+        min-width: 100px;
+    }
+}
+
+/* Settings animations */
+@keyframes slideInFromTop {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.settings-section {
+    animation: slideInFromTop 0.5s ease-out backwards;
+}
+
+.settings-section:nth-child(1) { animation-delay: 0.1s; }
+.settings-section:nth-child(2) { animation-delay: 0.2s; }
+.settings-section:nth-child(3) { animation-delay: 0.3s; }
+.settings-section:nth-child(4) { animation-delay: 0.4s; }
