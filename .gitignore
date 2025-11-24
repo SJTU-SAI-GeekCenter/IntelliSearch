@@ -210,7 +210,7 @@ pyrightconfig.json
 
 
 .claude
-models
+/models
 
 # mcp server (open source)
 *.db

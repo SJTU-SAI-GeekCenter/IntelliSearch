@@ -17,8 +17,8 @@ export const CONFIG = {
     autoSave: true
   },
 
-  // Backend configuration (currently empty for demo mode)
-  BACKEND_URL: '',
+  // Backend configuration
+  BACKEND_URL: 'http://localhost:8000',
 
   // Animation timing
   ANIMATION: {

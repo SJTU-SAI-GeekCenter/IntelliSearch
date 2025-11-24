@@ -9,6 +9,7 @@ import {appState} from './config.js';
 import {getStorageUsage, loadSettings, saveSettings} from './storage.js';
 import {appendMessageUI, initializeUI, renderHistory, renderMessages, setThinkingState, showToast, toggleSettingsPanel, updateAssistantMessage, updateChatTitle} from './ui.js';
 import {isSupported} from './utils.js';
+import {sendMessageToAPI, checkAPIConnection, getAvailableTools, setSessionId, getCurrentSessionId} from './api.js';
 
 /**
  * Initialize the application
@@ -27,6 +28,9 @@ async function initializeApp() {
     // Initial render
     renderHistory();
     renderMessages();
+
+    // Check API connection
+    await checkAPIStatus();
 
     console.log('AI Chat Application initialized successfully');
   } catch (error) {
@@ -358,37 +362,74 @@ async function sendMessage() {
   setThinkingState(aiBubble, true);
 
   try {
-    // Simulate AI response (in production, this would call your backend)
-    await simulateAIResponse(aiBubble);
+    // 设置会话ID（使用聊天ID作为会话ID）
+    setSessionId(chat.id);
+
+    // 调用真实API
+    let assistantContent = '';
+    let toolCalls = [];
+
+    await sendMessageToAPI(
+      content,
+      // 流式响应处理
+      (chunk) => {
+        assistantContent += chunk;
+        updateAssistantMessage(aiBubble, assistantContent, false);
+      },
+      // 完成回调
+      (result) => {
+        assistantContent = result.content;
+        toolCalls = result.toolCalls;
+
+        setThinkingState(aiBubble, false);
+        updateAssistantMessage(aiBubble, assistantContent, true);
+        addMessage('assistant', assistantContent);
+
+        // 如果有工具调用，添加工具信息到消息
+        if (toolCalls.length > 0) {
+          const message = addMessage('assistant', assistantContent);
+          if (message) {
+            message.toolCalls = toolCalls;
+          }
+        }
+      },
+      // 错误回调
+      (error) => {
+        throw error;
+      }
+    );
+
   } catch (error) {
     console.error('Error sending message:', error);
     setThinkingState(aiBubble, false);
-    updateAssistantMessage(aiBubble, 'Error: ' + error.message, false);
-    showToast('Failed to send message', 5000);
+
+    // 检查是否为连接错误
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      updateAssistantMessage(aiBubble, '无法连接到后端服务。请确保后端服务正在运行（http://localhost:8000）。', false);
+      showToast('无法连接到后端服务', 5000);
+    } else {
+      updateAssistantMessage(aiBubble, 'Error: ' + error.message, false);
+      showToast('Failed to send message: ' + error.message, 5000);
+    }
   }
 }
 
 /**
- * Simulate AI response (demo mode)
- * @param {HTMLElement} aiBubble - AI message bubble element
+ * 检查API连接状态并在应用启动时显示状态
  */
-async function simulateAIResponse(aiBubble) {
-  // Simulate thinking delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
+async function checkAPIStatus() {
+  const isConnected = await checkAPIConnection();
+  if (isConnected) {
+    showToast('后端服务连接成功', 3000);
 
-  const responses = [
-    'Thank you for your message! Since the backend service is not configured, this is a simulated response.',
-    'I appreciate your question! This is a demo response. For full functionality, please ensure the backend service is properly configured.',
-    'Interesting point! This is a simulated AI response. In a production environment, I would provide a more detailed answer based on the actual AI model.',
-    'I understand your message. This is a demo mode response that demonstrates the UI functionality without requiring backend connectivity.'
-  ];
-
-  const randomResponse =
-      responses[Math.floor(Math.random() * responses.length)];
-
-  setThinkingState(aiBubble, false);
-  updateAssistantMessage(aiBubble, randomResponse, true);
-  addMessage('assistant', randomResponse);
+    // 获取可用工具
+    const tools = await getAvailableTools();
+    if (tools.length > 0) {
+      console.log(`发现 ${tools.length} 个可用工具`);
+    }
+  } else {
+    showToast('无法连接到后端服务，请确保后端服务正在运行', 5000);
+  }
 }
 
 /**
