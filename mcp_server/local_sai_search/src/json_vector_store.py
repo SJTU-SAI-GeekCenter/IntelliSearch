@@ -91,18 +91,3 @@ class JSONVectorStoreManager:
                 logger.warning(f"无效索引: {idx}")
         
         return search_results
-
-# 示例用法
-if __name__ == "__main__":
-    from mcp_server.local_rag_v2.src.json_vector_store import JSONVectorStoreManager
-
-    # 初始化（自动加载或创建）
-    jsv = JSONVectorStoreManager(
-        json_file_path="./meta_info.json",
-        persist_directory="./chroma_db_json"
-    )
-
-    # 搜索
-    results = jsv.search("体育场馆", score_threshold=0.5)
-    for r in results:
-        print(r)

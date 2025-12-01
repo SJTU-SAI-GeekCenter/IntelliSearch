@@ -3,14 +3,31 @@ from langchain_huggingface import HuggingFaceEmbeddings
 import os
 import logging
 import sys
+
 sys.path.append(os.getcwd())
 
 from utils.log_config import setup_logging
+
 setup_logging(log_file_path="./log/rag_database.log")
 
 
+def get_device(skip=True):
+    if skip:
+        return "cpu"
+    try:
+        import torch
+
+        if torch.backends.mps.is_available():
+            return "mps"
+        if torch.cuda.is_available():
+            return "cuda"
+        return "cpu"
+    except ImportError:
+        return "cpu"
+
 
 class VectorStoreManager:
+
     def __init__(self, persist_directory="./chroma_db"):
         self.persist_directory = persist_directory
 
@@ -18,7 +35,7 @@ class VectorStoreManager:
         self.embedding_model = HuggingFaceEmbeddings(
             model_name="./models/all-MiniLM-L6-v2",
             model_kwargs={
-                "device": "gpu",
+                "device": get_device(skip=False),
             },
             encode_kwargs={"normalize_embeddings": True, "batch_size": 1},
         )
@@ -53,8 +70,11 @@ class VectorStoreManager:
             self.logger.error("未找到现有向量数据库")
             return None
 
-    def get_retriever(self,  search_type="similarity_score_threshold",
-            search_kwargs={"score_threshold": 0.5}):
+    def get_retriever(
+        self,
+        search_type="similarity_score_threshold",
+        search_kwargs={"score_threshold": 0.5},
+    ):
         """获取检索器"""
         if self.vector_store is None:
             self.load_existing_vector_store()
@@ -62,5 +82,7 @@ class VectorStoreManager:
         if self.vector_store is None:
             raise ValueError("向量数据库未初始化，请先创建或加载")
 
-        return self.vector_store.as_retriever( search_type="similarity_score_threshold",
-            search_kwargs={"score_threshold": 0.5})
+        return self.vector_store.as_retriever(
+            search_type="similarity_score_threshold",
+            search_kwargs={"score_threshold": 0.5},
+        )
