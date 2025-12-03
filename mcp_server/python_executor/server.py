@@ -6,7 +6,7 @@ mcp = FastMCP("python-exec-server")
 @mcp.tool()
 async def run_python_code(code: str) -> str:
     """
-    运行一段 Python 代码并返回输出结果。
+    Execute Python code and return the output.
     """
     try:
         proc = await asyncio.create_subprocess_exec(

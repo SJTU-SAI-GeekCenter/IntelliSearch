@@ -211,12 +211,11 @@ pyrightconfig.json
 
 .claude
 /models
+pids
+log
 
 # mcp server (open source)
 *.db
-
-# custom local rag
-mcp_server/local_database_rag/documents
 chroma_db
 chroma_db_json
 vector_store
@@ -234,6 +233,8 @@ mcp_server/local_sai_search/crawling/pages/notice_raw
 mcp_server/local_sai_search/crawling/data
 mcp_server/local_sai_search/crawling/article
 mcp_server/local_sai_search/crawling/articles
+
+
 
 
 
