@@ -237,6 +237,10 @@ crawling/articles
 
 articles
 wechat_config.json
+output
+data
+config/data_generation.yaml
+
 
 
 
