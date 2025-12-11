@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>对话式 AI</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+	<div id="app">
+		<aside class="sidebar">
+			<div class="brand">
+				<img class="logo" src="assets/sai-logo.png" alt="SAI 标志" />
+				<div class="title">交小 AI</div>
+			</div>
+			<div class="sidebar-actions">
+				<button id="new-chat" class="btn primary">新建对话</button>
+			</div>
+			<div id="history-list" class="history-list" role="navigation" aria-label="历史记录"></div>
+		</aside>
+		<main class="chat-container">
+			<header class="chat-header">
+					<input type="text" class="chat-title" id="chat-title" value="未命名会话" readonly />
+					<div class="header-actions">
+					<button id="rename-chat" class="icon-btn primary" title="重命名会话">命名</button>
+					<button id="delete-chat" class="icon-btn primary" title="删除会话">删除</button>
+				</div>
+			</header>
+			<div class="chat-content">
+				<section id="messages" class="messages" aria-live="polite"></section>
+				<footer class="composer">
+					<div class="input-wrap">
+						<textarea id="prompt" rows="1" placeholder="发送消息，按 Enter 发送，Shift+Enter 换行"></textarea>
+					</div>
+					<button id="send" class="btn primary">发送</button>
+				</footer>
+			</div>
+		</main>
+	</div>
+
+	<!-- Toast & 小组件 -->
+	<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+	<script src="app.js"></script>
+</body>
+</html>
+
