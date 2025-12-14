@@ -122,200 +122,25 @@ bash scripts/backend.sh stop
 智搜项目为用户提供了两种使用方式：
 
 - **CLI 使用方式**: 直接在命令行中使用，高效快捷，方便开发者开发新功能
-- **前端使用方式**: 使用 FastAPI 框架实现后端模型服务部署，同时搭配前端网页渲染，适合成品展示和生产环境中用户使用。
+- **网页使用方式**: 使用 FastAPI 框架实现后端模型服务部署，同时搭配前端网页渲染，适合成品展示和生产环境中用户使用。
 
 #### 命令行使用
 
 ```bash
-python backend/cli.py
-# 默认调用模型 DeepSeek-V3（使用官网 API）
+python backend/cli_v2.py
+# 支持流式输出
 ```
 
-后续会进一步接入 GLM-4.6 等 API 服务。
+#### 网页使用
 
-#### 前端使用
+智搜项目也支持网页端的本地部署，后端使用 FastAPI 架构实现标准化的流式输出。
 
 ```bash
-# 启动所有服务
-bash ./scripts/start_all.sh
+# 前端服务启动
+# 前端将会在 ` http://127.0.0.1:50001` 端口部署
+python frontend/flask/app.py
 
-# 停止所有服务
-bash ./scripts/stop_services.sh
-```
-
-### 项目文件结构
-
-```text
-├── agentoolkit
-│   ├── agent
-│   │   └── base_agent.py
-│   ├── config
-│   │   ├── data_generation.example.yaml
-│   │   └── judgement.example.yaml
-│   ├── data_generation
-│   │   ├── __init__.py
-│   │   ├── pipeline.py
-│   │   ├── README.md
-│   │   └── stats.py
-│   ├── example
-│   │   ├── data_generation_example.py
-│   │   └── judgement_example.py
-│   ├── judgement
-│   │   ├── __init__.py
-│   │   ├── pipeline.py
-│   │   ├── README.md
-│   │   └── stats.py
-│   ├── main.py
-│   ├── prompt
-│   │   ├── system_prompts
-│   │   │   ├── default.prompt_evaluation.txt
-│   │   │   └── default.prompt.txt
-│   │   └── user_prompts
-│   │       ├── default.prompt_evaluation.txt
-│   │       └── default.prompt.txt
-│   ├── README.md
-│   └── utils
-│       ├── llm_client.py
-│       └── logger_config.py
-├── backend
-│   ├── api
-│   │   └── chat_api.py
-│   ├── cli.py
-│   ├── core
-│   │   ├── llm_client.py
-│   │   └── mcp_client.py
-│   ├── main_fastapi.py
-│   ├── models
-│   │   └── chat_models.py
-│   └── tool_hash.py
-├── cache
-├── CLAUDE.md
-├── config
-│   ├── __init__.py
-│   ├── benchmark_config.yaml
-│   └── config_loader.py
-├── config.example.json
-├── crawling
-│   ├── cleaning.py
-│   ├── crawl.py
-│   └── wechat_crawler.py
-├── docs
-│   ├── assets
-│   │   ├── sai-logo.png
-│   │   └── sai-square.jpg
-│   ├── css
-│   │   ├── base.css
-│   │   ├── components.css
-│   │   ├── introduction.css
-│   │   ├── layout.css
-│   │   ├── loading.css
-│   │   ├── markdown.css
-│   │   ├── responsive.css
-│   │   ├── settings.css
-│   │   ├── styles.css
-│   │   └── variables.css
-│   ├── index.html
-│   ├── introduction.html
-│   ├── js
-│   │   ├── animations.js
-│   │   ├── api.js
-│   │   ├── app.js
-│   │   ├── chat.js
-│   │   ├── config.js
-│   │   ├── introduction.js
-│   │   ├── storage.js
-│   │   ├── ui.js
-│   │   └── utils.js
-│   └── README.md
-├── logs
-├── mcp_module
-│   ├── __init__.py
-│   ├── connector.py
-│   ├── server_manager.py
-│   └── tool_cache.py
-├── mcp_server
-│   ├── amap_mcp_server
-│   │   └── server.py
-│   ├── bilibili_search
-│   │   ├── bcut_asr.py
-│   │   └── server.py
-│   ├── douban_search
-│   │   ├── README.en.md
-│   │   ├── README.md
-│   │   ├── src
-│   │   │   ├── api.ts
-│   │   │   ├── index.ts
-│   │   │   └── types.ts
-│   │   └── tsconfig.json
-│   ├── local_sai_search
-│   │   ├── crawling
-│   │   │   ├── crawl_wechat.py
-│   │   │   ├── extract_info.py
-│   │   │   ├── get_original_link.py
-│   │   │   ├── load_final_data.py
-│   │   │   ├── pages
-│   │   │   │   ├── get_news.py
-│   │   │   │   ├── get_notices.py
-│   │   │   │   └── main.py
-│   │   │   ├── README.md
-│   │   │   └── weixin_spider.py
-│   │   ├── google_file_search.py
-│   │   ├── rag_service.py
-│   │   ├── server_test.py
-│   │   ├── server_v2.py
-│   │   ├── server.py
-│   │   └── src
-│   │       ├── __init__.py
-│   │       ├── config.py
-│   │       ├── database_json
-│   │       │   ├── fix_json.json
-│   │       │   └── fix_json.py
-│   │       ├── document_processor.py
-│   │       ├── json_vector_store.py
-│   │       ├── rag_chain.py
-│   │       └── vector_store.py
-│   ├── python_executor
-│   │   ├── debug_test.py
-│   │   ├── ipython_backend.py
-│   │   ├── quick_test.py
-│   │   ├── README.md
-│   │   ├── server_v2.py
-│   │   ├── server.py
-│   │   └── test_ipython_backend.py
-│   ├── scholar_search
-│   │   └── server.py
-│   ├── train_search
-│   │   ├── Dockerfile
-│   │   ├── docs
-│   │   │   ├── architecture.md
-│   │   │   ├── architecture.png
-│   │   │   └── principle.md
-│   │   ├── glama.json
-│   │   ├── LICENSE
-│   │   ├── README.md
-│   │   ├── src
-│   │   │   ├── index.ts
-│   │   │   └── types.ts
-│   │   └── tsconfig.json
-│   ├── web_search
-│   │   └── server.py
-│   └── wechat_search
-│       └── server.py
-├── prompts
-│   ├── cleaning_sys.md
-│   └── cleaning_user.md
-├── pyproject.toml
-├── README_ZH.md
-├── README.md
-├── scripts
-│   ├── backend.sh
-│   ├── start_all.sh
-│   ├── start_backend.py
-│   ├── start_frontend.py
-│   └── stop_services.sh
-├── spec
-│   ├── task_1.md
-│   └── task_2.md
-└── utils
-    └── log_config.py
+# 后端服务启动
+# 后端默认端口 8000 端口
+python backend/main_fastapi.py
 ```
