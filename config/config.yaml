@@ -1,0 +1,35 @@
+# IntelliSearch MCP Configuration File
+# This file contains all necessary configuration for the MCP system
+# Can be overridden via environment variables with format: BENCHMARK_SECTION_SUBSECTION_KEY=value
+
+# MCP server related configuration
+mcp:
+  connection:
+    # HTTP connection timeout (seconds)
+    http_timeout: 60
+    # Tool discovery timeout (seconds)
+    tool_discovery_timeout: 10
+    # Health check timeout (seconds)
+    health_check_timeout: 2
+    # Process wait timeout (seconds)
+    process_wait_timeout: 5
+
+  ports:
+    # Default MCP server port
+    default_port: 3001
+    # Port search attempt count
+    port_search_attempts: 100
+    # Random port range
+    random_port_min: 10000
+    random_port_max: 50000
+
+# Tool cache configuration
+cache:
+  # Enable tool call caching to reduce redundant API calls
+  enabled: true
+  # Cache directory path
+  cache_dir: "./cache"
+  # Cache time-to-live in hours (0 = permanent cache)
+  ttl_hours: 0
+  # Server whitelist - only cache tools from these servers (empty list = cache all)
+  server_whitelist: []
