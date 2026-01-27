@@ -83,7 +83,7 @@ class ToolUIManager:
         self._console.print()  # Add newline after clearing status
 
         header = Text()
-        header.append("⚙ ", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
+        header.append("", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
         header.append("Tool Call: ", style=Style(color=ThemeColors.TOOL_SECONDARY))
         header.append(tool_name, style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
 

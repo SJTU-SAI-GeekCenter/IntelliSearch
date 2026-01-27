@@ -67,7 +67,7 @@ class ToolCallUI:
             tool_name: Name of the tool being called
         """
         header = Text()
-        header.append("⚙ ", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
+        header.append("", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
         header.append("Tool Call: ", style=Style(color=ThemeColors.TOOL_SECONDARY))
         header.append(tool_name, style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
 
@@ -342,7 +342,7 @@ class IntelliSearchCLI:
         banner_text.append("IntelliSearch", style=Style(color=ThemeColors.ACCENT, bold=True))
         banner_text.append(" CLI", style=Style(color=ThemeColors.SECONDARY, bold=True))
         banner_text.append(
-            f"\n   Intelligent Agent Interaction System v1.0.0",
+            f"\n   Intelligence ",
             style=Style(color=ThemeColors.DIM),
         )
 
@@ -492,6 +492,15 @@ class IntelliSearchCLI:
         """
         self.status_manager.set_processing(message)
 
+    def show_summarizing_indicator(self, message: str = "Generating final response..."):
+        """
+        Display a summarizing spinner during final response generation.
+
+        Args:
+            message: Message to display next to spinner
+        """
+        self.status_manager.set_summarizing(message)
+
     def clear_loading_indicator(self):
         """Clear the loading indicator."""
         self.status_manager.clear()
@@ -548,7 +557,7 @@ class IntelliSearchCLI:
 
         if cmd in ["quit", "exit"]:
             self.console.print(
-                Text("\n👋 Exiting IntelliSearch CLI. Goodbye!\n", style=Style(color=ThemeColors.ACCENT))
+                Text("\nExiting IntelliSearch CLI. Goodbye!\n", style=Style(color=ThemeColors.ACCENT))
             )
             return False
 

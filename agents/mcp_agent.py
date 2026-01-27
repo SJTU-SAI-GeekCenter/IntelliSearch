@@ -229,9 +229,15 @@ class MCPBaseAgent(BaseAgent):
                     continue
 
                 else:
-                    # LLM completed without tool calls
+                    # LLM completed without tool calls - show SUMMARIZING status
+                    from ui.status_manager import get_status_manager
+                    status_mgr = get_status_manager()
+                    status_mgr.set_summarizing("Generating final response...")
+
                     final_answer = completion.choices[0].message.content
                     self.history.append({"role": "assistant", "content": final_answer})
+
+                    status_mgr.clear()
 
                     return {
                         "answer": final_answer,
@@ -406,6 +412,11 @@ class MCPBaseAgent(BaseAgent):
         Returns:
             Final text response from LLM
         """
+        # Show SUMMARIZING status
+        from ui.status_manager import get_status_manager
+        status_mgr = get_status_manager()
+        status_mgr.set_summarizing("Synthesizing gathered information...")
+
         self.history.append(
             {
                 "role": "user",
@@ -421,6 +432,8 @@ class MCPBaseAgent(BaseAgent):
                 )
         final_content = completion.choices[0].message.content
         self.history.append({"role": "assistant", "content": final_content})
+
+        status_mgr.clear()
 
         return final_content
 

@@ -20,6 +20,12 @@ class ThemeColors:
     TOOL_ACCENT = "#00BCD4"  # Bright cyan
     TOOL_BORDER = "#4DD0E1"  # Light cyan border
 
+    # Summarizing colors (Pink-Orange Theme - for final response generation)
+    SUMMARY_PRIMARY = "#5A3A3A"  # Deep pink-orange
+    SUMMARY_SECONDARY = "#7A4A4A"  # Medium pink-orange
+    SUMMARY_ACCENT = "#FF8C69"  # Pink-orange (coral)
+    SUMMARY_BORDER = "#FFAB91"  # Light pink-orange border
+
     # UI colors
     BG = "#1A1A1A"  # Dark background
     FG = "#E0E0E0"  # Light text

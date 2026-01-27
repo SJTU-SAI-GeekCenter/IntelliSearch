@@ -1,28 +1,33 @@
 """
-Unified Status Manager for CLI using Rich status.
+Unified Status Manager for CLI with dynamic animations.
 
-This module provides a centralized status management system that uses
-Rich's built-in status functionality to display status indicators.
+This module provides a centralized status management system with
+animated status panels using Rich Live display.
 """
 
+import time
+import threading
 from typing import Optional
 from rich.console import Console
 from rich.text import Text
+from rich.panel import Panel
+from rich.live import Live
 from rich.style import Style
+from rich.align import Align
 
 from .theme import ThemeColors
 
 
 class StatusManager:
     """
-    Unified status manager for CLI operations.
+    Unified status manager with animated displays.
 
-    This class ensures that all status indicators are displayed consistently
-    using Rich's status() context manager for reliable rendering.
+    This class provides animated status indicators using Rich's Live display
+    for a modern, dynamic user experience.
     """
 
     _instance: Optional["StatusManager"] = None
-    _lock = object()  # Simple lock for singleton
+    _lock = object()
 
     def __new__(cls, console: Optional[Console] = None):
         """Implement singleton pattern."""
@@ -42,114 +47,243 @@ class StatusManager:
             return
 
         self.console = console or Console()
+        self._current_status = None
+        self._status_type = "idle"
+        self._spinner_frame = 0
+        self._live = None
         self._active = False
         self._initialized = True
 
-    def _get_status_text(self, message: str, icon: str, color: str) -> Text:
-        """
-        Get formatted status text.
+        # Spinner characters for animation
+        self._spinner_dots = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        self._spinner_arrows = ["←", "↖", "↑", "↗", "→", "↘", "↓", "↙"]
+        self._spinner_stars = ["✶", "✷", "✸", "✹", "✺", "✴", "✳", "✲"]
+        self._current_spinner = self._spinner_dots
 
-        Args:
-            message: Status message
-            icon: Icon to display
-            color: Color for icon
+    def _get_spinner_char(self) -> str:
+        """Get current spinner character."""
+        char = self._current_spinner[self._spinner_frame]
+        self._spinner_frame = (self._spinner_frame + 1) % len(self._current_spinner)
+        return char
 
-        Returns:
-            Formatted Text object
-        """
-        status_text = Text()
-        status_text.append(icon, style=Style(color=color, bold=True))
-        status_text.append(f" {message}", style=Style(color=ThemeColors.SECONDARY))
-        return status_text
+    def _get_status_panel(self) -> Panel:
+        """Get the status panel for display."""
+        if self._status_type == "idle" or not self._current_status:
+            return Panel("")
 
-    def set_processing(self, message: str = "Processing...") -> None:
+        spinner = self._get_spinner_char()
+
+        if self._status_type == "processing":
+            # Green theme for processing
+            title = Text()
+            title.append(spinner + " ", style=Style(color=ThemeColors.ACCENT, bold=True))
+            title.append("PROCESSING", style=Style(color=ThemeColors.ACCENT, bold=True))
+
+            content = Text()
+            content.append(self._current_status, style=Style(color=ThemeColors.FG))
+
+            return Panel(
+                content,
+                title=title,
+                title_align="left",
+                border_style=Style(color=ThemeColors.ACCENT),
+                padding=(0, 2),  # Reduced vertical padding
+                expand=True,  # Expand to full width
+            )
+
+        elif self._status_type == "executing":
+            # Cyan theme for tool execution
+            title = Text()
+            title.append(spinner + " ", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
+            title.append("EXECUTING TOOL", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
+
+            content = Text()
+            content.append(self._current_status, style=Style(color=ThemeColors.FG))
+
+            return Panel(
+                content,
+                title=title,
+                title_align="left",
+                border_style=Style(color=ThemeColors.TOOL_ACCENT),
+                padding=(0, 2),  # Reduced vertical padding
+                expand=True,  # Expand to full width
+            )
+
+        elif self._status_type == "error":
+            # Red theme for errors
+            title = Text()
+            title.append("✗ ", style=Style(color=ThemeColors.ERROR, bold=True))
+            title.append("ERROR", style=Style(color=ThemeColors.ERROR, bold=True))
+
+            content = Text()
+            content.append(self._current_status, style=Style(color=ThemeColors.ERROR))
+
+            return Panel(
+                content,
+                title=title,
+                title_align="left",
+                border_style=Style(color=ThemeColors.ERROR),
+                padding=(0, 2),  # Reduced vertical padding
+                expand=True,  # Expand to full width
+            )
+
+        elif self._status_type == "success":
+            # Green theme for success
+            title = Text()
+            title.append("✓ ", style=Style(color=ThemeColors.SUCCESS, bold=True))
+            title.append("SUCCESS", style=Style(color=ThemeColors.SUCCESS, bold=True))
+
+            content = Text()
+            content.append(self._current_status, style=Style(color=ThemeColors.FG))
+
+            return Panel(
+                content,
+                title=title,
+                title_align="left",
+                border_style=Style(color=ThemeColors.SUCCESS),
+                padding=(0, 2),  # Reduced vertical padding
+                expand=True,  # Expand to full width
+            )
+
+        elif self._status_type == "summarizing":
+            # Pink-orange theme for final response generation
+            title = Text()
+            title.append(spinner + " ", style=Style(color=ThemeColors.SUMMARY_ACCENT, bold=True))
+            title.append("SUMMARIZING", style=Style(color=ThemeColors.SUMMARY_ACCENT, bold=True))
+
+            content = Text()
+            content.append(self._current_status, style=Style(color=ThemeColors.FG))
+
+            return Panel(
+                content,
+                title=title,
+                title_align="left",
+                border_style=Style(color=ThemeColors.SUMMARY_ACCENT),
+                padding=(0, 2),  # Reduced vertical padding
+                expand=True,  # Expand to full width
+            )
+
+        return Panel("")
+
+    def _animate(self) -> None:
+        """Animation loop for live display."""
+        while self._active and self._live:
+            self._live.update(self._get_status_panel())
+            time.sleep(0.1)  # 100ms per frame for smooth animation
+
+    def set_processing(self, message: str = "Processing your request...") -> None:
         """
-        Set processing status (for main LLM processing).
+        Set processing status with animated display.
 
         Args:
             message: Status message to display
         """
-        # Clear any existing console content on the current line
-        import sys
-        sys.stdout.write("\r" + " " * 80 + "\r")  # Clear the line
-        sys.stdout.flush()
+        self._current_status = message
+        self._status_type = "processing"
+        self._current_spinner = self._spinner_dots
 
-        status_text = self._get_status_text(
-            message, "⠋", ThemeColors.ACCENT
-        )
-        # Use print with end="" to keep on same line
-        print(status_text.plain, end="", flush=True)
-        self._active = True
+        if not self._active:
+            self._active = True
+            self._live = Live(
+                self._get_status_panel(),
+                console=self.console,
+                refresh_per_second=10,
+            )
+            self._live.start()
 
-    def set_executing(self, message: str = "Executing...") -> None:
+            # Start animation in background thread
+            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
+            self._animation_thread.start()
+
+    def set_executing(self, message: str = "Executing tool...") -> None:
         """
-        Set executing status (for tool execution).
+        Set executing status with animated display.
 
         Args:
             message: Status message to display
         """
-        # Clear any existing console content on the current line
-        import sys
-        sys.stdout.write("\r" + " " * 80 + "\r")  # Clear the line
-        sys.stdout.flush()
+        self._current_status = message
+        self._status_type = "executing"
+        self._current_spinner = self._spinner_arrows
 
-        status_text = self._get_status_text(
-            message, "⚙", ThemeColors.TOOL_ACCENT
-        )
-        # Use print with end="" to keep on same line
-        print(status_text.plain, end="", flush=True)
-        self._active = True
+        if not self._active:
+            self._active = True
+            self._live = Live(
+                self._get_status_panel(),
+                console=self.console,
+                refresh_per_second=10,
+            )
+            self._live.start()
 
-    def set_error(self, message: str = "Error") -> None:
+            # Start animation in background thread
+            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
+            self._animation_thread.start()
+
+    def set_summarizing(self, message: str = "Generating final response...") -> None:
+        """
+        Set summarizing status with animated display.
+
+        Args:
+            message: Status message to display
+        """
+        self._current_status = message
+        self._status_type = "summarizing"
+        self._current_spinner = self._spinner_stars
+
+        if not self._active:
+            self._active = True
+            self._live = Live(
+                self._get_status_panel(),
+                console=self.console,
+                refresh_per_second=10,
+            )
+            self._live.start()
+
+            # Start animation in background thread
+            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
+            self._animation_thread.start()
+
+    def set_error(self, message: str = "Error occurred") -> None:
         """
         Set error status.
 
         Args:
             message: Error message to display
         """
-        # Clear any existing console content on the current line
-        import sys
-        sys.stdout.write("\r" + " " * 80 + "\r")  # Clear the line
-        sys.stdout.flush()
+        self._current_status = message
+        self._status_type = "error"
 
-        status_text = self._get_status_text(
-            message, "✗", ThemeColors.ERROR
-        )
-        print(status_text.plain, end="", flush=True)
-        self._active = True
+        if self._active and self._live:
+            self._live.update(self._get_status_panel())
 
-    def set_success(self, message: str = "Completed") -> None:
+    def set_success(self, message: str = "Operation completed") -> None:
         """
         Set success status.
 
         Args:
             message: Success message to display
         """
-        # Clear any existing console content on the current line
-        import sys
-        sys.stdout.write("\r" + " " * 80 + "\r")  # Clear the line
-        sys.stdout.flush()
+        self._current_status = message
+        self._status_type = "success"
 
-        status_text = self._get_status_text(
-            message, "✓", ThemeColors.SUCCESS
-        )
-        print(status_text.plain, end="", flush=True)
-        self._active = True
+        if self._active and self._live:
+            self._live.update(self._get_status_panel())
+            time.sleep(0.5)  # Show success briefly
 
     def clear(self) -> None:
-        """Clear the status line."""
+        """Clear the status display."""
         if self._active:
-            # Clear the line by printing spaces and moving cursor back
-            import sys
-            sys.stdout.write("\r" + " " * 80 + "\r")
-            sys.stdout.flush()
             self._active = False
+            if self._live:
+                self._live.stop()
+                self._live = None
+            self._current_status = None
+            self._status_type = "idle"
+            self._spinner_frame = 0
 
     def print_and_clear(self, content: str = "") -> None:
         """
-        Print content and clear status line.
-
-        Use this to print output while status is active.
+        Print content and clear status display.
 
         Args:
             content: Content to print
@@ -159,7 +293,7 @@ class StatusManager:
             self.console.print(content)
 
     def finish(self) -> None:
-        """Finish current status and clear the line."""
+        """Finish current status and clear display."""
         self.clear()
 
 
