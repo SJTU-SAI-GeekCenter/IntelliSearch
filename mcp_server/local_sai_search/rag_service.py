@@ -5,14 +5,11 @@ import uvicorn
 
 sys.path.append(os.getcwd())
 
-
 from src.json_vector_store import JSONVectorStoreManager
-from ui.log_config import setup_logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-setup_logging(log_file_path="./log/rag_service.log")
 logger = logging.getLogger("RAG_Service")
 global_jsv = None
 

@@ -123,3 +123,10 @@ bash scripts/backend.sh stop
 ```bash
 python cli.py
 ```
+
+## Todo List
+
+- Refactor and Enhance Local SAI Search
+    - 实现爬虫管道化
+- Rewrite README
+- Record Demos
