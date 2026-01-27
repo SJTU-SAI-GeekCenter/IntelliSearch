@@ -14,7 +14,7 @@ from mcp.server.fastmcp import FastMCP
 
 sys.path.append(os.getcwd())
 sys.path.append(os.path.join(os.getcwd(), ".."))
-from utils.log_config import setup_logging
+from ui.log_config import setup_logging
 
 setup_logging(log_file_path="./log/mcp_server.log")
 logger = logging.getLogger("MCP_Server")

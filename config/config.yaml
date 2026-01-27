@@ -1,0 +1,63 @@
+# IntelliSearch MCP Configuration File
+# This file contains all necessary configuration for the MCP system
+# Can be overridden via environment variables with format: BENCHMARK_SECTION_SUBSECTION_KEY=value
+
+agent:
+  # Agent type to use (available: mcp_base)
+  # Override with: AGENT_TYPE
+  type: mcp_base
+
+  # Agent display name
+  # Override with: AGENT_NAME
+  name: IntelliSearchAgent
+
+  # LLM model name
+  # Override with: AGENT_MODEL_NAME
+  model_name: deepseek-chat
+
+  # Maximum number of tool calls per inference
+  # Override with: AGENT_MAX_TOOL_CALL
+  max_tool_call: 20
+
+  # Path to MCP server configuration file
+  # Override with: AGENT_SERVER_CONFIG_PATH
+  server_config_path: config/config.json
+
+  # API configuration (optional)
+  # If not specified, will use environment variables (BASE_URL, OPENAI_API_KEY)
+  # Override with: AGENT_BASE_URL, AGENT_API_KEY
+  api:
+    base_url: null
+    api_key: null
+
+# MCP server related configuration
+mcp:
+  connection:
+    # HTTP connection timeout (seconds)
+    http_timeout: 60
+    # Tool discovery timeout (seconds)
+    tool_discovery_timeout: 10
+    # Health check timeout (seconds)
+    health_check_timeout: 2
+    # Process wait timeout (seconds)
+    process_wait_timeout: 5
+
+  ports:
+    # Default MCP server port
+    default_port: 3001
+    # Port search attempt count
+    port_search_attempts: 100
+    # Random port range
+    random_port_min: 10000
+    random_port_max: 50000
+
+# Tool cache configuration
+cache:
+  # Enable tool call caching to reduce redundant API calls
+  enabled: true
+  # Cache directory path
+  cache_dir: "./cache"
+  # Cache time-to-live in hours (0 = permanent cache)
+  ttl_hours: 0
+  # Server whitelist - only cache tools from these servers (empty list = cache all)
+  server_whitelist: []
