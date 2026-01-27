@@ -6,10 +6,6 @@ import sys
 
 sys.path.append(os.getcwd())
 
-from ui.log_config import setup_logging
-
-setup_logging(log_file_path="./log/rag_database.log")
-
 
 def get_device(skip=True):
     if skip:

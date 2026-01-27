@@ -14,27 +14,21 @@ IntelliSearch 是一个基于 MCP (Model Context Protocol) 协议的智能搜索
 - 微信公众号搜索 (Wechat Search)
 - SAI 自建数据库搜索 (SAI Local Search)
 - Python 代码执行 (IPython MCP Server)，为智能体提供强大的动态代码执行环境。
+- [COMING!] 本地文件操作和执行
 
 ## 演示
 
 > [!NOTE]
 > 将在未来版本中发布。
+<!-- todo to be released -->
 
 ## 开发者指南
-
-> [!NOTE]
-> 下面为开发者提供了极简的开发和复现指南，欢迎 PR！
-
-如有任何问题，请联系 [yangxiyuan@sjtu.edu.cn](mailto:yangxiyuan@sjtu.edu.cn)！
 
 ### 环境准备
 
 ```bash
 # clone the project
 git clone https://github.com/xiyuanyang-code/IntelliSearch.git
-
-# 初始化子模块
-git submodule init
 
 # install dependency
 uv sync
@@ -58,6 +52,10 @@ ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4/
 
 # SERPER_API_KEY 网页搜索等一系列工具
 SERPER_API_KEY=your-api-key
+
+# MEMOS_API_KEY 支持 MEMOS 的文件搜索
+MEMOS_API_KEY="mpg-gVoOv7rXhYTNtzg11mdCPrNTlDtJcmQEPqKcFR03"
+MEMOS_BASE_URL="https://memos.memtensor.cn/api/openmem/v1"
 ```
 
 为了保证智能体对话及搜索功能的正常执行，需要设置如下的 API 密钥：
@@ -69,7 +67,9 @@ SERPER_API_KEY=your-api-key
 - `SERPER_API_KEY` 主要用于谷歌系列的高质量信息源搜索
     - [SERPER_OFFICIAL_WEBSITES](https://serper.dev/dashboard)，每个初始注册用户有 2500 credits 的免费额度。
 
-#### MCP 服务器配置
+#### `config/config.yaml` 配置
+
+<!-- todo rewrite this part -->
 
 为了保证速度和稳定性，用到的搜索工具都**采用本地部署**并且使用 stdio 的方式作为 MCP 的通信方式。在启动 MCP Server 之前需要做如下配置：
 
@@ -115,26 +115,18 @@ bash scripts/backend.sh stop
 
 智搜项目为用户提供了两种使用方式：
 
-- **CLI 使用方式**: 直接在命令行中使用，高效快捷，方便开发者开发新功能
-- **网页使用方式**: 使用 FastAPI 框架实现后端模型服务部署，同时搭配前端网页渲染，适合成品展示和生产环境中用户使用。
+- **CLI 使用方式**: 直接在命令行中使用，高效快捷，类 Claude Code 结构方便开发者自由开发添加新功能。
+- **网页使用方式**: 使用 FastAPI 框架实现后端模型服务部署，同时搭配前端网页渲染，适合成品展示和生产环境中用户使用。(前后端组件正在重构中，暂时不可用！)
 
 #### 命令行使用
 
 ```bash
-python backend/cli_v2.py
-# 支持流式输出
+python cli.py
 ```
 
-#### 网页使用
+## Todo List
 
-智搜项目也支持网页端的本地部署，后端使用 FastAPI 架构实现标准化的流式输出。
-
-```bash
-# 前端服务启动
-# 前端将会在 ` http://127.0.0.1:50001` 端口部署
-python frontend/flask/app.py
-
-# 后端服务启动
-# 后端默认端口 8001 端口
-python backend/main_fastapi.py
-```
+- Refactor and Enhance Local SAI Search
+    - 实现爬虫管道化
+- Rewrite README
+- Record Demos
