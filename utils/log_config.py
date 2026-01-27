@@ -2,10 +2,9 @@ import logging
 from loguru import logger
 from pathlib import Path
 
+
 def setup_logging(log_file_path="./log/main.log", project_prefix=None):
     log_path = Path(log_file_path)
-    # parents=True: 自动创建父级目录 (如 ./log)
-    # exist_ok=True: 目录已存在时不报错
     log_path.parent.mkdir(parents=True, exist_ok=True)
     logger.remove()
     file_handler = logging.FileHandler(log_file_path, mode="a", encoding="utf-8")
