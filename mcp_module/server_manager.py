@@ -15,6 +15,9 @@ from mcp.client.stdio import stdio_client
 from mcp_module.connector import MCPConnector
 from mcp_module.tool_cache import get_cache
 
+logging.basicConfig(
+    level=logging.WARNING, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 TOOL_CALL_ERROR = 35
 logging.addLevelName(TOOL_CALL_ERROR, "TOOL CALL ERROR")

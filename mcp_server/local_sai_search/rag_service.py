@@ -7,7 +7,7 @@ sys.path.append(os.getcwd())
 
 
 from src.json_vector_store import JSONVectorStoreManager
-from utils.log_config import setup_logging
+from ui.log_config import setup_logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel

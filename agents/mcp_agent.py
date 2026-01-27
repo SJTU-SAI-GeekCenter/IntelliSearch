@@ -11,7 +11,7 @@ import logging
 import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from pathlib import Path
+from ui.tool_ui import tool_ui
 
 from openai import OpenAI
 from mcp_module.server_manager import MultiServerManager
@@ -56,7 +56,7 @@ class MCPBaseAgent(BaseAgent):
         name: str = "MCPBaseAgent",
         model_name: str = "glm-4.5",
         system_prompt: str = "You are a helpful assistant",
-        server_config_path: str = "./config.json",
+        server_config_path: str = "config/config.json",
         max_tool_call: int = 5,
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
@@ -95,9 +95,11 @@ class MCPBaseAgent(BaseAgent):
         self.base_url = base_url or os.environ.get("BASE_URL")
         api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError("API key not found. Please set OPENAI_API_KEY environment variable.")
+            raise ValueError(
+                "API key not found. Please set OPENAI_API_KEY environment variable."
+            )
 
-        self.client = OpenAI(api_key=api_key, base_url=self.base_url)
+        self.client: OpenAI = OpenAI(api_key=api_key, base_url=self.base_url)
 
         # Initialize MCP server manager
         self.config_path = server_config_path
@@ -128,15 +130,15 @@ class MCPBaseAgent(BaseAgent):
         """
         # Extract configuration from metadata
         max_iterations = request.metadata.get("max_iterations", self.max_tool_call)
-        stream = request.metadata.get("stream", True)
 
         try:
             # Run async processing
-            result = asyncio.run(self._process_query_async(
-                user_message=request.prompt,
-                max_iterations=max_iterations,
-                stream=stream
-            ))
+            result = asyncio.run(
+                self._process_query_async(
+                    user_message=request.prompt,
+                    max_iterations=max_iterations,
+                )
+            )
 
             # Build response metadata
             response_metadata = {
@@ -149,7 +151,7 @@ class MCPBaseAgent(BaseAgent):
             return AgentResponse(
                 status="success",
                 answer=result.get("answer", ""),
-                metadata=response_metadata
+                metadata=response_metadata,
             )
 
         except Exception as e:
@@ -157,14 +159,11 @@ class MCPBaseAgent(BaseAgent):
             return AgentResponse(
                 status="failed",
                 answer=f"Error during inference: {str(e)}",
-                metadata={"error": str(e), "error_type": type(e).__name__}
+                metadata={"error": str(e), "error_type": type(e).__name__},
             )
 
     async def _process_query_async(
-        self,
-        user_message: str,
-        max_iterations: int,
-        stream: bool = True
+        self, user_message: str, max_iterations: int
     ) -> Dict[str, Any]:
         """
         Process user query asynchronously with MCP tool support.
@@ -182,7 +181,7 @@ class MCPBaseAgent(BaseAgent):
         self.logger.info(f"Available tools: {list(tools.keys())}")
         self.tools_store = tools
 
-        # Format tools for LLM
+        # Format tools for LLM (OpenAI Format)
         available_tools = [
             {
                 "type": "function",
@@ -206,45 +205,50 @@ class MCPBaseAgent(BaseAgent):
                 self.logger.info(f"Processing round {round_count + 1}/{max_iterations}")
 
                 # Get LLM response
-                final_text, response = await self._stream_chat_response(
-                    available_tools=available_tools
+                completion = self.client.chat.completions.create(
+                    model=self.model_name, messages=self.history, tools=available_tools
+                )
+
+                tool_call_lists = completion.choices[0].message.tool_calls
+                has_tool_calls = (
+                    tool_call_lists is not None and len(tool_call_lists) > 0
                 )
 
                 # Check for tool calls
-                if response.choices[0].finish_reason == "tool_calls":
+                if has_tool_calls:
                     # Add assistant message to history
-                    self.history.append(response.choices[0].message.model_dump())
+                    self.history.append(completion.choices[0].message.model_dump())
 
                     # Execute tool calls
                     tool_results = await self._execute_tool_calls(
-                        response.choices[0].message.tool_calls,
-                        tools
+                        tool_call_lists, tools
                     )
+
                     tools_called.extend(tool_results["tools_used"])
                     self.history.extend(tool_results["history"])
-
                     continue
+
                 else:
                     # LLM completed without tool calls
-                    final_answer = response.choices[0].message.content
+                    final_answer = completion.choices[0].message.content
                     self.history.append({"role": "assistant", "content": final_answer})
 
                     return {
                         "answer": final_answer,
                         "iterations": round_count + 1,
                         "tools_called": tools_called,
-                        "tokens": {}
+                        "tokens": {},
                     }
 
             # Max iterations reached
             self.logger.warning(f"Max tool call limit reached: {max_iterations}")
-            final_answer = await self._generate_final_response(available_tools)
+            final_answer = await self._generate_final_response()
 
             return {
                 "answer": final_answer,
                 "iterations": max_iterations,
                 "tools_called": tools_called,
-                "tokens": {}
+                "tokens": {},
             }
 
         except Exception as e:
@@ -279,70 +283,8 @@ class MCPBaseAgent(BaseAgent):
         finally:
             await self.server_manager.close_all_connections()
 
-    async def _stream_chat_response(
-        self,
-        available_tools: Optional[List[Dict]] = None
-    ) -> tuple[str, Any]:
-        """
-        Generate streaming chat response from LLM.
-
-        Args:
-            available_tools: List of available tools for function calling
-
-        Returns:
-            Tuple of (text_content, full_response)
-        """
-        result_text = ""
-
-        # Create streaming request
-        if available_tools:
-            stream = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=self.history,
-                tools=available_tools,
-                stream=True,
-                temperature=0.8,
-            )
-        else:
-            stream = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=self.history,
-                stream=True,
-                temperature=0.8,
-            )
-
-        # Process stream chunks
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                print(content, end="", flush=True)
-                result_text += content
-
-        print()  # New line after stream
-
-        # Get non-streaming response for tool calls
-        if available_tools:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=self.history,
-                tools=available_tools,
-                stream=False,
-                temperature=0.8,
-            )
-        else:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=self.history,
-                stream=False,
-                temperature=0.8,
-            )
-
-        return result_text, response
-
     async def _execute_tool_calls(
-        self,
-        tool_calls: List[Any],
-        available_tools: Dict[str, Any]
+        self, tool_calls: List[Any], available_tools: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Execute multiple tool calls and aggregate results.
@@ -359,28 +301,30 @@ class MCPBaseAgent(BaseAgent):
 
         for tool_call in tool_calls:
             tool_name = tool_call.function.name
-            print(f"\n[Tool Call] {tool_name}\n")
+            tool_ui.display_tool_call(tool_name)
             self.logger.info(f"Executing tool: {tool_call}")
 
             # Find full tool name
             tool_name_long = None
             for tool_info in list(available_tools.values()):
                 if tool_info.get("name") == tool_name:
-                    tool_name_long = f"{tool_info.get('server')}:{tool_info.get('name')}"
+                    tool_name_long = (
+                        f"{tool_info.get('server')}:{tool_info.get('name')}"
+                    )
                     break
 
             if not tool_name_long:
                 result_text = f"Error: Tool '{tool_name}' not found"
-                print(f"[Error] {result_text}\n")
+                tool_ui.display_tool_error(result_text)
             else:
                 try:
                     # Parse and fix tool arguments
                     tool_args = json.loads(tool_call.function.arguments)
                     self.logger.info(f"Tool arguments: {tool_args}")
 
-                    print(f"[Tool Input] {tool_name_long}")
-                    print(f"[Arguments] {json.dumps(tool_args, indent=2, ensure_ascii=False)}\n")
-                    print("[Executing]...")
+                    # Display tool input with styled UI
+                    tool_ui.display_tool_input(tool_name_long, tool_args)
+                    tool_ui.display_execution_status("executing")
 
                     # Fix tool arguments if needed
                     tool_args = fix_tool_args(
@@ -391,40 +335,37 @@ class MCPBaseAgent(BaseAgent):
 
                     # Execute tool call
                     result = await self._get_tool_response(
-                        call_params=tool_args,
-                        tool_name=tool_name_long
+                        call_params=tool_args, tool_name=tool_name_long
                     )
                     result_text = result.model_dump()["content"][0]["text"]
 
-                    # Display result
-                    print(f"[Result] ", end="")
-                    if len(result_text) > 500:
-                        truncated = result_text[:500] + "...(truncated)"
-                        print(f"{truncated}\n[Full length: {len(result_text)} chars]\n")
-                    else:
-                        print(f"{result_text}\n")
+                    # Display result with styled UI
+                    tool_ui.display_execution_status("completed")
+                    tool_ui.display_tool_result(result_text, max_length=500)
 
                 except Exception as e:
                     error_msg = f"Tool execution failed: {e}"
-                    print(f"[Error] {error_msg}\n")
+                    tool_ui.display_tool_error(error_msg)
                     result_text = error_msg
 
             # Record tool call
             tools_used.append(tool_name_long or tool_name)
 
             # Add result to history
-            tool_results_for_history.append({
-                "role": "tool",
-                "content": result_text,
-                "tool_call_id": tool_call.id,
-            })
+            tool_results_for_history.append(
+                {
+                    "role": "tool",
+                    "content": result_text,
+                    "tool_call_id": tool_call.id,
+                }
+            )
 
         return {"tools_used": tools_used, "history": tool_results_for_history}
 
     async def _get_tool_response(
         self,
         call_params: Optional[Dict[str, Any]] = None,
-        tool_name: Optional[str] = None
+        tool_name: Optional[str] = None,
     ) -> CallToolResult:
         """
         Execute a single MCP tool call.
@@ -455,7 +396,7 @@ class MCPBaseAgent(BaseAgent):
         finally:
             await self.server_manager.close_all_connections()
 
-    async def _generate_final_response(self, available_tools: List[Dict]) -> str:
+    async def _generate_final_response(self) -> str:
         """
         Generate final response after max iterations reached.
 
@@ -465,16 +406,20 @@ class MCPBaseAgent(BaseAgent):
         Returns:
             Final text response from LLM
         """
-        self.history.append({
-            "role": "user",
-            "content": (
-                "You have reached the maximum tool call limit. "
-                "Please use the information gathered so far to generate your final answer."
-            )
-        })
+        self.history.append(
+            {
+                "role": "user",
+                "content": (
+                    "You have reached the maximum tool call limit. "
+                    "Please use the information gathered so far to generate your final answer."
+                ),
+            }
+        )
 
-        _, response = await self._stream_chat_response(available_tools=[])
-        final_content = response.choices[0].message.content
+        completion = self.client.chat.completions.create(
+                    model=self.model_name, messages=self.history
+                )
+        final_content = completion.choices[0].message.content
         self.history.append({"role": "assistant", "content": final_content})
 
         return final_content
@@ -496,21 +441,25 @@ class MCPBaseAgent(BaseAgent):
 
         for name, conf in cfg.get("mcpServers", {}).items():
             if conf.get("transport") == "sse":
-                servers.append({
-                    "name": name,
-                    "url": conf.get("url"),
-                    "transport": conf.get("transport", "sse"),
-                })
+                servers.append(
+                    {
+                        "name": name,
+                        "url": conf.get("url"),
+                        "transport": conf.get("transport", "sse"),
+                    }
+                )
             else:
-                servers.append({
-                    "name": name,
-                    "command": [conf.get("command")] + conf.get("args", []),
-                    "env": conf.get("env"),
-                    "cwd": conf.get("cwd"),
-                    "transport": conf.get("transport", "stdio"),
-                    "port": conf.get("port"),
-                    "endpoint": conf.get("endpoint", "/mcp"),
-                })
+                servers.append(
+                    {
+                        "name": name,
+                        "command": [conf.get("command")] + conf.get("args", []),
+                        "env": conf.get("env"),
+                        "cwd": conf.get("cwd"),
+                        "transport": conf.get("transport", "stdio"),
+                        "port": conf.get("port"),
+                        "endpoint": conf.get("endpoint", "/mcp"),
+                    }
+                )
 
         return servers
 
@@ -526,8 +475,7 @@ class MCPBaseAgent(BaseAgent):
         """
         if not output_file_path:
             output_file_path = os.path.join(
-                self.result_dir,
-                f"{self.time_stamp}_memory.json"
+                self.result_dir, f"{self.time_stamp}_memory.json"
             )
 
         dir_path, _ = os.path.split(output_file_path)
@@ -543,7 +491,9 @@ class MCPBaseAgent(BaseAgent):
         """Get the current system prompt."""
         return self.system_prompt
 
-    def append_history(self, history_episodes: Optional[List[Dict[str, str]]] = None) -> None:
+    def append_history(
+        self, history_episodes: Optional[List[Dict[str, str]]] = None
+    ) -> None:
         """
         Append conversation episodes to history.
 

@@ -2,6 +2,34 @@
 # This file contains all necessary configuration for the MCP system
 # Can be overridden via environment variables with format: BENCHMARK_SECTION_SUBSECTION_KEY=value
 
+agent:
+  # Agent type to use (available: mcp_base)
+  # Override with: AGENT_TYPE
+  type: mcp_base
+
+  # Agent display name
+  # Override with: AGENT_NAME
+  name: IntelliSearchAgent
+
+  # LLM model name
+  # Override with: AGENT_MODEL_NAME
+  model_name: deepseek-chat
+
+  # Maximum number of tool calls per inference
+  # Override with: AGENT_MAX_TOOL_CALL
+  max_tool_call: 20
+
+  # Path to MCP server configuration file
+  # Override with: AGENT_SERVER_CONFIG_PATH
+  server_config_path: config/config.json
+
+  # API configuration (optional)
+  # If not specified, will use environment variables (BASE_URL, OPENAI_API_KEY)
+  # Override with: AGENT_BASE_URL, AGENT_API_KEY
+  api:
+    base_url: null
+    api_key: null
+
 # MCP server related configuration
 mcp:
   connection:
