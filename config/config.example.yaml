@@ -3,9 +3,9 @@
 # Can be overridden via environment variables with format: BENCHMARK_SECTION_SUBSECTION_KEY=value
 
 agent:
-  # Agent type to use (available: mcp_base)
+  # Agent type to use
   # Override with: AGENT_TYPE
-  type: mcp_base
+  type: mcp_base_agent
 
   # Agent display name
   # Override with: AGENT_NAME
@@ -21,6 +21,7 @@ agent:
 
   # Path to MCP server configuration file
   # Override with: AGENT_SERVER_CONFIG_PATH
+  # * Change to absolute path
   server_config_path: config/config.json
 
   # API configuration (optional)
@@ -29,6 +30,8 @@ agent:
   api:
     base_url: null
     api_key: null
+
+  system_prompt_path: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/prompts/sys_zh.md
 
 # MCP server related configuration
 mcp:

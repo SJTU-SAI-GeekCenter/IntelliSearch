@@ -8,7 +8,6 @@ modifying existing code.
 
 from typing import Dict, Type, Any
 from core.base import BaseAgent
-from agents.mcp_agent import MCPBaseAgent
 
 
 class AgentFactory:
@@ -24,16 +23,26 @@ class AgentFactory:
     Example:
         >>> factory = AgentFactory()
         >>> agent = factory.create_agent(
-        ...     agent_type="mcp_base",
+        ...     agent_type="mcp_base_agent",
         ...     name="MyAgent",
         ...     model_name="glm-4.5"
         ... )
         >>> response = agent.inference(request)
     """
 
-    _agents: Dict[str, Type[BaseAgent]] = {
-        "mcp_base": MCPBaseAgent,
-    }
+    _agents: Dict[str, Type[BaseAgent]] = {}
+
+    @classmethod
+    def _ensure_default_agents(cls) -> None:
+        """
+        Ensure default agents are registered.
+
+        This method is called lazily to avoid circular imports.
+        """
+        if "mcp_base_agent" not in cls._agents:
+            from agents.mcp_agent import MCPBaseAgent
+
+            cls._agents["mcp_base_agent"] = MCPBaseAgent
 
     @classmethod
     def register_agent(cls, agent_type: str, agent_class: Type[BaseAgent]) -> None:
@@ -108,12 +117,15 @@ class AgentFactory:
 
         Example:
             >>> agent = AgentFactory.create_agent(
-            ...     agent_type="mcp_base",
+            ...     agent_type="mcp_base_agent",
             ...     name="SearchAgent",
             ...     model_name="deepseek-chat",
             ...     max_tool_call=10
             ... )
         """
+        # Ensure default agents are registered
+        cls._ensure_default_agents()
+
         agent_class = cls._agents.get(agent_type)
 
         if not agent_class:
@@ -142,8 +154,10 @@ class AgentFactory:
         Example:
             >>> types = AgentFactory.list_agent_types()
             >>> print(types)
-            ['mcp_base']
+            ['mcp_base_agent']
         """
+        # Ensure default agents are registered
+        cls._ensure_default_agents()
         return list(cls._agents.keys())
 
     @classmethod
@@ -157,4 +171,6 @@ class AgentFactory:
         Returns:
             True if agent_type is registered, False otherwise
         """
+        # Ensure default agents are registered
+        cls._ensure_default_agents()
         return agent_type in cls._agents

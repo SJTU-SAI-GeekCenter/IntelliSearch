@@ -10,10 +10,10 @@ MCP tool calls, and conversation management.
 import sys
 import logging
 import os
-import json
 import yaml
+import re
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.markdown import Markdown
@@ -26,7 +26,6 @@ from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.styles import Style as PromptStyle
-
 from core.base import BaseAgent
 from core.factory import AgentFactory
 from core.schema import AgentRequest, AgentResponse
@@ -41,148 +40,6 @@ from ui.theme import ThemeColors
 from ui.tool_ui import ToolUIManager
 from ui.status_manager import get_status_manager
 from ui.loading_messages import get_random_processing_message
-
-class ToolCallUI:
-    """
-    Helper class for displaying MCP tool calls with styled UI.
-
-    This class provides methods to display tool execution information
-    in a visually appealing way using cyan/blue color scheme.
-    """
-
-    def __init__(self, console: Console):
-        """
-        Initialize the ToolCallUI.
-
-        Args:
-            console: Rich console instance for output
-        """
-        self.console = console
-
-    def display_tool_call(self, tool_name: str) -> None:
-        """
-        Display tool call header.
-
-        Args:
-            tool_name: Name of the tool being called
-        """
-        header = Text()
-        header.append("", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
-        header.append("Tool Call: ", style=Style(color=ThemeColors.TOOL_SECONDARY))
-        header.append(tool_name, style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
-
-        self.console.print(
-            Panel(
-                header,
-                border_style=Style(color=ThemeColors.TOOL_BORDER),
-                padding=(0, 1),
-            )
-        )
-
-    def display_tool_input(
-        self, tool_name: str, arguments: Dict[str, Any]
-    ) -> None:
-        """
-        Display tool input parameters.
-
-        Args:
-            tool_name: Full tool name
-            arguments: Tool arguments dictionary
-        """
-        # Create title
-        title = Text()
-        title.append("📥 ", style=Style(color=ThemeColors.TOOL_ACCENT))
-        title.append("Tool Input", style=Style(color=ThemeColors.TOOL_SECONDARY))
-
-        # Create content table
-        table = Table(show_header=False, box=None, padding=(0, 2))
-        table.add_column("Key", style=Style(color=ThemeColors.TOOL_SECONDARY))
-        table.add_column("Value", style=Style(color=ThemeColors.FG))
-
-        table.add_row("Tool", tool_name)
-
-        # Format arguments
-        args_str = json.dumps(arguments, indent=2, ensure_ascii=False)
-        table.add_row("Arguments", Text(args_str, style=Style(color=ThemeColors.DIM)))
-
-        self.console.print(
-            Panel(
-                table,
-                title=title,
-                title_align="left",
-                border_style=Style(color=ThemeColors.TOOL_PRIMARY),
-                padding=(0, 1),
-            )
-        )
-
-    def display_execution_status(self, status: str = "executing") -> None:
-        """
-        Display tool execution status.
-
-        Args:
-            status: Either 'executing' or 'completed'
-        """
-        if status == "executing":
-            status_text = Text()
-            status_text.append("⟳ ", style=Style(color=ThemeColors.TOOL_ACCENT))
-            status_text.append("Executing...", style=Style(color=ThemeColors.TOOL_SECONDARY))
-        else:
-            status_text = Text()
-            status_text.append("✓ ", style=Style(color=ThemeColors.SUCCESS))
-            status_text.append("Completed", style=Style(color=ThemeColors.TOOL_SECONDARY))
-
-        self.console.print(status_text)
-
-    def display_tool_result(self, result: str, max_length: int = 500) -> None:
-        """
-        Display tool execution result.
-
-        Args:
-            result: Result text from tool execution
-            max_length: Maximum length to display before truncating
-        """
-        # Create title
-        title = Text()
-        title.append("📤 ", style=Style(color=ThemeColors.TOOL_ACCENT))
-        title.append("Result", style=Style(color=ThemeColors.TOOL_SECONDARY))
-
-        # Truncate if too long
-        if len(result) > max_length:
-            truncated = result[:max_length] + f"...(truncated, full length: {len(result)} chars)"
-            result_text = Text(truncated, style=Style(color=ThemeColors.FG))
-        else:
-            result_text = Text(result, style=Style(color=ThemeColors.FG))
-
-        self.console.print(
-            Panel(
-                result_text,
-                title=title,
-                title_align="left",
-                border_style=Style(color=ThemeColors.TOOL_PRIMARY),
-                padding=(0, 1),
-            )
-        )
-        self.console.print()
-
-    def display_tool_error(self, error_msg: str) -> None:
-        """
-        Display tool execution error.
-
-        Args:
-            error_msg: Error message to display
-        """
-        error_text = Text()
-        error_text.append("✗ ", style=Style(color=ThemeColors.ERROR))
-        error_text.append(error_msg, style=Style(color=ThemeColors.ERROR))
-
-        self.console.print(
-            Panel(
-                error_text,
-                border_style=Style(color=ThemeColors.ERROR),
-                padding=(0, 1),
-            )
-        )
-        self.console.print()
 
 
 class IntelliSearchCLI:
@@ -317,6 +174,13 @@ class IntelliSearchCLI:
         api_config = agent_config.get("api", {})
         base_url = os.getenv("AGENT_BASE_URL") or api_config.get("base_url")
         api_key = os.getenv("AGENT_API_KEY") or api_config.get("api_key")
+        system_prompt_path = agent_config.get("system_prompt_path", None)
+        if not system_prompt_path:
+            self.logger.warning("System prompt not found.")
+            self.system_prompt = "You are a helpful assistant"
+        else:
+            with open(system_prompt_path, "r", encoding="utf-8") as file:
+                self.system_prompt = file.read()
 
         # Build final configuration
         final_config = {
@@ -326,6 +190,7 @@ class IntelliSearchCLI:
             "server_config_path": agent_config.get(
                 "server_config_path", "config/config.json"
             ),
+            "system_prompt": self.system_prompt
         }
 
         # Add optional API configuration
@@ -334,18 +199,11 @@ class IntelliSearchCLI:
         if api_key:
             final_config["api_key"] = api_key
 
-        return agent_config.get("type", "mcp_base"), final_config
+        return agent_config.get("type", "mcp_base_agent"), final_config
 
     def print_sai_logo(self) -> None:
         """Display beautiful SAI-IntelliSearch logo with ASCII art."""
         logo_art = """
- ██████╗  █████╗ ██╗
-██╔════╝ ██╔══██╗██║
-╚█████╗  ███████║██║
- ╚═══██╗ ██╔══██║██║
-██████╔╝ ██║  ██║██║
-╚═════╝  ╚═╝  ╚═╝╚═╝
-
 ██╗███╗   ██╗████████╗███████╗██╗     ██╗     ██╗███████╗███████╗ █████╗ ██████╗  ██████╗██╗  ██╗
 ██║████╗  ██║╚══██╔══╝██╔════╝██║     ██║     ██║██╔════╝██╔════╝██╔══██╗██╔══██╗██╔════╝██║  ██║
 ██║██╔██╗ ██║   ██║   █████╗  ██║     ██║     ██║███████╗█████╗  ███████║██████╔╝██║     ███████║
@@ -353,7 +211,6 @@ class IntelliSearchCLI:
 ██║██║ ╚████║   ██║   ███████╗███████╗███████╗██║███████║███████╗██║  ██║██║  ██║╚██████╗██║  ██║
 ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝╚══════╝╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
 """
-
         # Apply theme color
         logo_text = Text()
         logo_text.append(logo_art, style=Style(color=ThemeColors.ACCENT, bold=True))
@@ -366,7 +223,7 @@ class IntelliSearchCLI:
             full_logo,
             border_style=Style(color=ThemeColors.PRIMARY),
             padding=(1, 2),
-            title="[bold]v1.0.0[/bold]",
+            title="[bold]SJTU-SAI Geek Center[/bold]",
             title_align="right",
         )
 
@@ -375,8 +232,12 @@ class IntelliSearchCLI:
     def print_banner(self) -> None:
         """Display welcome banner and available agent types."""
         banner_text = Text()
-        banner_text.append("IntelliSearch", style=Style(color=ThemeColors.ACCENT, bold=True))
-        banner_text.append(" CLI v3.1", style=Style(color=ThemeColors.SECONDARY, bold=True))
+        banner_text.append(
+            "IntelliSearch", style=Style(color=ThemeColors.ACCENT, bold=True)
+        )
+        banner_text.append(
+            " CLI v3.1", style=Style(color=ThemeColors.SECONDARY, bold=True)
+        )
         banner_text.append(
             f"\nThe boundaries of searching capabilities are the boundaries of agents.",
             style=Style(color=ThemeColors.DIM),
@@ -404,7 +265,9 @@ class IntelliSearchCLI:
 
         self.console.print(types_text)
         self.console.print(
-            Text("Type /help for a list of commands", style=Style(color=ThemeColors.DIM))
+            Text(
+                "Type /help for a list of commands", style=Style(color=ThemeColors.DIM)
+            )
         )
         self.console.print()
 
@@ -438,7 +301,7 @@ class IntelliSearchCLI:
 
         # Tips section
         tips_text = Text()
-        tips_text.append("\n💡 Tips:\n", style=Style(color=ThemeColors.ACCENT, bold=True))
+        tips_text.append("\nTips:\n", style=Style(color=ThemeColors.ACCENT, bold=True))
         tips = [
             "• Start a new session by running the CLI",
             "• Use /reset to reconfigure the agent",
@@ -468,9 +331,7 @@ class IntelliSearchCLI:
             # Validate agent type
             available_types = AgentFactory.list_agent_types()
             if agent_type not in available_types:
-                self.console.print(
-                    Text(f"Error: Unknown agent type '{agent_type}'")
-                )
+                self.console.print(Text(f"Error: Unknown agent type '{agent_type}'"))
                 self.console.print(
                     Text(f"Available types: {', '.join(available_types)}")
                 )
@@ -502,6 +363,38 @@ class IntelliSearchCLI:
             self.logger.error(f"Agent creation failed: {e}", exc_info=True)
             return False
 
+    def parse_structured_response(
+        self, response_text: str
+    ) -> Optional[Tuple[str, str]]:
+        """
+        Parse structured response with final_response and tool_tracing tags.
+
+        Args:
+            response_text: Raw response text from LLM
+
+        Returns:
+            Tuple of (final_response, tool_tracing) if both tags found,
+            None if parsing fails
+        """
+        # Try to extract <final_response> tag
+        final_response_match = re.search(
+            r"<final_response>\s*(.*?)\s*</final_response>", response_text, re.DOTALL
+        )
+
+        # Try to extract <tool_tracing> tag
+        tool_tracing_match = re.search(
+            r"<tool_tracing>\s*(.*?)\s*</tool_tracing>", response_text, re.DOTALL
+        )
+
+        # Check if both tags are present
+        if final_response_match and tool_tracing_match:
+            final_response = final_response_match.group(1).strip()
+            tool_tracing = tool_tracing_match.group(1).strip()
+            return (final_response, tool_tracing)
+
+        # If tags are not found, return None to indicate fallback needed
+        return None
+
     def display_response(self, response: AgentResponse) -> None:
         """
         Display agent response with markdown rendering and metadata.
@@ -509,19 +402,54 @@ class IntelliSearchCLI:
         Args:
             response: AgentResponse from agent inference
         """
-        # Create response panel with markdown
-        response_md = Markdown(response.answer, style=Style(color=ThemeColors.FG))
+        # Try to parse structured response
+        parsed = self.parse_structured_response(response.answer)
 
-        response_panel = Panel(
-            response_md,
-            title="IntelliSearch",
-            title_align="left",
-            border_style=Style(color=ThemeColors.SECONDARY),
-            padding=(0, 1),
-        )
+        if parsed:
+            # Successfully parsed - display in two separate panels
+            final_response, tool_tracing = parsed
 
-        self.console.print(response_panel)
-        self.console.print()
+            # Display final response
+            final_response_md = Markdown(
+                final_response, style=Style(color=ThemeColors.FG)
+            )
+            final_response_panel = Panel(
+                final_response_md,
+                title="[bold]Final Response[/bold]",
+                title_align="left",
+                border_style=Style(color=ThemeColors.SECONDARY),
+                padding=(0, 1),
+            )
+            self.console.print(final_response_panel)
+
+            # Display tool tracing
+            tool_tracing_md = Markdown(
+                tool_tracing, style=Style(color=ThemeColors.FG)
+            )
+            tool_tracing_panel = Panel(
+                tool_tracing_md,
+                title="[bold dim]Tool Tracing[/bold dim]",
+                title_align="left",
+                border_style=Style(color=ThemeColors.PRIMARY),
+                padding=(0, 1),
+            )
+            self.console.print(tool_tracing_panel)
+            self.console.print()
+        else:
+            # Parse failed - fallback to original strategy
+            # Create response panel with markdown
+            response_md = Markdown(response.answer, style=Style(color=ThemeColors.FG))
+
+            response_panel = Panel(
+                response_md,
+                title="IntelliSearch",
+                title_align="left",
+                border_style=Style(color=ThemeColors.SECONDARY),
+                padding=(0, 1),
+            )
+
+            self.console.print(response_panel)
+            self.console.print()
 
     def show_loading_indicator(self, message: str = "Processing"):
         """
@@ -532,7 +460,7 @@ class IntelliSearchCLI:
         """
         if message == "Processing":
             # Use random message from collection
-            
+
             message = get_random_processing_message()
         self.status_manager.set_processing(message)
 
@@ -546,6 +474,7 @@ class IntelliSearchCLI:
         if message == "Generating final response...":
             # Use random message from collection
             from ui.loading_messages import get_random_summarizing_message
+
             message = get_random_summarizing_message()
         self.status_manager.set_summarizing(message)
 
@@ -570,13 +499,17 @@ class IntelliSearchCLI:
             try:
                 user_input = self.prompt_session.prompt(
                     prompt_text,
-                    completer=self.command_completer if self._detect_command_start() else None,
+                    completer=(
+                        self.command_completer if self._detect_command_start() else None
+                    ),
                 )
 
                 return user_input.strip()
             except KeyboardInterrupt:
                 # Allow Ctrl+C to cancel input
-                self.console.print("\n[red]Input cancelled. Press Ctrl+C again to exit.[/red]")
+                self.console.print(
+                    "\n[red]Input cancelled. Press Ctrl+C again to exit.[/red]"
+                )
                 continue
 
     def _detect_command_start(self) -> bool:
@@ -605,7 +538,10 @@ class IntelliSearchCLI:
 
         if cmd in ["quit", "exit"]:
             self.console.print(
-                Text("\nExiting IntelliSearch CLI. Goodbye!\n", style=Style(color=ThemeColors.ACCENT))
+                Text(
+                    "\nExiting IntelliSearch CLI. Goodbye!\n",
+                    style=Style(color=ThemeColors.ACCENT),
+                )
             )
             return False
 
@@ -617,12 +553,18 @@ class IntelliSearchCLI:
             if self.agent:
                 self.agent.clear_history()
                 self.console.print(
-                    Text("✓ Conversation history cleared.", style=Style(color=ThemeColors.SUCCESS))
+                    Text(
+                        "✓ Conversation history cleared.",
+                        style=Style(color=ThemeColors.SUCCESS),
+                    )
                 )
                 self.console.print()
             else:
                 self.console.print(
-                    Text("No active agent. Use /reset to create one.", style=Style(color=ThemeColors.WARNING))
+                    Text(
+                        "No active agent. Use /reset to create one.",
+                        style=Style(color=ThemeColors.WARNING),
+                    )
                 )
                 self.console.print()
             return True
@@ -630,7 +572,10 @@ class IntelliSearchCLI:
         elif cmd == "export":
             if not self.agent:
                 self.console.print(
-                    Text("No active agent to export from.", style=Style(color=ThemeColors.WARNING))
+                    Text(
+                        "No active agent to export from.",
+                        style=Style(color=ThemeColors.WARNING),
+                    )
                 )
                 return True
 
@@ -638,7 +583,10 @@ class IntelliSearchCLI:
             try:
                 result_path = self.agent.export_conversation(output_path)
                 self.console.print(
-                    Text(f"✓ Conversation exported to: {result_path}", style=Style(color=ThemeColors.SUCCESS))
+                    Text(
+                        f"✓ Conversation exported to: {result_path}",
+                        style=Style(color=ThemeColors.SUCCESS),
+                    )
                 )
                 self.console.print()
             except Exception as e:
@@ -651,7 +599,10 @@ class IntelliSearchCLI:
         elif cmd == "config":
             if not self.agent:
                 self.console.print(
-                    Text("No active agent configured.", style=Style(color=ThemeColors.WARNING))
+                    Text(
+                        "No active agent configured.",
+                        style=Style(color=ThemeColors.WARNING),
+                    )
                 )
                 return True
 
@@ -680,16 +631,25 @@ class IntelliSearchCLI:
 
         elif cmd == "reset":
             self.console.print(
-                Text("\n⟳ Resetting agent configuration...", style=Style(color=ThemeColors.INFO))
+                Text(
+                    "\n⟳ Resetting agent configuration...",
+                    style=Style(color=ThemeColors.INFO),
+                )
             )
             if self.setup_agent():
                 self.console.print(
-                    Text("✓ Agent reconfigured successfully.", style=Style(color=ThemeColors.SUCCESS))
+                    Text(
+                        "✓ Agent reconfigured successfully.",
+                        style=Style(color=ThemeColors.SUCCESS),
+                    )
                 )
                 self.console.print()
             else:
                 self.console.print(
-                    Text("✗ Failed to reconfigure agent. Exiting.", style=Style(color=ThemeColors.ERROR))
+                    Text(
+                        "✗ Failed to reconfigure agent. Exiting.",
+                        style=Style(color=ThemeColors.ERROR),
+                    )
                 )
                 return False
             return True
@@ -697,23 +657,34 @@ class IntelliSearchCLI:
         elif cmd == "model":
             if not self.agent:
                 self.console.print(
-                    Text("No active agent. Use /reset to create one.", style=Style(color=ThemeColors.WARNING))
+                    Text(
+                        "No active agent. Use /reset to create one.",
+                        style=Style(color=ThemeColors.WARNING),
+                    )
                 )
                 return True
 
             if len(cmd_parts) < 2:
                 self.console.print(
-                    Text(f"Current model: {self.agent.model_name}", style=Style(color=ThemeColors.INFO))
+                    Text(
+                        f"Current model: {self.agent.model_name}",
+                        style=Style(color=ThemeColors.INFO),
+                    )
                 )
                 self.console.print(
-                    Text("Usage: /model <model_name>", style=Style(color=ThemeColors.DIM))
+                    Text(
+                        "Usage: /model <model_name>", style=Style(color=ThemeColors.DIM)
+                    )
                 )
                 return True
 
             new_model = cmd_parts[1]
             self.agent.model_name = new_model
             self.console.print(
-                Text(f"✓ Model changed to: {new_model}", style=Style(color=ThemeColors.SUCCESS))
+                Text(
+                    f"✓ Model changed to: {new_model}",
+                    style=Style(color=ThemeColors.SUCCESS),
+                )
             )
             self.console.print()
             return True
@@ -721,23 +692,34 @@ class IntelliSearchCLI:
         elif cmd == "max_tools":
             if not self.agent:
                 self.console.print(
-                    Text("No active agent. Use /reset to create one.", style=Style(color=ThemeColors.WARNING))
+                    Text(
+                        "No active agent. Use /reset to create one.",
+                        style=Style(color=ThemeColors.WARNING),
+                    )
                 )
                 return True
 
             if len(cmd_parts) < 2 or not cmd_parts[1].isdigit():
                 self.console.print(
-                    Text(f"Current max tool calls: {self.agent.max_tool_call}", style=Style(color=ThemeColors.INFO))
+                    Text(
+                        f"Current max tool calls: {self.agent.max_tool_call}",
+                        style=Style(color=ThemeColors.INFO),
+                    )
                 )
                 self.console.print(
-                    Text("Usage: /max_tools <number>", style=Style(color=ThemeColors.DIM))
+                    Text(
+                        "Usage: /max_tools <number>", style=Style(color=ThemeColors.DIM)
+                    )
                 )
                 return True
 
             new_max = int(cmd_parts[1])
             self.agent.max_tool_call = new_max
             self.console.print(
-                Text(f"✓ Max tool calls changed to: {new_max}", style=Style(color=ThemeColors.SUCCESS))
+                Text(
+                    f"✓ Max tool calls changed to: {new_max}",
+                    style=Style(color=ThemeColors.SUCCESS),
+                )
             )
             self.console.print()
             return True
@@ -747,7 +729,10 @@ class IntelliSearchCLI:
                 Text(f"Unknown command: /{cmd}", style=Style(color=ThemeColors.ERROR))
             )
             self.console.print(
-                Text("Type /help for available commands", style=Style(color=ThemeColors.DIM))
+                Text(
+                    "Type /help for available commands",
+                    style=Style(color=ThemeColors.DIM),
+                )
             )
             self.console.print()
             return True
@@ -769,13 +754,12 @@ class IntelliSearchCLI:
         # Setup agent
         if not self.setup_agent():
             self.console.print(
-                Text("Failed to initialize agent. Exiting.", style=Style(color=ThemeColors.ERROR))
+                Text(
+                    "Failed to initialize agent. Exiting.",
+                    style=Style(color=ThemeColors.ERROR),
+                )
             )
             return
-
-        self.console.print(
-            Text("✓ Ready! Start typing your message below.\n", style=Style(color=ThemeColors.SUCCESS))
-        )
 
         while self.running:
             try:
@@ -816,7 +800,10 @@ class IntelliSearchCLI:
             except KeyboardInterrupt:
                 self.console.print("\n\n")
                 self.console.print(
-                    Text("⚠ Interrupted. Use /quit to exit.", style=Style(color=ThemeColors.WARNING))
+                    Text(
+                        "⚠ Interrupted. Use /quit to exit.",
+                        style=Style(color=ThemeColors.WARNING),
+                    )
                 )
                 self.console.print()
                 self.running = False

@@ -14,7 +14,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 from openai import OpenAI
 from datetime import datetime
-from mcp_module.server_manager import MultiServerManager
+from tools.server_manager import MultiServerManager
 from mcp.types import CallToolResult
 from backend.tool_hash import fix_tool_args
 
