@@ -1,7 +1,7 @@
 # IntelliSearch
 
 > [!IMPORTANT]
-> The boundaries of searching capabilities are the boundaries of agents.
+> 搜索能力的边界就是智能体的边界。
 
 IntelliSearch 是一个基于 MCP (Model Context Protocol) 协议的智能搜索聚合平台，旨在提升智能体的搜索边界能力，让模型能够服务于更复杂的搜索任务。智搜集成了多种 MCP 优质搜索工具，包括：
 
@@ -18,9 +18,7 @@ IntelliSearch 是一个基于 MCP (Model Context Protocol) 协议的智能搜索
 
 ## 演示
 
-> [!NOTE]
-> 将在未来版本中发布。
-<!-- todo to be released -->
+![CLI Interface Demo](./assets/cli_interface_demo.png)
 
 ## 开发者指南
 
@@ -54,7 +52,7 @@ ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4/
 SERPER_API_KEY=your-api-key
 
 # MEMOS_API_KEY 支持 MEMOS 的文件搜索
-MEMOS_API_KEY="mpg-gVoOv7rXhYTNtzg11mdCPrNTlDtJcmQEPqKcFR03"
+MEMOS_API_KEY="your-memos-api-key"
 MEMOS_BASE_URL="https://memos.memtensor.cn/api/openmem/v1"
 ```
 
@@ -67,23 +65,27 @@ MEMOS_BASE_URL="https://memos.memtensor.cn/api/openmem/v1"
 - `SERPER_API_KEY` 主要用于谷歌系列的高质量信息源搜索
     - [SERPER_OFFICIAL_WEBSITES](https://serper.dev/dashboard)，每个初始注册用户有 2500 credits 的免费额度。
 
-#### `config/config.yaml` 配置
+#### MCP 服务器配置
 
-<!-- todo rewrite this part -->
+为了保证速度和稳定性，所有搜索工具都**采用本地部署**并且使用 stdio 方式进行 MCP 通信。在启动之前需要做如下配置：
 
-为了保证速度和稳定性，用到的搜索工具都**采用本地部署**并且使用 stdio 的方式作为 MCP 的通信方式。在启动 MCP Server 之前需要做如下配置：
+1. 复制 MCP 服务器配置文件：
 
-- Copy `config.json` from `config.example.json`:
-    - See [Config Example](./config.example.json) for more details
-- Add several api-keys and settings
-    - `ZHIPU_API_KEY` and `SERPER_API_KEY` for `web_search` tools.
-    - `SESSDATA`, `bili_jct` and `buvid3` for Bilibili Search tools. ([Bilibili MCP](https://github.com/L-Chris/bilibili-mcp))
-    - `COKKIE` for `douban_search` ([Douban MCP](https://github.com/moria97/douban-mcp))
-    - `AMAP_MAPS_API_KEY` for `amap-mcp-server`. ([Amap MCP Server](https://lbs.amap.com/api/mcp-server/create-project-and-key))
-- Change the file path
+```bash
+cp config/config.example.json config/config.json
+cp config/config.example.yaml config/config.yaml
+```
+
+2. 在 `config/config.json` 中添加相应的 API 密钥和配置：
+   - `ZHIPU_API_KEY` 和 `SERPER_API_KEY` 用于 `web_search` 工具
+   - `SESSDATA`、`bili_jct` 和 `buvid3` 用于 Bilibili 搜索 ([获取方法](https://github.com/L-Chris/bilibili-mcp))
+   - `COOKIE` 用于 `douban_search` ([Douban MCP](https://github.com/moria97/douban-mcp))
+   - `AMAP_MAPS_API_KEY` 用于 `amap-mcp-server` ([申请地址](https://lbs.amap.com/api/mcp-server/create-project-and-key))
+
+3. 根据需要修改文件路径配置
 
 > [!IMPORTANT]
-> All stdio mcp servers are supported! You can easily add your custom tools and mcp servers yourself.
+> 所有支持 stdio 的 MCP 服务器都可以轻松集成！你可以自由添加自定义工具和 MCP 服务器。
 
 #### SAI 本地搜索配置
 
@@ -92,20 +94,20 @@ MEMOS_BASE_URL="https://memos.memtensor.cn/api/openmem/v1"
 
 #### 后端服务启动
 
-在 MCP Server 中，`ipython-mcp` 和 `sai-local-search` 是需要后端服务通信的，因此需要在使用之前启动后端服务：
+部分 MCP 服务器需要后端服务支持，在使用前需要启动以下服务：
 
-- `ipython-mcp` 部署在本地 39255 端口
-- `local_sai_search` 部署在本地 39256 端口
+- `local_sai` (SAI 本地 RAG 搜索服务) 部署在本地 39255 端口
+- `ipython_backend` (Python 代码执行服务) 部署在本地 39256 端口
 
 ```bash
-# 清除对应端口并且启动服务
-bash scripts/backend.sh
+# 启动后端服务（会自动检测并清除占用端口）
+bash start_backend.sh
 
-# 检查当前的服务状态
-bash scripts/backend.sh status
+# 检查服务状态
+bash start_backend.sh status
 
-# 终止服务
-bash scripts/backend.sh stop
+# 停止服务
+bash start_backend.sh stop
 ```
 
 ### 使用方法
@@ -113,10 +115,10 @@ bash scripts/backend.sh stop
 > [!IMPORTANT]
 > 在此部分之前，请务必确保已经完成了上述的配置流程。
 
-智搜项目为用户提供了两种使用方式：
+IntelliSearch 为用户提供了两种使用方式：
 
-- **CLI 使用方式**: 直接在命令行中使用，高效快捷，类 Claude Code 结构方便开发者自由开发添加新功能。
-- **网页使用方式**: 使用 FastAPI 框架实现后端模型服务部署，同时搭配前端网页渲染，适合成品展示和生产环境中用户使用。(前后端组件正在重构中，暂时不可用！)
+- **CLI 使用方式**: 直接在命令行中使用，高效快捷，适合开发者快速测试和添加新功能
+- **Web 使用方式**: 使用 FastAPI 框架实现后端模型服务部署，搭配前端网页渲染，适合成品展示和生产环境使用
 
 #### 命令行使用
 
@@ -124,9 +126,54 @@ bash scripts/backend.sh stop
 python cli.py
 ```
 
+#### Web 使用
+
+> [!IMPORTANT]
+> 该部分正在重构中，暂时不可用。
+
+
+IntelliSearch 支持本地 Web 部署，使用 FastAPI 作为后端提供标准化的流式输出接口：
+
+```bash
+# 终端 1：启动 FastAPI 后端服务（默认端口 8001）
+python backend/main_fastapi.py
+
+# 终端 2：启动 Flask 前端服务（默认端口 50001）
+python frontend/flask/app.py
+```
+
+## 项目架构
+
+IntelliSearch 采用了**分层架构**设计，将系统职责清晰分离为以下几层：
+
+- **核心层** (`core/`): 定义抽象基类和数据模型
+  - `BaseAgent`: 所有 Agent 的抽象基类
+  - `AgentFactory`: Agent 工厂模式实现
+  - `AgentRequest`/`AgentResponse`: 统一的请求/响应模型
+
+- **智能体层** (`agents/`): 具体的 Agent 实现
+  - `MCPBaseAgent`: 集成 MCP 工具的主 Agent
+
+- **记忆层** (`memory/`): 对话上下文管理
+  - `BaseMemory`: 记忆抽象接口
+  - `SequentialMemory`: 线性上下文管理实现
+
+- **工具层** (`tools/`): MCP 协议通信
+  - `MCPBase`: MCP 工具通信组件
+  - `MultiServerManager`: MCP 服务器生命周期管理
+
+- **UI 层** (`ui/`): 统一的用户界面组件
+- **API 层** (`backend/`): Web API 接口
+
+这种架构设计使得系统具有高度的可扩展性，你可以轻松地：
+- 添加新的 Agent 类型（继承 `BaseAgent`）
+- 实现自定义的记忆管理策略（实现 `BaseMemory`）
+- 集成新的 MCP 服务器（在 `config/config.json` 中配置）
+
 ## Todo List
 
-- Refactor and Enhance Local SAI Search
+- [ ] Refactor and Enhance Local SAI Search
     - 实现爬虫管道化
-- Rewrite README
-- Record Demos
+- [x] 更新 README 文档
+- [ ] Record Demos
+- [ ] 添加更多 MCP 服务器集成

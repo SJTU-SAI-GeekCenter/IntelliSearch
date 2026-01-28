@@ -23,8 +23,7 @@ IntelliSearch is an intelligent search aggregation platform based on the MCP (Mo
 
 ## Demo
 
-> [!NOTE]
-> Will be released in future versions.
+![CLI Interface Demo](./assets/cli_interface_demo.png)
 
 ## Developer Guide
 
@@ -64,6 +63,8 @@ ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4/
 
 # SERPER_API_KEY for web search and other tools
 SERPER_API_KEY=your-api-key
+MEMOS_API_KEY="your-memos-api-key"
+MEMOS_BASE_URL="https://memos.memtensor.cn/api/openmem/v1"
 ```
 
 To ensure the normal execution of agent conversation and search functions, the following API keys need to be set:
@@ -78,19 +79,23 @@ To ensure the normal execution of agent conversation and search functions, the f
 
 #### MCP Server Configuration
 
-To ensure speed and stability, all search tools are **deployed locally** and use stdio for MCP communication. Before starting MCP servers, the following configuration is required:
+To ensure speed and stability, all search tools are **deployed locally** and use stdio for MCP communication. Before starting, complete the following configuration:
 
-- Copy `config.json` from `config.example.json`
-    - See [Config Example](./config.example.json) for more details
-- Add several API keys and settings
-    - `ZHIPU_API_KEY` and `SERPER_API_KEY` for `web_search` tools
-    - `SESSDATA`, `bili_jct`, and `buvid3` for Bilibili Search tools ([Bilibili MCP](https://github.com/L-Chris/bilibili-mcp))
-    - `COOKIE` for `douban_search` ([Douban MCP](https://github.com/moria97/douban-mcp))
-    - `AMAP_MAPS_API_KEY` for `amap-mcp-server` ([Amap MCP Server](https://lbs.amap.com/api/mcp-server/create-project-and-key))
-- Change the file path
+1. Copy the MCP server configuration file:
+   ```bash
+   cp config/config.example.json config/config.json
+   ```
+
+2. Add API keys and settings in `config/config.json`:
+   - `ZHIPU_API_KEY` and `SERPER_API_KEY` for `web_search` tools
+   - `SESSDATA`, `bili_jct`, and `buvid3` for Bilibili Search tools ([How to get](https://github.com/L-Chris/bilibili-mcp))
+   - `COOKIE` for `douban_search` ([Douban MCP](https://github.com/moria97/douban-mcp))
+   - `AMAP_MAPS_API_KEY` for `amap-mcp-server` ([Apply here](https://lbs.amap.com/api/mcp-server/create-project-and-key))
+
+3. Modify file paths as needed
 
 > [!IMPORTANT]
-> All stdio MCP servers are supported! You can easily add your custom tools and MCP servers yourself.
+> All stdio MCP servers are supported! You can easily add your custom tools and MCP servers.
 
 #### SAI Local Search Configuration
 
@@ -98,20 +103,20 @@ This repository uses a RAG system to search the SAI self-built high-quality data
 
 #### Backend Service Startup
 
-In MCP servers, `ipython-mcp` and `sai-local-search` require backend service communication, so you need to start the backend service before using them:
+Some MCP servers require backend services to be running:
 
-- `ipython-mcp` is deployed on local port 39255
-- `local_sai_search` is deployed on local port 39256
+- `local_sai` (SAI local RAG search service) on port 39255
+- `ipython_backend` (Python code execution service) on port 39256
 
 ```bash
-# Clear corresponding ports and start services
-bash scripts/backend.sh
+# Start backend services (automatically detects and clears occupied ports)
+bash start_backend.sh
 
-# Check current service status
-bash scripts/backend.sh status
+# Check service status
+bash start_backend.sh status
 
 # Stop services
-bash scripts/backend.sh stop
+bash start_backend.sh stop
 ```
 
 ### Usage
@@ -121,26 +126,56 @@ bash scripts/backend.sh stop
 
 IntelliSearch provides two usage methods:
 
-- **CLI Usage**: Use directly in command line, efficient and convenient for developers to develop new features
+- **CLI Usage**: Use directly in command line, efficient and convenient for developers to test and add new features
 - **Web Interface**: Use FastAPI framework for backend model service deployment, combined with frontend web rendering, suitable for product demonstration and user usage in production environments.
 
 #### Command Line Usage
 
 ```bash
-python backend/cli_v2.py
-# Supports streaming output
+python cli.py
 ```
 
 #### Web Usage
 
+> [!IMPORTANT]
+> Refactoring, currently not available.
+
 IntelliSearch also supports local web deployment with FastAPI backend for standardized streaming output.
 
 ```bash
-# Start frontend service
-# Frontend will be deployed on port 50001
-python frontend/flask/app.py
-
-# Start backend service
-# Backend default port 8001
+# Terminal 1: Start FastAPI backend (default port 8001)
 python backend/main_fastapi.py
+
+# Terminal 2: Start Flask frontend (default port 50001)
+python frontend/flask/app.py
 ```
+
+## Project Architecture
+
+IntelliSearch adopts a **layered architecture** design with clear separation of concerns:
+
+- **Core Layer** (`core/`): Defines abstract base classes and data models
+  - `BaseAgent`: Abstract base class for all agents
+  - `AgentFactory`: Agent factory pattern implementation
+  - `AgentRequest`/`AgentResponse`: Unified request/response models
+
+- **Agent Layer** (`agents/`): Concrete agent implementations
+  - `MCPBaseAgent`: Main agent with MCP tool integration
+
+- **Memory Layer** (`memory/`): Conversation context management
+  - `BaseMemory`: Memory abstraction interface
+  - `SequentialMemory`: Linear context management implementation
+
+- **Tools Layer** (`tools/`): MCP protocol communication
+  - `MCPBase`: MCP tool communication component
+  - `MultiServerManager`: MCP server lifecycle management
+
+- **UI Layer** (`ui/`): Unified user interface components
+- **API Layer** (`backend/`): Web API interfaces
+
+This architecture design makes the system highly extensible. You can easily:
+- Add new agent types (inherit from `BaseAgent`)
+- Implement custom memory management strategies (implement `BaseMemory`)
+- Integrate new MCP servers (configure in `config/config.json`)
+
+For more detailed architecture documentation, see [CLAUDE.md](./CLAUDE.md).

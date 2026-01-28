@@ -241,7 +241,7 @@ articles
 wechat_config.json
 output
 data
-config/data_generation.yaml
+config/config.yaml
 
 uv.lock
 **.pid
