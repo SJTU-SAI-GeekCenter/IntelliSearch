@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from mcp_module.server_manager import MultiServerManager
+from tools.server_manager import MultiServerManager
 from mcp.types import CallToolResult
 
 

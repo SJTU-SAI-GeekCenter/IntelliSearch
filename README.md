@@ -1,9 +1,3 @@
-<div style="text-align: center;">
-  <a href="https://git.io/typing-svg">
-    <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=900&size=50&pause=50&color=000000&center=true&vCenter=true&width=600&height=80&lines=IntelliSearch" alt="Typing SVG" />
-  </a>
-</div>
-
 # IntelliSearch
 
 <div style="text-align: center;">
@@ -12,141 +6,55 @@
   </a>
 </div>
 
-> [!IMPORTANT]
-> The boundaries of searching capabilities are the boundaries of agents.
+IntelliSearch 从一个基于 MCP (Model Context Protocol) 协议的简单搜索智能体出发，志在演化成为一个集成智能体拓扑结构、多维内在上下文记忆和外部文档管理、动态外部工具调度与环境交互机制以及多智能体通信机制的轻量解耦、可扩展的智能体基建和生态底座(Agentic Infra)，为开发者提供兼具易用性和灵活性的开发框架。
 
-IntelliSearch is an intelligent search aggregation platform based on the MCP (Model Context Protocol) protocol, designed to enhance the search boundary capabilities of agents, enabling models to serve more complex search tasks. IntelliSearch integrates multiple high-quality MCP search tools, including:
+## IntelliSearch-v3.0
 
-- Classic and powerful web search tools (`Google Search`, `ZHIPU_search`, `web_parse`)
-- Geographic information search (Amap MCP Server)
-- Bilibili video search (Bilibili MCP Server)
-- Douban movie review search (Douban MCP Server)
-- Academic search (Scholar Search Server)
-- 12306 train information search (12306 MCP Server)
-- WeChat Official Account search (Wechat Search)
-- SAI self-built database search (SAI Local Search)
-- Python code execution (IPython MCP Server), providing agents with a powerful dynamic code execution environment.
+IntelliSearch-v3.0（交小AI-智搜） 为 IntelliSearch 系列智能体发布的首个模型，通过 MCP 协议实现了多维度多源高质量信息源和工具的整合，并提供简单的顺序上下文记忆模块，极大的拓宽了语言模型的边界和探索能力。智搜集成了多种 MCP 优质搜索工具，包括：
 
-## Demo
+- 经典强大网页搜索工具 (`Google Search`, `ZHIPU_search`, `web_parse`)
+- 地理信息搜索 (Amap MCP Server)
+- Bilibili 视频搜索 (Bilibili MCP Server)
+- 豆瓣影评搜索 (Douban MCP Server)
+- 学术搜索 (Scholar Search Server)
+- 12306 火车信息搜索 (12306 MCP Server)
+- 微信公众号搜索 (Wechat Search)
+- SAI 自建数据库搜索 (SAI Local Search)
+- Python 代码执行 (IPython MCP Server)，为智能体提供强大的动态代码执行环境。
+- [COMING!] 本地文件操作和执行
 
-> [!NOTE]
-> Will be released in future versions.
+<div style="text-align: center;">
+  <a href="https://git.io/typing-svg">
+    <img src="./assets/cli_interface_demo.png" alt="IntelliSearch" />
+  </a>
+</div>
 
-## Developer Guide
+### 开发者指南
 
-> [!NOTE]
-> Below is a minimalist development and reproduction guide for developers. PRs are welcome!
+详见 [DEV_SETUP](./docs/DEV_SETUP.md)
 
-For any questions, please contact [yangxiyuan@sjtu.edu.cn](mailto:yangxiyuan@sjtu.edu.cn)!
+## IntelliSearch-v3.1 BackBone
 
-### Environment Setup
+为了支持 IntelliSearch-v3.1 演化出更个性化、更灵活的若干智能体模块涉及，IntelliSearch-v3.0 实现了版本级的项目重构和更新 (IntelliSearch-v3.1 BackBone)，志在搭建轻量化但高效的智能体模块分层设计，为上层建筑提供基建支持。
 
-```bash
-# Clone the project
-git clone https://github.com/xiyuanyang-code/IntelliSearch.git
+### 设计理念
 
-# Initialize submodules
-git submodule init
+采用了**分层架构**设计，将系统职责清晰分离为以下几层：
 
-# Install dependencies
-uv sync
-source .venv/bin/activate
-```
+- **核心层** (`core/`): 定义抽象基类和数据模型
+  - `BaseAgent`: 所有 Agent 的抽象基类
+  - `AgentFactory`: Agent 工厂模式实现
+  - `AgentRequest`/`AgentResponse`: 统一的请求/响应模型
 
-### Pre-Usage Configuration
+- **智能体层** (`agents/`): 具体的 Agent 实现
+  - `MCPBaseAgent`: 集成 MCP 工具的主 Agent
 
-#### API Keys Configuration
+- **记忆层** (`memory/`): 对话上下文管理 & 外部知识库组件管理
+  - `BaseMemory`: 记忆抽象接口
+  - `SequentialMemory`: 线性上下文管理实现
 
-Create a `.env` file with the following environment variables:
+- **工具层** (`tools/`): MCP 协议通信为基础的工具调用接口 & 环境模拟接口
+  - `MCPBase`: MCP 工具通信组件
+  - `MultiServerManager`: MCP 服务器生命周期管理
 
-```bash
-# OPENAI_API_KEY supports OpenAI SDK mode
-OPENAI_API_KEY=your-api-key
-BASE_URL=your-base-url
-
-# ZHIPU_API_KEY supports web search
-ZHIPU_API_KEY=your-api-key
-ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4/
-
-# SERPER_API_KEY for web search and other tools
-SERPER_API_KEY=your-api-key
-```
-
-To ensure the normal execution of agent conversation and search functions, the following API keys need to be set:
-
-- Model API key and baseurl, supporting OpenAI SDK Format
-- `ZHIPU_API_KEY` is mainly used for high-quality Chinese web search
-    - Register at [ZHIPU_OFFICIAL_WEBSITES](https://bigmodel.cn/usercenter/proj-mgmt/apikeys) for model services
-    - This key can also be used for model services
-- `SERPER_API_KEY` is mainly used for Google series high-quality information source search
-    - Register at [SERPER_OFFICIAL_WEBSITES](https://serper.dev/dashboard)
-    - Each new registered user gets 2500 free credits
-
-#### MCP Server Configuration
-
-To ensure speed and stability, all search tools are **deployed locally** and use stdio for MCP communication. Before starting MCP servers, the following configuration is required:
-
-- Copy `config.json` from `config.example.json`
-    - See [Config Example](./config.example.json) for more details
-- Add several API keys and settings
-    - `ZHIPU_API_KEY` and `SERPER_API_KEY` for `web_search` tools
-    - `SESSDATA`, `bili_jct`, and `buvid3` for Bilibili Search tools ([Bilibili MCP](https://github.com/L-Chris/bilibili-mcp))
-    - `COOKIE` for `douban_search` ([Douban MCP](https://github.com/moria97/douban-mcp))
-    - `AMAP_MAPS_API_KEY` for `amap-mcp-server` ([Amap MCP Server](https://lbs.amap.com/api/mcp-server/create-project-and-key))
-- Change the file path
-
-> [!IMPORTANT]
-> All stdio MCP servers are supported! You can easily add your custom tools and MCP servers yourself.
-
-#### SAI Local Search Configuration
-
-This repository uses a RAG system to search the SAI self-built high-quality database, separated as a FastAPI backend service. Therefore, before local deployment, you need to deploy the `models/all-MiniLM-L6-v2` folder in the `./models` directory. Download the model from [HuggingFace](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) or [ModelScope](https://www.modelscope.cn/models/AI-ModelScope/all-MiniLM-L6-v2). Download commands can be found on their official websites.
-
-#### Backend Service Startup
-
-In MCP servers, `ipython-mcp` and `sai-local-search` require backend service communication, so you need to start the backend service before using them:
-
-- `ipython-mcp` is deployed on local port 39255
-- `local_sai_search` is deployed on local port 39256
-
-```bash
-# Clear corresponding ports and start services
-bash scripts/backend.sh
-
-# Check current service status
-bash scripts/backend.sh status
-
-# Stop services
-bash scripts/backend.sh stop
-```
-
-### Usage
-
-> [!IMPORTANT]
-> Before proceeding with this section, make sure you have completed the above configuration steps.
-
-IntelliSearch provides two usage methods:
-
-- **CLI Usage**: Use directly in command line, efficient and convenient for developers to develop new features
-- **Web Interface**: Use FastAPI framework for backend model service deployment, combined with frontend web rendering, suitable for product demonstration and user usage in production environments.
-
-#### Command Line Usage
-
-```bash
-python backend/cli_v2.py
-# Supports streaming output
-```
-
-#### Web Usage
-
-IntelliSearch also supports local web deployment with FastAPI backend for standardized streaming output.
-
-```bash
-# Start frontend service
-# Frontend will be deployed on port 50001
-python frontend/flask/app.py
-
-# Start backend service
-# Backend default port 8001
-python backend/main_fastapi.py
-```
+- **UI 层** (`ui/`): 统一的 CLI 用户界面组件

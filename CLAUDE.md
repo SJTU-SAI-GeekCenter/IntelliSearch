@@ -2,156 +2,402 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 项目概述
+## Project Overview
 
-IntelliSearch 是一个基于 MCP (Model Context Protocol) 协议的智能搜索聚合平台，集成了多种垂直搜索引擎和RAG检索功能，采用现代的微服务架构。
+IntelliSearch is an intelligent search aggregation platform based on the MCP (Model Context Protocol) protocol. It integrates multiple search tools (Google, Bilibili, Douban, Scholar, 12306, WeChat, Amap, etc.) to enhance agent search capabilities through MCP servers.
 
-## 核心架构
+**Key Architecture Pattern**: The system uses a Factory pattern for agent creation and an abstract base class for agent implementations. Recent refactoring has separated concerns into three distinct layers:
+- **Agent Layer** (`agents/`): Core agent logic and inference
+- **Memory Layer** (`memory/`): Context and conversation management
+- **Tools Layer** (`tools/`): MCP protocol communication and server management
 
-### MCP分布式工具架构
-项目采用基于MCP协议的分布式架构，所有搜索功能都作为独立的MCP服务器运行：
+## Essential Commands
 
-- **工具调度器**: `backend/core/mcp_client.py:22` 中的 `MultiServerManager` 负责管理所有MCP服务器连接
-- **统一工具接口**: 所有MCP工具通过统一的 `CallToolResult` 接口暴露，屏蔽不同服务器的实现差异
-- **动态工具发现**: 系统自动从 `config.json` 发现并加载所有可用的MCP工具
+### Environment Setup
 
-### 主要组件层次结构
-```
-前端 (Vanilla JS) → FastAPI后端 → MCP客户端 → MCP服务器集群
-```
-
-### MCP服务器分类
-- **搜索类**: web_search, scholar_search, bilibili_search, wechat_search
-- **数据查询类**: douban_search (TypeScript), amap_mcp_server
-- **本地RAG类**: local_sai_search (向量数据库检索)
-- **工具类**: python-exec, 12306-mcp
-
-## 常用开发命令
-
-### 完整服务启动
 ```bash
-# 一键启动所有服务（推荐）
-./scripts/start_all.sh
-
-# 或手动启动
-python3 scripts/start_backend.py &    # 后端服务 (端口:8001)
-python3 scripts/start_frontend.py &   # 前端服务 (端口:3000)
+# Install dependencies (requires uv)
+uv sync
+source .venv/bin/activate
 ```
 
-### 依赖管理
+### Backend Services
+
+Some MCP servers require backend services to be running:
+
 ```bash
-# 安装Python依赖
-pip3 install -e .  # 使用pyproject.toml
-# 或
-pip3 install -r requirements.txt
+# Start required backend services (local_sai on port 39255, ipython_backend on port 39256)
+bash start_backend.sh
 
-# TypeScript MCP服务器依赖
-cd mcp_server/douban_search && npm install
+# Check service status
+bash start_backend.sh status
+
+# Stop services
+bash start_backend.sh stop
 ```
 
-### 开发调试
+### Running the Application
+
+**CLI Mode** (for development):
 ```bash
-# 后端开发服务器
-uvicorn backend.main_fastapi:app --reload --host 0.0.0.0 --port 8001
-
-# 前端开发服务器
-cd docs && python3 -m http.server 3000
-
-# 单独测试MCP服务器
-python3 mcp_server/web_search/server.py
+python cli.py
 ```
 
-### API文档
-- FastAPI自动生成: http://localhost:8001/docs
-- API交互式测试界面可用
+**Web Mode** (for production/demo):
+```bash
+# Terminal 1: Start FastAPI backend (port 8001)
+python backend/main_fastapi.py
 
-## 开发重要文件
+# Terminal 2: Start Flask frontend (port 50001)
+python frontend/flask/app.py
+```
 
-### 核心配置
-- `config.json`: MCP服务器配置，包含所有服务器的启动命令和环境变量
-- `pyproject.toml`: Python项目依赖和配置
-- `docs/js/config.js`: 前端配置常量
+### Configuration
 
-### 关键业务逻辑
-- `backend/core/mcp_client.py`: MCP客户端管理器，处理工具发现和调用
-- `backend/api/chat_api.py`: REST API接口，会话管理和工具集成
-- `backend/core/llm_client.py`: LLM客户端抽象层
+Before running, ensure proper configuration:
 
-### 前端模块化架构
-- `docs/js/app.js`: 应用主入口和事件协调
-- `docs/js/chat.js`: 聊天逻辑和消息处理
-- `docs/js/ui.js`: UI渲染和DOM操作
-- `docs/js/storage.js`: 数据持久化和导入导出
+1. **Environment Variables** (`.env` file):
+   - `OPENAI_API_KEY`: LLM API key (OpenAI SDK format)
+   - `BASE_URL`: LLM base URL
+   - `ZHIPU_API_KEY`: For web search
+   - `SERPER_API_KEY`: For Google search
 
-## MCP服务器开发模式
+2. **MCP Server Configuration** (`config/config.json`):
+   - Copy from `config/config.example.json`
+   - Add API keys for various MCP servers
+   - Configure file paths as needed
+   - Supports stdio-based MCP servers
 
-### Python MCP服务器 (FastMCP)
+3. **Local RAG Model**:
+   - Download `all-MiniLM-L6-v2` model to `./models/` directory
+   - Required for SAI local search functionality
+
+## Code Architecture
+
+### Layered Architecture
+
+The codebase follows a **layered architecture** with clear separation of concerns:
+
+#### 1. Core Layer (`core/`)
+- **Base Abstractions**: Foundation for the entire system
+  - `core/base.py`: Abstract `BaseAgent` class defining the agent interface
+  - `core/schema.py`: `AgentRequest` and `AgentResponse` unified data models
+  - `core/factory.py`: `AgentFactory` for creating agent instances (Factory pattern)
+
+#### 2. Agent Layer (`agents/`)
+- **Agent Implementations**: Concrete agent implementations
+  - `agents/mcp_agent.py`: `MCPBaseAgent` - main agent with MCP tool integration
+  - Uses composition pattern with dedicated Memory and MCP components
+  - Orchestrates LLM inference with tool calling loop
+
+#### 3. Memory Layer (`memory/`)
+- **Context Management**: Pluggable memory implementations for conversation state
+  - `memory/base.py`: Abstract `BaseMemory` defining memory interface
+  - `memory/sequential.py`: `SequentialMemory` - linear context management
+  - Provides views for LLM (e.g., `get_view("chat_messages")`)
+  - Supports serialization/deserialization
+
+#### 4. Tools Layer (`tools/`)
+- **MCP Protocol**: All MCP-related communication isolated here
+  - `tools/mcp_base.py`: `MCPBase` component for tool operations
+  - `tools/server_manager.py`: `MultiServerManager` for MCP server lifecycle
+  - `tools/connector.py`: Low-level MCP protocol communication
+  - `tools/tool_cache.py`: Caching layer for tool results
+
+#### 5. MCP Server Implementations (`mcp_server/`)
+- Individual MCP servers for each search capability:
+  - `web_search/`: Google and ZHIPU web search
+  - `bilibili_search/`: Bilibili video search
+  - `scholar_search/`: Academic paper search
+  - `local_sai_search/`: Local RAG-based database search (requires backend service on port 39255)
+  - `python_executor/`: Python code execution (requires backend service on port 39256)
+  - `douban_search/`, `amap_mcp_server/`, `wechat_search/`, etc.
+
+#### 6. UI Layer (`ui/`)
+- `ui/theme.py`: Color scheme and styling constants
+- `ui/tool_ui.py`: Tool call display utilities
+- `ui/status_manager.py`: Unified status tracking and display
+- `ui/loading_messages.py`: Random loading messages for UX
+
+#### 7. API Layer (`backend/`)
+- `backend/main_fastapi.py`: FastAPI application entry point (port 8001)
+- `backend/api/chat_api.py`: Chat endpoint with streaming support
+- `backend/tool_hash.py`: Tool parameter hashing utilities
+
+### Agent Factory Pattern
+
+When adding a new agent type:
+
+1. Create a new agent class inheriting from `BaseAgent` in `agents/`
+2. Implement the `inference(request: AgentRequest) -> AgentResponse` method
+3. Register with `AgentFactory.register_agent()` (optional if using static registration)
+
+Example:
 ```python
-from mcp.server.fastmcp import FastMCP
+from core.base import BaseAgent
+from core.schema import AgentRequest, AgentResponse
 
-mcp = FastMCP("server-name")
+class MyCustomAgent(BaseAgent):
+    def __init__(self, name: str = "MyAgent"):
+        super().__init__(name=name)
 
-@mcp.tool()
-async def tool_function(param: str) -> str:
-    """工具文档"""
-    # 实现逻辑
-    return result
+    def inference(self, request: AgentRequest) -> AgentResponse:
+        # Implementation
+        return AgentResponse(
+            status="success",
+            answer="Response text",
+            metadata={}
+        )
+
+# Register with factory
+AgentFactory.register_agent("custom", MyCustomAgent)
 ```
-参考: `mcp_server/web_search/server.py`
 
-### TypeScript MCP服务器
-```typescript
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+### MCP Server Integration
 
-const server = new McpServer({ name: "server-name", version: "0.1.0" })
+MCP servers are configured in `config/config.json` with:
+- `command`: Command to start the server
+- `args`: Command arguments
+- `env`: Required environment variables
+- `description`: Server purpose
 
-server.tool("tool-name", "description", schema, async (args) => {
-    // 实现逻辑
-    return { content: [{ type: "text", text: result }] }
-})
+To add a new MCP server:
+1. Implement server in `mcp_server/your_server/`
+2. Add configuration to `config/config.json`
+3. Server will be automatically loaded by `MultiServerManager`
+
+### Component Composition Pattern
+
+The `MCPBaseAgent` uses composition to combine three specialized components:
+
+```python
+from core.base import BaseAgent
+from core.schema import AgentRequest, AgentResponse
+from tools.mcp_base import MCPBase
+from memory.sequential import SequentialMemory
+
+class MCPBaseAgent(BaseAgent):
+    def __init__(self, ...):
+        super().__init__(name=name)
+
+        # Component 1: Memory for conversation management
+        self.memory = SequentialMemory(system_prompt=system_prompt)
+
+        # Component 2: MCPBase for tool communication
+        self.mcp_base = MCPBase(config_path=server_config_path)
+
+    def inference(self, request: AgentRequest) -> AgentResponse:
+        # Use memory to get chat history
+        messages = self.memory.get_view("chat_messages")
+
+        # Use mcp_base to list available tools
+        tools = await self.mcp_base.list_tools()
+
+        # Execute tool calling loop
+        for iteration in range(self.max_tool_call):
+            # LLM inference with tools
+            response = self.client.chat.completions.create(
+                messages=messages,
+                tools=tools
+            )
+
+            # Execute tool calls via mcp_base
+            if tool_calls:
+                results = await self.mcp_base.get_tool_response(tool_calls)
+
+                # Update memory with tool results
+                self.memory.add(tool_message)
 ```
-参考: `mcp_server/douban_search/src/index.ts`
 
-## 环境变量和密钥配置
+This separation allows you to:
+- Swap memory implementations (e.g., from `SequentialMemory` to a vector-based memory)
+- Test MCP communication independently
+- Reuse `MCPBase` in other agent types
 
-所有敏感配置都存储在 `config.json` 的 `env` 字段中：
-- ZHIPU_API_KEY: 智谱AI API密钥
-- SERPER_API_KEY: Google搜索API密钥
-- AMAP_MAPS_API_KEY: 高德地图API密钥
-- 其他服务的认证凭证
+### Request/Response Flow
 
-## 数据流和集成模式
+1. User sends query via CLI (`cli.py`) or Web UI (`backend/main_fastapi.py`)
+2. Request wrapped in `AgentRequest` object with prompt and metadata
+3. Agent created via `AgentFactory.create_agent(agent_type="mcp_base_agent", ...)`
+4. Agent's `inference()` method processes request:
+   - Retrieves conversation history from `memory.get_view("chat_messages")`
+   - Loads MCP tools via `mcp_base.list_tools()`
+   - Executes LLM with tool definitions (OpenAI SDK format)
+   - **Tool Calling Loop** (max `max_tool_call` iterations, typically 20):
+     - If LLM requests tool calls → execute via `mcp_base.get_tool_response()`
+     - Add tool results to memory
+     - Make next LLM call with updated context
+   - Maintains conversation history via `memory.add()`
+5. Returns `AgentResponse` with:
+   - `status`: "success", "failed", or "timeout"
+   - `answer`: Final text response
+   - `metadata`: Intermediate results, tool calls, sources, etc.
 
-### 典型请求流程
-1. 前端发送聊天请求到 FastAPI 后端
-2. 后端通过 `MultiServerManager` 调用相应的MCP工具
-3. MCP服务器执行具体搜索或数据处理任务
-4. 结果通过统一的接口返回给前端
-5. 前端渲染响应并更新UI
+## Development Guidelines
 
-### LLM集成模式
-- 系统支持工具调用和RAG检索增强生成
-- 通过 `backend/core/llm_client.py` 抽象不同LLM提供商
-- 支持流式响应和实时消息更新
+### Adding New Functionality
 
-## 特殊注意事项
+#### Adding a New Agent Type
 
-### 服务进程管理
-- MCP服务器通过stdio协议与主应用通信
-- 每个MCP服务器都是独立的Python/Node.js进程
-- 使用 `scripts/start_all.sh` 进行进程管理和优雅关闭
+1. Create a new agent class inheriting from `BaseAgent` in `agents/`
+2. Implement the `inference(request: AgentRequest) -> AgentResponse` method
+3. Use composition with Memory and MCP components as needed
+4. Register with `AgentFactory.register_agent()` (optional if using static registration)
 
-### 前端技术栈
-- 使用原生JavaScript ES6+模块，无需构建工具
-- CSS采用模块化架构，支持CSS自定义属性
-- 响应式设计，支持移动端适配
+Example:
+```python
+from core.base import BaseAgent
+from core.schema import AgentRequest, AgentResponse
+from memory.sequential import SequentialMemory
 
-### 测试框架
-- 当前缺少正式测试框架
-- 建议使用 pytest 进行后端测试
-- 可参考 `mcp_server/local_sai_search/server_test.py`
+class MyCustomAgent(BaseAgent):
+    def __init__(self, name: str = "MyAgent"):
+        super().__init__(name=name)
+        self.memory = SequentialMemory(system_prompt="You are a helper")
 
-### 部署要求
-- Python 3.12+
-- Node.js 18+ (用于TypeScript MCP服务器)
-- 支持静态文件托管的服务器环境
+    def inference(self, request: AgentRequest) -> AgentResponse:
+        # Access conversation history
+        messages = self.memory.get_view("chat_messages")
+        messages.append({"role": "user", "content": request.prompt})
+
+        # Your logic here
+        response = "Processed response"
+
+        # Update memory
+        self.memory.add({"role": "assistant", "content": response})
+
+        return AgentResponse(
+            status="success",
+            answer=response,
+            metadata={"iterations": 1}
+        )
+
+# Register with factory
+AgentFactory.register_agent("custom", MyCustomAgent)
+```
+
+#### Adding a New Memory Implementation
+
+1. Inherit from `BaseMemory` in `memory/`
+2. Implement all abstract methods: `reset()`, `add()`, `add_many()`, `get_view()`, `export()`, `load()`
+3. Support at minimum the `"chat_messages"` view type
+
+Example:
+```python
+from memory.base import BaseMemory
+from typing import List, Dict, Any
+
+class VectorMemory(BaseMemory):
+    def __init__(self):
+        self.vectors = []
+
+    def reset(self) -> None:
+        self.vectors = []
+
+    def add(self, entry: Any) -> None:
+        # Add entry to vector store
+        pass
+
+    def get_view(self, view_type: str, **kwargs) -> Any:
+        if view_type == "chat_messages":
+            # Retrieve relevant messages
+            return self._retrieve_relevant()
+        raise NotImplementedError
+```
+
+#### Adding a New MCP Server
+
+1. Implement server in `mcp_server/your_server/`
+2. Create `server.py` that exposes tools via MCP protocol
+3. Add configuration to `config/config.json`:
+   ```json
+   {
+     "mcpServers": {
+       "my_server": {
+         "command": "python",
+         "args": ["./mcp_server/my_server/server.py"],
+         "env": {"API_KEY": "your-key"},
+         "description": "My custom MCP server"
+       }
+     }
+   }
+   ```
+4. Server will be automatically loaded by `MultiServerManager`
+
+### Code Style
+- Follow Python type hints (all public APIs)
+- Use English for docstrings and comments
+- Maintain structured, modular code (avoid top-level business logic)
+- Prefer `class` and `function` abstractions over scripts
+- Use the `logging` module instead of `print` (except for CLI final output)
+- All code must follow the format specified in global CLAUDE.md instructions
+
+### Configuration System
+
+The project uses a hierarchical configuration system:
+
+1. **YAML Configuration** (`config/config.yaml`): Main settings
+   - Agent type, model, max_tool_call
+   - MCP server config path
+   - Cache settings
+   - Timeout configurations
+
+2. **Environment Variables** (`.env`): Override YAML settings
+   - Format: `AGENT_SECTION_KEY=value` (e.g., `AGENT_MODEL_NAME=gpt-4`)
+   - API keys and sensitive data
+
+3. **MCP Server Config** (`config/config.json`): MCP-specific settings
+   - Server commands and arguments
+   - Per-server environment variables
+   - Transport type (stdio/SSE)
+
+### Testing
+- Test files located in individual MCP server directories (e.g., `mcp_server/*/test_*.py`)
+- No centralized test suite currently exists
+- Use `python mcp_server/[server_name]/test_file.py` to run specific tests
+
+### Key Files for Understanding the Codebase
+
+**Start here** (in order):
+1. `core/schema.py`: Understand unified `AgentRequest` and `AgentResponse` models
+2. `core/base.py`: Understand the `BaseAgent` interface
+3. `memory/sequential.py`: See how conversation state is managed
+4. `tools/mcp_base.py`: Understand MCP tool communication
+5. `agents/mcp_agent.py`: See how components compose in the main agent
+6. `cli.py`: CLI entry point showing how everything connects
+
+**Configuration**:
+- `config/config.yaml`: Main configuration with agent settings
+- `config/config.example.json`: Template for MCP server configuration
+- `config/config_loader.py`: Configuration loading logic
+
+**Backend Services**:
+- `start_backend.sh`: Service startup script
+- `mcp_server/local_sai_search/rag_service.py`: RAG backend (port 39255)
+- `mcp_server/python_executor/ipython_backend.py`: Python execution backend (port 39256)
+
+## Common Issues
+
+1. **Port conflicts**: Backend services (39255, 39256) must be running before CLI/web start
+   - Check status: `bash start_backend.sh status`
+   - Check logs in `log/` directory
+
+2. **Missing API keys**: Ensure `.env` and `config/config.json` are properly configured
+   - Required: `OPENAI_API_KEY`, `BASE_URL`
+   - For web search: `ZHIPU_API_KEY`, `SERPER_API_KEY`
+
+3. **Missing model**: Download `all-MiniLM-L6-v2` to `./models/` for local search
+   - Required for `local_sai_search` MCP server
+
+4. **MCP server failures**: Check individual server logs in `log/` directory
+   - Common issue: stdio transport not working - check command/args in config
+   - Use environment variables in MCP config for API keys
+
+5. **Import errors**: Ensure virtual environment is activated
+   ```bash
+   source .venv/bin/activate
+   ```
+
+6. **Memory issues**: Long conversations may hit token limits
+   - Adjust `max_tool_call` in config if needed
+   - Memory supports truncation via `get_view("chat_messages", max_entries=N)`

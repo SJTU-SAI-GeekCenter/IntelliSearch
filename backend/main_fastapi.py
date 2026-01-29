@@ -16,7 +16,7 @@ sys.path.append(os.getcwd())
 import dotenv
 
 # 导入日志配置
-from utils.log_config import setup_logging
+from ui.log_config import setup_logging
 
 # 导入API路由
 from backend.api.chat_api import router as chat_router
