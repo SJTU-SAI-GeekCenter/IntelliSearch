@@ -2,6 +2,13 @@
 # This file contains all necessary configuration for the MCP system
 # Can be overridden via environment variables with format: BENCHMARK_SECTION_SUBSECTION_KEY=value
 
+# Path Variables
+# Use YOUR_PWD to reference the project root directory in other config values
+paths:
+  # Base directory of the project (auto-detected as parent of config/ directory)
+  # Users can override this by setting absolute path, or leave empty for auto-detection
+  base_dir: <YOUR_PWD>
+
 agent:
   # Agent type to use
   # Override with: AGENT_TYPE
@@ -77,91 +84,91 @@ env:
 all_servers:
   base_toolkit:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/base_toolkit/server.py
+    args: <YOUR_PWD>/mcp_server/base_toolkit/server.py
     description: Base Toolkit for Agents providing fundamental tools and utilities
-  
+
   operate_browser:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/operate_browser/server.py
-    description: TODO
-  
+    args: <YOUR_PWD>/mcp_server/operate_browser/server.py
+    description: Browser automation tools using Playwright for web navigation, page interaction, and content extraction
+
   operate_file:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/operate_file/server.py
-    description: TODO
+    args: <YOUR_PWD>/mcp_server/operate_file/server.py
+    description: Local file system operations including create, read, write, delete, and specialized handling for CSV, PDF, and JSON files
 
   operate_python:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/operate_python/server.py
-    description: TODO
+    args: <YOUR_PWD>/mcp_server/operate_python/server.py
+    description: Python code execution environment using IPython backend with state persistence and result capture (requires backend service on port 39256)
 
   operate_terminal:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/operate_terminal/server.py
-    description: TODO
+    args: <YOUR_PWD>/mcp_server/operate_terminal/server.py
+    description: Terminal command execution with timeout control, stdout/stderr capture, and system environment information retrieval including OS details, current user, and environment variables
 
   search_bilibili:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/search_bilibili/server.py
+    args: <YOUR_PWD>/mcp_server/search_bilibili/server.py
     description: Search videos and content on Bilibili platform
 
   search_geo:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/search_geo/server.py
+    args: <YOUR_PWD>/mcp_server/search_geo/server.py
     description: Map search and location services based on Amap (高德地图) API including routing, geocoding, and POI search
-  
+
   search_github:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/search_github/server.py
+    args: <YOUR_PWD>/mcp_server/search_github/server.py
     description: GitHub Search tools for repositories, code, users, issues, and pull requests
 
   search_local:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/search_local/server.py
-    description: TODO
+    args: <YOUR_PWD>/mcp_server/search_local/server.py
+    description: Local semantic search using RAG (Retrieval-Augmented Generation) on indexed documents with support for PDF, TXT, MD, and DOCX formats via txtai embeddings and vector index (requires backend service on port 39257)
 
   search_movie:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/search_movie/server.py
+    args: <YOUR_PWD>/mcp_server/search_movie/server.py
     description: Search books, movies, music and reviews on Douban platform
 
   search_sai:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/search_sai/server.py
-    description: TODO
+    args: <YOUR_PWD>/mcp_server/search_sai/server.py
+    description: SAI Memos-based knowledge and conversation memory search for retrieving historical context and stored information using Memos API with user-specific and conversation-aware queries
 
   search_scholar:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/search_scholar/server.py
+    args: <YOUR_PWD>/mcp_server/search_scholar/server.py
     description: Search academic papers and citations on Google Scholar and recent papers on arXiv
 
   search_train:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/search_train/server.py
+    args: <YOUR_PWD>/mcp_server/search_train/server.py
     description: 12306 Train Search for querying train tickets, schedules, and station information in China
 
   search_web:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/search_web/server.py
+    args: <YOUR_PWD>/mcp_server/search_web/server.py
     description: Web Search tools to get information from the internet using Google and Zhipu AI
 
   search_wechat_official_account:
     command: python
-    args: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/mcp_server/search_wechat/server.py
+    args: <YOUR_PWD>/mcp_server/search_wechat/server.py
     description: Search articles and content from WeChat Official Accounts
 
 server_choice:
   - base_toolkit
-  # - operate_browser
+  - operate_browser
   - operate_file
   - operate_python
   - operate_terminal
-  # - search_bilibili
+  - search_bilibili
   - search_geo
   - search_github
   - search_local
   - search_movie
-  # - search_sai
+  - search_sai
   - search_scholar
   - search_train 
   - search_web
@@ -216,4 +223,4 @@ rag:
     score_threshold: 0.7
   
   initialization:
-    load_dir: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/data/RAG
+    load_dir: <YOUR_PWD>/data/RAG
