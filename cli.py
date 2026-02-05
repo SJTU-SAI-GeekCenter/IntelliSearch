@@ -8,13 +8,11 @@ MCP tool calls, and conversation management.
 """
 
 import sys
-import logging
 import os
 import yaml
 import re
 from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
-from dotenv import load_dotenv
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -29,11 +27,12 @@ from prompt_toolkit.styles import Style as PromptStyle
 from core.base import BaseAgent
 from core.factory import AgentFactory
 from core.schema import AgentRequest, AgentResponse
+from core.logger import get_logger
+from config.config_loader import Config
 
-load_dotenv(override=True)
-logging.basicConfig(
-    level=logging.WARNING, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+# Initialize global configuration and load environment variables
+config = Config(config_file_path="config/config.yaml")
+config.load_config(override=True)
 
 # Import theme colors
 from ui.theme import ThemeColors
@@ -75,7 +74,7 @@ class IntelliSearchCLI:
         self.agent_config: dict = {}
         self.running: bool = False
         self.config_path = config_path or "config/config.yaml"
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
         # Initialize rich console with theme
         self.console = Console()
@@ -171,9 +170,8 @@ class IntelliSearchCLI:
                     agent_config[key] = env_value
 
         # Handle API configuration with environment variable overrides
-        api_config = agent_config.get("api", {})
-        base_url = os.getenv("AGENT_BASE_URL") or api_config.get("base_url")
-        api_key = os.getenv("AGENT_API_KEY") or api_config.get("api_key")
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("BASE_URL")
         system_prompt_path = agent_config.get("system_prompt_path", None)
         if not system_prompt_path:
             self.logger.warning("System prompt not found.")
@@ -188,7 +186,7 @@ class IntelliSearchCLI:
             "model_name": agent_config.get("model_name", "deepseek-chat"),
             "max_tool_call": agent_config.get("max_tool_call", 5),
             "server_config_path": agent_config.get(
-                "server_config_path", "config/config.json"
+                "server_config_path", "config/config.yaml"
             ),
             "system_prompt": self.system_prompt
         }
@@ -494,6 +492,7 @@ class IntelliSearchCLI:
             ("class:prompt", "You"),
             ("class:input", " › "),
         ]
+        will_be_exited = False
 
         while True:
             try:
@@ -507,10 +506,20 @@ class IntelliSearchCLI:
                 return user_input.strip()
             except KeyboardInterrupt:
                 # Allow Ctrl+C to cancel input
-                self.console.print(
-                    "\n[red]Input cancelled. Press Ctrl+C again to exit.[/red]"
-                )
-                continue
+                if will_be_exited:
+                    self.console.print(
+                        Text(
+                            "\nExiting IntelliSearch CLI. Goodbye!\n",
+                            style=Style(color=ThemeColors.ACCENT),
+                        )
+                    )
+                    exit(0)
+                else:
+                    self.console.print(
+                        "\n[red]Input cancelled. Press Ctrl+C again to exit.[/red]"
+                    )
+                    will_be_exited = True
+                    continue
 
     def _detect_command_start(self) -> bool:
         """

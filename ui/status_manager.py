@@ -13,7 +13,6 @@ from rich.text import Text
 from rich.panel import Panel
 from rich.live import Live
 from rich.style import Style
-from rich.align import Align
 
 from .theme import ThemeColors
 

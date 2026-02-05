@@ -8,17 +8,11 @@ import json
 import hashlib
 import time
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
-import logging
-import threading
+from core.logger import get_logger
 
-logging.basicConfig(
-    level=logging.WARNING, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-TOOL_CALL_ERROR = 35
-logging.addLevelName(TOOL_CALL_ERROR, "TOOL CALL ERROR")
 
 
 class ToolCache:
@@ -42,9 +36,10 @@ class ToolCache:
             enabled: Whether caching is enabled
             server_whitelist: Server whitelist, only cache tool calls from these servers (None or empty list means cache all)
         """
+        self.logger = get_logger(__name__)
         self.enabled = enabled
         if not self.enabled:
-            logger.info("Tool cache is disabled")
+            self.logger.info("Tool cache is disabled")
             return
 
         self.cache_dir = Path(cache_dir)
@@ -62,7 +57,7 @@ class ToolCache:
         whitelist_msg = (
             f" with whitelist: {self.server_whitelist}" if self.server_whitelist else ""
         )
-        logger.info(
+        self.logger.info(
             f"Tool cache initialized at {self.db_path} with TTL={ttl_hours} hours{whitelist_msg}"
         )
 
@@ -165,22 +160,22 @@ class ToolCache:
 
                     result = json.loads(result_json)
                     age_minutes = (current_time - timestamp) / 60
-                    logger.info(
+                    self.logger.info(
                         f"Cache HIT: {server_name}:{tool_name} (age: {age_minutes:.1f} minutes)"
                     )
-                    logger.info(f"  Cached params: {json.dumps(params, indent=2, ensure_ascii=False)}")
+                    self.logger.info(f"  Cached params: {json.dumps(params, indent=2, ensure_ascii=False)}")
                     return result
                 else:
                     # Expired, delete it
                     conn.execute("DELETE FROM cache WHERE cache_key = ?", (cache_key,))
                     conn.commit()
-                    logger.debug(f"Cache expired: {server_name}:{tool_name}")
+                    self.logger.debug(f"Cache expired: {server_name}:{tool_name}")
 
         except (sqlite3.Error, json.JSONDecodeError) as e:
-            logger.error(f"Cache read error: {e}")
+            self.logger.error(f"Cache read error: {e}")
 
-        logger.info(f"Cache MISS: {server_name}:{tool_name}")
-        logger.debug(f"  Params: {json.dumps(params, indent=2,ensure_ascii=False)}")
+        self.logger.info(f"Cache MISS: {server_name}:{tool_name}")
+        self.logger.debug(f"  Params: {json.dumps(params, indent=2,ensure_ascii=False)}")
         return None
 
     def set(
@@ -203,19 +198,19 @@ class ToolCache:
 
         # Check if server is in whitelist
         if self.server_whitelist and server_name not in self.server_whitelist:
-            logger.info(
+            self.logger.info(
                 f"Server '{server_name}' not in cache whitelist {self.server_whitelist}, skipping cache"
             )
             return False
 
         # Don't cache empty results
         if not result or result == {} or result == [] or result == "" or result is None:
-            logger.debug(f"Not caching empty result for {server_name}:{tool_name}")
+            self.logger.debug(f"Not caching empty result for {server_name}:{tool_name}")
             return False
 
         # Don't cache error responses
         if isinstance(result, dict) and "error" in result:
-            logger.debug(f"Not caching error response for {server_name}:{tool_name}")
+            self.logger.debug(f"Not caching error response for {server_name}:{tool_name}")
             return False
 
         # Check for error keywords (rate limit, 503, 429, etc.)
@@ -237,7 +232,7 @@ class ToolCache:
             "blocked",
         ]
         if any(keyword in result_str for keyword in error_keywords):
-            logger.debug(
+            self.logger.debug(
                 f"Not caching result with error keywords for {server_name}:{tool_name}"
             )
             return False
@@ -248,7 +243,7 @@ class ToolCache:
             and "success" in result
             and not result.get("success")
         ):
-            logger.debug(
+            self.logger.debug(
                 f"Not caching failed result (success=False) for {server_name}:{tool_name}"
             )
             return False
@@ -278,14 +273,14 @@ class ToolCache:
             conn.commit()
 
             result_size = len(result_json)
-            logger.info(
+            self.logger.info(
                 f"Cache SET: {server_name}:{tool_name} (size: {result_size} bytes)"
             )
-            logger.debug(f"  Params: {json.dumps(params, indent=2,ensure_ascii=False)}")
+            self.logger.debug(f"  Params: {json.dumps(params, indent=2,ensure_ascii=False)}")
             return True
 
         except (sqlite3.Error, json.JSONEncodeError) as e:
-            logger.error(f"Cache write error: {e}")
+            self.logger.error(f"Cache write error: {e}")
             return False
 
     def clear_expired(self) -> int:
@@ -306,11 +301,11 @@ class ToolCache:
             conn.commit()
 
             if deleted > 0:
-                logger.info(f"Cleared {deleted} expired cache entries")
+                self.logger.info(f"Cleared {deleted} expired cache entries")
             return deleted
 
         except sqlite3.Error as e:
-            logger.error(f"Failed to clear expired cache: {e}")
+            self.logger.error(f"Failed to clear expired cache: {e}")
             return 0
 
     def clear_all(self) -> int:
@@ -328,10 +323,10 @@ class ToolCache:
             cursor = conn.execute("DELETE FROM cache")
             deleted = cursor.rowcount
             conn.commit()
-            logger.info(f"Cleared all {deleted} cache entries")
+            self.logger.info(f"Cleared all {deleted} cache entries")
             return deleted
         except sqlite3.Error as e:
-            logger.error(f"Failed to clear cache: {e}")
+            self.logger.error(f"Failed to clear cache: {e}")
             return 0
 
     def get_stats(self) -> Dict[str, Any]:
@@ -396,7 +391,7 @@ class ToolCache:
                 "ttl_hours": self.ttl_seconds / 3600,
             }
         except sqlite3.Error as e:
-            logger.error(f"Failed to get cache stats: {e}")
+            self.logger.error(f"Failed to get cache stats: {e}")
             return {"enabled": True, "error": str(e)}
 
     def close(self):

@@ -6,7 +6,7 @@ from business logic, making it easy to add new agent types without
 modifying existing code.
 """
 
-from typing import Dict, Type, Any
+from typing import Dict, Type
 from core.base import BaseAgent
 
 

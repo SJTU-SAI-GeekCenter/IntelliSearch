@@ -6,10 +6,10 @@ that maintains messages in the order they were added.
 """
 
 import json
-import logging
 from typing import List, Dict, Any, Optional
 
 from memory.base import BaseMemory
+from core.logger import get_logger
 
 
 class SequentialMemory(BaseMemory):
@@ -43,7 +43,7 @@ class SequentialMemory(BaseMemory):
         """
         self.system_prompt = system_prompt
         self.entries: List[Dict[str, Any]] = []
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
         # Initialize with system prompt if provided
         if system_prompt:

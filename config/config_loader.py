@@ -4,202 +4,145 @@ This module provides unified management of all IntelliSearch MCP configurations,
 supporting YAML file configuration with environment variable overrides.
 
 Classes:
-    MCPConfig: Singleton configuration manager for MCP settings
+    Config: Global configuration manager for all settings
 """
 
 import yaml
 import os
-from typing import Dict, Any, Union, Optional, List
+from typing import Dict, Any, Optional, List
 from pathlib import Path
 
 
-class MCPConfig:
-    """Singleton configuration manager for MCP settings.
+class Config:
+    """
+    Global configuration manager for IntelliSearch.
 
-    This class manages all MCP configurations using a singleton pattern,
-    loading settings from YAML files and allowing environment variable overrides.
-    Configuration priority: environment variables > YAML file > default values.
-
-    Attributes:
-        _instance: Singleton instance
-        _config: Loaded configuration dictionary
+    This class loads configuration from a YAML file and applies environment variables.
+    It should be initialized once at application startup with the config file path.
 
     Example:
-        >>> config = MCPConfig()
-        >>> timeout = config.get_value('mcp.connection.http_timeout')
+        >>> from config.config_loader import Config
+        >>> config = Config(config_file_path="config/config.yaml")
+        >>> config.load_config()
+        >>> model_name = config.get("agent.model_name")
     """
 
-    _instance: Optional["MCPConfig"] = None
+    _instance: Optional["Config"] = None
     _config: Optional[Dict[str, Any]] = None
 
-    def __new__(cls) -> "MCPConfig":
-        """Create or return the singleton instance.
-
-        Returns:
-            The singleton MCPConfig instance
+    def __init__(self, config_file_path: str = "config/config.yaml"):
         """
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def __init__(self) -> None:
-        """Initialize the configuration if not already loaded."""
-        if self._config is None:
-            self._load_config()
-
-    def _load_config(self) -> None:
-        """Load configuration from file with environment overrides.
-
-        Loads configuration in priority order:
-        1. Environment variables (highest priority)
-        2. YAML configuration file
-        3. Default values (lowest priority)
-        """
-        config_path = Path(__file__).parent / "config.yaml"
-
-        if config_path.exists():
-            try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    self._config = yaml.safe_load(f)
-            except Exception as e:
-                print(f"Warning: Failed to load config file {config_path}: {e}")
-                self._config = self._get_default_config()
-        else:
-            print(f"Config file {config_path} not found, using default configuration")
-            self._config = self._get_default_config()
-
-        # Apply environment variable overrides
-        self._apply_env_overrides()
-
-    def _get_default_config(self) -> Dict[str, Any]:
-        """Return default configuration.
-
-        Returns:
-            Dictionary containing all default configuration values
-        """
-        return {
-            "mcp": {
-                "connection": {
-                    "http_timeout": 60,
-                    "tool_discovery_timeout": 10,
-                    "health_check_timeout": 2,
-                    "process_wait_timeout": 5,
-                },
-                "ports": {
-                    "default_port": 3001,
-                    "port_search_attempts": 100,
-                    "random_port_min": 10000,
-                    "random_port_max": 50000,
-                },
-            },
-            "cache": {
-                "enabled": False,
-                "cache_dir": "./cache",
-                "ttl_hours": 0,
-                "server_whitelist": [],
-            },
-        }
-
-    def _apply_env_overrides(self) -> None:
-        """Apply environment variable configuration overrides.
-
-        Scans environment variables starting with 'BENCHMARK_' and applies
-        them to the configuration. Supports automatic type conversion.
-        """
-        # Supported format: BENCHMARK_MCP_CONNECTION_HTTP_TIMEOUT=120
-        env_mapping = {
-            "MCP_CONNECTION_HTTP_TIMEOUT": "mcp.connection.http_timeout",
-            "MCP_CONNECTION_TOOL_DISCOVERY_TIMEOUT": "mcp.connection.tool_discovery_timeout",
-            "MCP_CONNECTION_HEALTH_CHECK_TIMEOUT": "mcp.connection.health_check_timeout",
-            "MCP_CONNECTION_PROCESS_WAIT_TIMEOUT": "mcp.connection.process_wait_timeout",
-            "MCP_PORTS_DEFAULT_PORT": "mcp.ports.default_port",
-            "MCP_PORTS_PORT_SEARCH_ATTEMPTS": "mcp.ports.port_search_attempts",
-            "MCP_PORTS_RANDOM_PORT_MIN": "mcp.ports.random_port_min",
-            "MCP_PORTS_RANDOM_PORT_MAX": "mcp.ports.random_port_max",
-            "CACHE_ENABLED": "cache.enabled",
-            "CACHE_CACHE_DIR": "cache.cache_dir",
-            "CACHE_TTL_HOURS": "cache.ttl_hours",
-        }
-
-        for key, value in os.environ.items():
-            if key.startswith("BENCHMARK_"):
-                env_suffix = key[10:]  # Remove BENCHMARK_ prefix
-
-                # Try direct mapping first
-                if env_suffix in env_mapping:
-                    config_path = env_mapping[env_suffix]
-                else:
-                    # Fallback to automatic conversion (convert underscores to dots)
-                    config_path = env_suffix.lower().replace("_", ".")
-
-                try:
-                    # Try to convert to numbers or boolean values
-                    converted_value = self._convert_env_value(value)
-                    self._set_nested_value(self._config, config_path, converted_value)
-                except Exception as e:
-                    print(
-                        f"Warning: Failed to apply environment override {key}={value}: {e}"
-                    )
-
-    def _convert_env_value(self, value: str) -> Union[str, int, float, bool]:
-        """Convert environment variable values to appropriate types.
+        Initialize the Config instance.
 
         Args:
-            value: String value from environment variable
+            config_file_path: Path to the YAML configuration file.
+                            If not provided, uses default: config/config.yaml
+        """
+        if Config._instance is not None:
+            raise RuntimeError(
+                "Config is a singleton. Use Config.get_instance() to get the existing instance."
+            )
+
+        self.config_file_path = config_file_path or self._get_default_config_path()
+        Config._instance = self
+
+    @staticmethod
+    def get_instance() -> "Config":
+        """
+        Get the singleton Config instance.
 
         Returns:
-            Converted value as int, float, bool, or original string
+            The singleton Config instance
+
+        Raises:
+            RuntimeError: If Config has not been initialized
         """
-        # Boolean values
-        if value.lower() in ("true", "false"):
-            return value.lower() == "true"
+        if Config._instance is None:
+            raise RuntimeError(
+                "Config has not been initialized. "
+                "Call Config(config_file_path='...') first."
+            )
+        return Config._instance
 
-        # Integer
-        try:
-            if "." not in value:
-                return int(value)
-        except ValueError:
-            pass
+    @staticmethod
+    def _get_default_config_path() -> str:
+        """
+        Get the default configuration file path.
 
-        # Float
-        try:
-            return float(value)
-        except ValueError:
-            pass
+        Returns:
+            Path to config/config.yaml
+        """
+        return str(Path(__file__).parent / "config.yaml")
 
-        # String
-        return value
+    def load_config(self, override: bool = True) -> None:
+        """
+        Load configuration from YAML file and apply environment variables.
 
-    def _set_nested_value(self, config: Dict[str, Any], path: str, value: Any) -> None:
-        """Set value in nested dictionary using dot-separated path.
+        This method:
+        1. Loads the YAML configuration file
+        2. Applies the 'env' section to os.environ
+        3. Stores the configuration for later access
 
         Args:
-            config: Dictionary to modify
-            path: Dot-separated path (e.g., 'mcp.connection.timeout')
-            value: Value to set at the path
+            override: If True, config env vars override existing os.environ.
+                     If False, only set vars that don't exist in os.environ.
         """
-        keys = path.split(".")
-        current = config
+        config_path = Path(self.config_file_path)
 
-        for key in keys[:-1]:
-            if key not in current:
-                current[key] = {}
-            current = current[key]
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
 
-        current[keys[-1]] = value
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                Config._config = yaml.safe_load(f)
+        except Exception as e:
+            raise RuntimeError(f"Failed to load config file {config_path}: {e}")
+
+        # Apply environment variables from config to os.environ
+        self._apply_env_variables(override)
+
+    def _apply_env_variables(self, override: bool = True) -> None:
+        """
+        Apply environment variables from config to os.environ.
+
+        Args:
+            override: If True, config env vars override existing os.environ.
+        """
+        if Config._config is None:
+            return
+
+        env_config: Dict = Config._config.get("env", {})
+        if not env_config:
+            return
+
+        for key, value in env_config.items():
+            if override or key not in os.environ:
+                os.environ[key] = str(value)
 
     def get(self, key_path: str, default: Any = None) -> Any:
-        """Get configuration value through dot-separated path.
+        """
+        Get configuration value through dot-separated path.
 
         Args:
-            key_path: Dot-separated configuration path, e.g. 'mcp.connection.http_timeout'
+            key_path: Dot-separated configuration path, e.g. 'agent.model_name'
             default: Default value if path not found
 
         Returns:
             Configuration value or default value
+
+        Example:
+            >>> config.get("agent.model_name")
+            "deepseek-chat"
+            >>> config.get("mcp.connection.http_timeout", 60)
+            60
         """
+        if Config._config is None:
+            raise RuntimeError(
+                "Config not loaded. Call load_config() first."
+            )
+
         keys = key_path.split(".")
-        value = self._config
+        value = Config._config
 
         for key in keys:
             if isinstance(value, dict) and key in value:
@@ -209,18 +152,91 @@ class MCPConfig:
 
         return value
 
+    def get_with_env(
+        self, key_path: str, default: Any = None, env_prefix: str = "TOOL_BACKEND"
+    ) -> Any:
+        """
+        Get configuration value with environment variable override support.
 
-# Create global configuration instance
-config = MCPConfig()
+        This method checks for environment variables first before falling back to
+        the configuration file. Environment variables should be named in format:
+        {PREFIX}_{SECTION}_{KEY}, where sections are converted from dot notation.
+
+        Args:
+            key_path: Dot-separated configuration path, e.g. 'tool_backend.ipython_backend_port'
+            default: Default value if path not found
+            env_prefix: Prefix for environment variables (default: "TOOL_BACKEND")
+
+        Returns:
+            Configuration value from environment variable or config file
+
+        Example:
+            >>> # With env var TOOL_BACKEND_IPYTHON_BACKEND_PORT=8080
+            >>> config.get_with_env("tool_backend.ipython_backend_port")
+            8080
+            >>> # With config: tool_backend.ipython_backend_port: 39256
+            >>> config.get_with_env("tool_backend.ipython_backend_port")
+            39256
+        """
+        if Config._config is None:
+            raise RuntimeError(
+                "Config not loaded. Call load_config() first."
+            )
+
+        # *Generate environment variable name, for tool backends
+        # Convert: "tool_backend.ipython_backend_port" -> "TOOL_BACKEND_IPYTHON_BACKEND_PORT"
+        env_var_name = "_".join(key_path.split(".")).upper()
+        full_env_var_name = f"{env_prefix}_{env_var_name}" if env_prefix else env_var_name
+
+        # Check environment variable first
+        if full_env_var_name in os.environ:
+            env_value = os.environ[full_env_var_name]
+            # Try to convert to appropriate type
+            if isinstance(default, int):
+                try:
+                    return int(env_value)
+                except ValueError:
+                    return default
+            elif isinstance(default, bool):
+                return env_value.lower() in ("true", "1", "yes")
+            else:
+                return env_value
+
+        # Fall back to config file
+        return self.get(key_path, default)
+
+    @property
+    def data(self) -> Dict[str, Any]:
+        """
+        Get the raw configuration dictionary.
+
+        Returns:
+            The complete configuration dictionary
+        """
+        if Config._config is None:
+            raise RuntimeError(
+                "Config not loaded. Call load_config() first."
+            )
+        return Config._config
+
+    def reload(self, override: bool = True) -> None:
+        """
+        Reload configuration from file.
+
+        Args:
+            override: If True, config env vars override existing os.environ.
+        """
+        self.load_config(override=override)
 
 
-# Convenience functions for actually used configurations
+# Convenience functions for backward compatibility and easy access
 def get_mcp_timeout() -> int:
     """Get MCP HTTP timeout.
 
     Returns:
         HTTP timeout in seconds
     """
+    config = Config.get_instance()
     return config.get("mcp.connection.http_timeout", 60)
 
 
@@ -230,6 +246,7 @@ def is_cache_enabled() -> bool:
     Returns:
         True if cache is enabled
     """
+    config = Config.get_instance()
     return config.get("cache.enabled", False)
 
 
@@ -239,6 +256,7 @@ def get_cache_dir() -> str:
     Returns:
         Path to cache directory
     """
+    config = Config.get_instance()
     return config.get("cache.cache_dir", "./cache")
 
 
@@ -248,6 +266,7 @@ def get_cache_ttl() -> int:
     Returns:
         Cache TTL in hours (0 for permanent)
     """
+    config = Config.get_instance()
     return config.get("cache.ttl_hours", 0)
 
 
@@ -257,4 +276,5 @@ def get_cache_server_whitelist() -> List[str]:
     Returns:
         List of server names to cache (empty list means cache all)
     """
+    config = Config.get_instance()
     return config.get("cache.server_whitelist", [])

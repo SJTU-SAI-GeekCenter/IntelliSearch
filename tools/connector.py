@@ -6,7 +6,6 @@ Manages connections to individual MCP servers and tool discovery.
 
 import asyncio
 import json
-import logging
 import os
 import random
 import socket
@@ -15,13 +14,7 @@ import aiohttp
 import config.config_loader as config_loader
 from typing import List, Dict, Any, Optional
 from mcp import ClientSession, StdioServerParameters
-
-logging.basicConfig(
-    level=logging.WARNING, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-TOOL_CALL_ERROR = 35
-logging.addLevelName(TOOL_CALL_ERROR, "TOOL CALL ERROR")
+from core.logger import get_logger, TOOL_CALL_ERROR
 
 
 class MCPConnector:
@@ -43,6 +36,7 @@ class MCPConnector:
         self.port = port
         self.endpoint = endpoint
         self.server_url = server_url  # Full URL for URL-based connections
+        self.logger = get_logger(__name__)
 
         if transport_type == "stdio":
             if server_command is None:
@@ -100,7 +94,7 @@ class MCPConnector:
 
     async def discover_tools(self, session: ClientSession) -> Dict[str, Any]:
         """Discovers all available tools and their capabilities from the server (STDIO mode)."""
-        logger.info(f"Discovering available tools from {self.server_name}...")
+        self.logger.info(f"Discovering available tools from {self.server_name}...")
         tools_response = await session.list_tools()
 
         server_tools = {}
@@ -114,7 +108,7 @@ class MCPConnector:
                 "input_schema": tool.inputSchema,
             }
 
-        logger.info(f"Discovered {len(server_tools)} tools from {self.server_name}")
+        self.logger.info(f"Discovered {len(server_tools)} tools from {self.server_name}")
         self.discovered_tools = server_tools
         return server_tools
 
@@ -130,11 +124,11 @@ class MCPConnector:
 
         # Start with configured port if available, then fallback to random ports
         if original_port:
-            logger.info(
+            self.logger.info(
                 f"Starting with configured port {original_port} for {self.server_name}"
             )
         else:
-            logger.info(
+            self.logger.info(
                 f"No configured port, using random port search for {self.server_name}"
             )
 
@@ -143,7 +137,7 @@ class MCPConnector:
                 if attempt == 0 and original_port:
                     # First attempt: use configured port
                     current_port = original_port
-                    logger.info(
+                    self.logger.info(
                         f"Attempt {attempt + 1}: Trying configured port {current_port} for {self.server_name}"
                     )
                 else:
@@ -153,11 +147,11 @@ class MCPConnector:
                         config_loader.config.get("mcp.ports.random_port_max", 50000),
                     )
                     if attempt == 0:
-                        logger.info(
+                        self.logger.info(
                             f"Attempt {attempt + 1}: No configured port, trying random port {current_port} for {self.server_name}"
                         )
                     else:
-                        logger.info(
+                        self.logger.info(
                             f"Attempt {attempt + 1}: Configured port failed, trying random port {current_port} for {self.server_name}"
                         )
 
@@ -169,7 +163,7 @@ class MCPConnector:
                 env.update(self.server_env)
                 env["MCP_SERVER_PORT"] = str(self.port)
 
-                # logger.info(f"Command: {' '.join(self.server_command)}")
+                # self.logger.info(f"Command: {' '.join(self.server_command)}")
 
                 self.server_process = subprocess.Popen(
                     self.server_command,
@@ -192,41 +186,41 @@ class MCPConnector:
                                     "mcp.connection.health_check_timeout", 2
                                 ),
                             ) as response:
-                                logger.info(
+                                self.logger.info(
                                     f"Successfully started HTTP server for {self.server_name} on port {self.port}"
                                 )
                                 return True
                     except Exception:
-                        logger.info(
+                        self.logger.info(
                             f"HTTP server process running for {self.server_name} on port {self.port}"
                         )
                         return True
                 else:
                     stdout, stderr = self.server_process.communicate()
                     if "EADDRINUSE" in stderr or "address already in use" in stderr:
-                        logger.warning(
+                        self.logger.warning(
                             f"Port {self.port} in use for {self.server_name}, trying next port..."
                         )
                         continue
                     else:
-                        logger.error(
+                        self.logger.error(
                             f"HTTP server failed to start for {self.server_name}"
                         )
-                        logger.error(f"stdout: {stdout}")
-                        logger.error(f"stderr: {stderr}")
+                        self.logger.error(f"stdout: {stdout}")
+                        self.logger.error(f"stderr: {stderr}")
                         return False
 
             except Exception as e:
-                logger.error(
+                self.logger.error(
                     f"ERROR in attempt {attempt + 1} for {self.server_name}: {e}"
                 )
                 import traceback
 
-                logger.error(f"Full traceback: {traceback.format_exc()}")
+                self.logger.error(f"Full traceback: {traceback.format_exc()}")
                 if attempt < max_port_attempts - 1:
                     continue
 
-        logger.error(
+        self.logger.error(
             f"Failed to start HTTP server for {self.server_name} after {max_port_attempts} attempts"
         )
         return False
@@ -365,24 +359,24 @@ class MCPConnector:
                         "input_schema": tool.get("inputSchema", {}),
                     }
 
-                logger.info(
+                self.logger.info(
                     f"Discovered {len(server_tools)} tools from HTTP server {self.server_name}"
                 )
                 # Tool descriptions commented out to reduce output
                 for name, info in server_tools.items():
-                    logger.info(f"  - {name}: {info['description']}")
+                    self.logger.info(f"  - {name}: {info['description']}")
 
                 self.discovered_tools = server_tools
                 return server_tools
 
         except Exception as e:
-            logger.log(
+            self.logger.log(
                 TOOL_CALL_ERROR,
                 f"ERROR in discovering tools from HTTP server {self.server_name}: {e}",
             )
             import traceback
 
-            logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
+            self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
             raise
 
     async def discover_tools_sse(self) -> Dict[str, Any]:
@@ -493,7 +487,7 @@ class MCPConnector:
                         "input_schema": tool.get("inputSchema", {}),
                     }
 
-                logger.info(
+                self.logger.info(
                     f"Discovered {len(server_tools)} tools from SSE server {self.server_name}"
                 )
 
@@ -501,13 +495,13 @@ class MCPConnector:
                 return server_tools
 
         except Exception as e:
-            logger.log(
+            self.logger.log(
                 TOOL_CALL_ERROR,
                 f"ERROR in discovering tools from SSE server {self.server_name}: {e}",
             )
             import traceback
 
-            logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
+            self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
             raise
 
     async def discover_tools_url(self) -> Dict[str, Any]:
@@ -656,7 +650,7 @@ class MCPConnector:
                         "input_schema": tool.get("inputSchema", {}),
                     }
 
-                logger.info(
+                self.logger.info(
                     f"Discovered {len(server_tools)} tools from URL server {self.server_name}"
                 )
 
@@ -664,13 +658,13 @@ class MCPConnector:
                 return server_tools
 
         except Exception as e:
-            logger.log(
+            self.logger.log(
                 TOOL_CALL_ERROR,
                 f"ERROR in discovering tools from URL server {self.server_name}: {e}",
             )
             import traceback
 
-            logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
+            self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
             raise
 
     async def stop_http_server(self):
@@ -678,7 +672,7 @@ class MCPConnector:
         if self.server_process:
             try:
                 process_pid = self.server_process.pid
-                logger.info(
+                self.logger.info(
                     f"Stopping HTTP server for {self.server_name} (PID: {process_pid}, Port: {self.port})"
                 )
 
@@ -688,7 +682,7 @@ class MCPConnector:
 
                 # Check if process is still running
                 if self.server_process.poll() is None:
-                    logger.warning(
+                    self.logger.warning(
                         f"Process {process_pid} didn't terminate gracefully, using KILL"
                     )
                     self.server_process.kill()
@@ -701,11 +695,11 @@ class MCPConnector:
                             "mcp.connection.process_wait_timeout", 5
                         )
                     )
-                    logger.info(
+                    self.logger.info(
                         f"HTTP server process {process_pid} for {self.server_name} has exited"
                     )
                 except subprocess.TimeoutExpired:
-                    logger.warning(
+                    self.logger.warning(
                         f"Process {process_pid} still running after kill signal"
                     )
 
@@ -714,21 +708,21 @@ class MCPConnector:
                 try:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_sock:
                         test_sock.bind(("localhost", self.port))
-                        logger.info(
+                        self.logger.info(
                             f"Port {self.port} successfully released for {self.server_name}"
                         )
                 except OSError:
-                    logger.warning(
+                    self.logger.warning(
                         f"Port {self.port} may still be in use after stopping {self.server_name}"
                     )
 
             except Exception as e:
-                logger.error(
+                self.logger.error(
                     f"ERROR in stopping HTTP server for {self.server_name}: {e}"
                 )
                 import traceback
 
-                logger.error(f"Full traceback: {traceback.format_exc()}")
+                self.logger.error(f"Full traceback: {traceback.format_exc()}")
             finally:
                 self.server_process = None
 
@@ -740,14 +734,14 @@ class MCPConnector:
         try:
             # Close SSE session if exists
             if self.sse_session and not self.sse_session.closed:
-                logger.info(f"Closing SSE session for {self.server_name}")
+                self.logger.info(f"Closing SSE session for {self.server_name}")
                 await self.sse_session.close()
                 self.sse_session = None
 
             # Stop server process if exists
             if self.server_process:
                 process_pid = self.server_process.pid
-                logger.info(
+                self.logger.info(
                     f"Stopping SSE server for {self.server_name} (PID: {process_pid}, Port: {self.port})"
                 )
 
@@ -757,7 +751,7 @@ class MCPConnector:
 
                 # Check if process is still running
                 if self.server_process.poll() is None:
-                    logger.warning(
+                    self.logger.warning(
                         f"Process {process_pid} didn't terminate gracefully, using KILL"
                     )
                     self.server_process.kill()
@@ -770,11 +764,11 @@ class MCPConnector:
                             "mcp.connection.process_wait_timeout", 5
                         )
                     )
-                    logger.info(
+                    self.logger.info(
                         f"SSE server process {process_pid} for {self.server_name} has exited"
                     )
                 except subprocess.TimeoutExpired:
-                    logger.warning(
+                    self.logger.warning(
                         f"Process {process_pid} still running after kill signal"
                     )
 
@@ -783,21 +777,21 @@ class MCPConnector:
                 try:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_sock:
                         test_sock.bind(("localhost", self.port))
-                        logger.info(
+                        self.logger.info(
                             f"Port {self.port} successfully released for {self.server_name}"
                         )
                 except OSError:
-                    logger.warning(
+                    self.logger.warning(
                         f"Port {self.port} may still be in use after stopping {self.server_name}"
                     )
 
                 self.server_process = None
 
         except Exception as e:
-            logger.error(f"ERROR in stopping SSE server for {self.server_name}: {e}")
+            self.logger.error(f"ERROR in stopping SSE server for {self.server_name}: {e}")
             import traceback
 
-            logger.error(f"Full traceback: {traceback.format_exc()}")
+            self.logger.error(f"Full traceback: {traceback.format_exc()}")
             raise
 
     @staticmethod
@@ -938,10 +932,10 @@ class MCPConnector:
                 return tool_result
 
         except Exception as e:
-            logger.log(TOOL_CALL_ERROR, f"ERROR in calling SSE tool '{tool_name}': {e}")
+            self.logger.log(TOOL_CALL_ERROR, f"ERROR in calling SSE tool '{tool_name}': {e}")
             import traceback
 
-            logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
+            self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
             raise
 
     async def call_tool_url(self, tool_name: str, parameters: Dict[str, Any]) -> Any:
@@ -1039,10 +1033,10 @@ class MCPConnector:
                 return tool_result
 
         except Exception as e:
-            logger.log(TOOL_CALL_ERROR, f"ERROR in calling URL tool '{tool_name}': {e}")
+            self.logger.log(TOOL_CALL_ERROR, f"ERROR in calling URL tool '{tool_name}': {e}")
             import traceback
 
-            logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
+            self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
             raise
 
     async def stop_url_server(self):
@@ -1053,14 +1047,14 @@ class MCPConnector:
         try:
             # Close session if exists
             if self.sse_session and not self.sse_session.closed:
-                logger.info(f"Closing URL session for {self.server_name}")
+                self.logger.info(f"Closing URL session for {self.server_name}")
                 await self.sse_session.close()
                 self.sse_session = None
-                logger.info(f"URL session closed for {self.server_name}")
+                self.logger.info(f"URL session closed for {self.server_name}")
 
         except Exception as e:
-            logger.error(f"ERROR in stopping URL server for {self.server_name}: {e}")
+            self.logger.error(f"ERROR in stopping URL server for {self.server_name}: {e}")
             import traceback
 
-            logger.error(f"Full traceback: {traceback.format_exc()}")
+            self.logger.error(f"Full traceback: {traceback.format_exc()}")
             raise

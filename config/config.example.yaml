@@ -2,6 +2,13 @@
 # This file contains all necessary configuration for the MCP system
 # Can be overridden via environment variables with format: BENCHMARK_SECTION_SUBSECTION_KEY=value
 
+# Path Variables
+# Use YOUR_PWD to reference the project root directory in other config values
+paths:
+  # Base directory of the project (auto-detected as parent of config/ directory)
+  # Users can override this by setting absolute path, or leave empty for auto-detection
+  base_dir: <YOUR_PWD>
+
 agent:
   # Agent type to use
   # Override with: AGENT_TYPE
@@ -21,17 +28,10 @@ agent:
 
   # Path to MCP server configuration file
   # Override with: AGENT_SERVER_CONFIG_PATH
-  # * Change to absolute path
-  server_config_path: config/config.json
+  server_config_path: config/config.yaml
 
-  # API configuration (optional)
-  # If not specified, will use environment variables (BASE_URL, OPENAI_API_KEY)
-  # Override with: AGENT_BASE_URL, AGENT_API_KEY
-  api:
-    base_url: null
-    api_key: null
-
-  system_prompt_path: /Users/xiyuanyang/Desktop/Dev/IntelliSearch-v2/prompts/sys_zh.md
+  # agent system prompt path
+  system_prompt_path: prompts/sys_zh.md
 
 # MCP server related configuration
 mcp:
@@ -59,8 +59,168 @@ cache:
   # Enable tool call caching to reduce redundant API calls
   enabled: true
   # Cache directory path
-  cache_dir: "./cache"
+  cache_dir: "~/.intellisearch/cache"
   # Cache time-to-live in hours (0 = permanent cache)
   ttl_hours: 0
   # Server whitelist - only cache tools from these servers (empty list = cache all)
   server_whitelist: []
+
+env:
+  OPENAI_API_KEY: your-api-key
+  BASE_URL: "https://api.deepseek.com"
+  ZHIPU_API_KEY: your-api-key
+  ZHIPU_BASE_URL: "https://open.bigmodel.cn/api/paas/v4/"
+  SERPER_API_KEY: your-api-key
+  MEMOS_API_KEY: your-api-key
+  MEMOS_BASE_URL: "https://memos.memtensor.cn/api/openmem/v1"
+  GITHUB_TOKEN: your-api-key
+  AMAP_MAPS_API_KEY: your-api-key
+  BILIBILI_SESSDATA: your-api-key
+  BILIBILI_BILI_JCT: your-api-key
+  BILIBILI_BUVID3: your-api-key
+  DOUBAN_COOKIE: your-api-key
+
+
+all_servers:
+  base_toolkit:
+    command: python
+    args: <YOUR_PWD>/mcp_server/base_toolkit/server.py
+    description: Base Toolkit for Agents providing fundamental tools and utilities
+
+  operate_browser:
+    command: python
+    args: <YOUR_PWD>/mcp_server/operate_browser/server.py
+    description: Browser automation tools using Playwright for web navigation, page interaction, and content extraction
+
+  operate_file:
+    command: python
+    args: <YOUR_PWD>/mcp_server/operate_file/server.py
+    description: Local file system operations including create, read, write, delete, and specialized handling for CSV, PDF, and JSON files
+
+  operate_python:
+    command: python
+    args: <YOUR_PWD>/mcp_server/operate_python/server.py
+    description: Python code execution environment using IPython backend with state persistence and result capture (requires backend service on port 39256)
+
+  operate_terminal:
+    command: python
+    args: <YOUR_PWD>/mcp_server/operate_terminal/server.py
+    description: Terminal command execution with timeout control, stdout/stderr capture, and system environment information retrieval including OS details, current user, and environment variables
+
+  search_bilibili:
+    command: python
+    args: <YOUR_PWD>/mcp_server/search_bilibili/server.py
+    description: Search videos and content on Bilibili platform
+
+  search_geo:
+    command: python
+    args: <YOUR_PWD>/mcp_server/search_geo/server.py
+    description: Map search and location services based on Amap (高德地图) API including routing, geocoding, and POI search
+
+  search_github:
+    command: python
+    args: <YOUR_PWD>/mcp_server/search_github/server.py
+    description: GitHub Search tools for repositories, code, users, issues, and pull requests
+
+  search_local:
+    command: python
+    args: <YOUR_PWD>/mcp_server/search_local/server.py
+    description: Local semantic search using RAG (Retrieval-Augmented Generation) on indexed documents with support for PDF, TXT, MD, and DOCX formats via txtai embeddings and vector index (requires backend service on port 39257)
+
+  search_movie:
+    command: python
+    args: <YOUR_PWD>/mcp_server/search_movie/server.py
+    description: Search books, movies, music and reviews on Douban platform
+
+  search_sai:
+    command: python
+    args: <YOUR_PWD>/mcp_server/search_sai/server.py
+    description: SAI Memos-based knowledge and conversation memory search for retrieving historical context and stored information using Memos API with user-specific and conversation-aware queries
+
+  search_scholar:
+    command: python
+    args: <YOUR_PWD>/mcp_server/search_scholar/server.py
+    description: Search academic papers and citations on Google Scholar and recent papers on arXiv
+
+  search_train:
+    command: python
+    args: <YOUR_PWD>/mcp_server/search_train/server.py
+    description: 12306 Train Search for querying train tickets, schedules, and station information in China
+
+  search_web:
+    command: python
+    args: <YOUR_PWD>/mcp_server/search_web/server.py
+    description: Web Search tools to get information from the internet using Google and Zhipu AI
+
+  search_wechat_official_account:
+    command: python
+    args: <YOUR_PWD>/mcp_server/search_wechat/server.py
+    description: Search articles and content from WeChat Official Accounts
+
+server_choice:
+  - base_toolkit
+  - operate_browser
+  - operate_file
+  - operate_python
+  - operate_terminal
+  - search_bilibili
+  - search_geo
+  - search_github
+  - search_local
+  - search_movie
+  - search_sai
+  - search_scholar
+  - search_train 
+  - search_web
+  - search_wechat_official_account
+
+# Tool Backend Service Configuration
+# These ports are used by backend services (IPython executor, RAG service)
+tool_backend:
+  ipython_port: 39256
+  rag_port: 39257
+
+
+rag:
+  # Embedding model configuration
+  embedding:
+    # Path to embedding model (supports local path or HuggingFace model ID)
+    # Override with: RAG_EMBEDDING_MODEL_PATH
+    model_path: "./models/all-MiniLM-L6-v2"
+
+    # Device to run embedding model on: cpu, mps (Apple Silicon), cuda
+    # Override with: RAG_EMBEDDING_DEVICE
+    device: "cpu"
+
+  # Vector index configuration
+  index:
+    # Path to store/load vector index
+    # Override with: RAG_INDEX_PATH
+    path: "./data/rag_index"
+
+    # Whether to store original content in index
+    # Override with: RAG_INDEX_CONTENT
+    content: true
+
+  # Document processing configuration
+  documents:
+    # Text chunk size for document splitting
+    # Override with: RAG_DOCUMENTS_CHUNK_SIZE
+    chunk_size: 500
+
+    # Overlap between chunks
+    # Override with: RAG_DOCUMENTS_OVERLAP
+    overlap: 50
+
+  # Search/retrieval configuration
+  search:
+    # Default number of results to return
+    # Override with: RAG_SEARCH_DEFAULT_LIMIT
+    default_limit: 5
+
+    # Minimum similarity score threshold (0.0 - 1.0)
+    # Override with: RAG_SEARCH_SCORE_THRESHOLD
+    score_threshold: 0.7
+  
+  initialization:
+    load_dir: <YOUR_PWD>/data/RAG

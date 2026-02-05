@@ -7,7 +7,6 @@ import sys
 import json
 import logging
 import uuid
-import dotenv
 from datetime import datetime
 from typing import Dict, Any, Optional, AsyncGenerator
 
@@ -17,13 +16,17 @@ from pydantic import BaseModel
 
 # 添加项目根目录到路径
 sys.path.append(os.getcwd())
-dotenv.load_dotenv(override=True)
+from config.config_loader import Config
+
+# Load environment variables from config.yaml
+config = Config.get_instance()
 
 from backend.core.llm_client import LLMClient
+from core.logger import get_logger
 
 # 配置日志
 logging.getLogger("mcp").setLevel(logging.CRITICAL)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # 创建路由器
 router = APIRouter(prefix="/api/chat", tags=["chat"])

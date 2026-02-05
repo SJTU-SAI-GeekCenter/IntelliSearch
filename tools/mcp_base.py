@@ -5,14 +5,16 @@ This module provides a dedicated component for MCP protocol operations,
 including tool discovery, execution, and response handling.
 """
 
+import yaml
 import json
-import logging
+import os
 from typing import List, Dict, Any, Optional
 
 from tools.server_manager import MultiServerManager
 from mcp.types import CallToolResult
 from ui.tool_ui import tool_ui
-from backend.tool_hash import fix_tool_args
+from core.tool_hash import fix_tool_args
+from core.logger import get_logger
 
 
 class MCPBase:
@@ -30,7 +32,7 @@ class MCPBase:
         logger: Logger instance
 
     Example:
-        >>> mcp_base = MCPBase(config_path="config/config.json")
+        >>> mcp_base = MCPBase(config_path="config/config.yaml")
         >>> tools = await mcp_base.list_tools()
         >>> result = await mcp_base.get_tool_response(
         ...     tool_name="search:google",
@@ -38,59 +40,92 @@ class MCPBase:
         ... )
     """
 
-    def __init__(self, config_path: str = "config/config.json"):
+    def __init__(self, config_path: str = "config/config.yaml"):
         """
         Initialize the MCPBase component.
 
         Args:
-            config_path: Path to MCP server configuration file
+            config_path: Path to MCP server configuration file (YAML format)
 
         Raises:
             ValueError: If configuration file is invalid
         """
         self.config_path = config_path
+        self.logger = get_logger(__name__)
         self.config = self._load_server_configs(config_path)
         self.server_manager = MultiServerManager(server_configs=self.config)
-        self.logger = logging.getLogger(__name__)
         self.logger.info("MCPBase initialized")
 
     def _load_server_configs(self, config_path: str) -> List[Dict[str, Any]]:
         """
-        Load MCP server configurations from JSON file.
+        Load MCP server configurations from YAML file.
+
+        Only loads servers that are specified in the 'server_choice' section
+        of the configuration file.
 
         Args:
-            config_path: Path to configuration file
+            config_path: Path to YAML configuration file
 
         Returns:
             List of server configuration dictionaries
+
+        Raises:
+            FileNotFoundError: If configuration file doesn't exist
+            yaml.YAMLError: If YAML parsing fails
         """
         with open(config_path, "r", encoding="utf-8") as f:
-            cfg = json.load(f)
+            cfg: Dict = yaml.safe_load(f)
 
         servers = []
+        all_servers: Dict = cfg.get("all_servers", {})
+        server_choice: List[str] = cfg.get("server_choice", [])
 
-        for name, conf in cfg.get("mcpServers", {}).items():
-            if conf.get("transport") == "sse":
-                servers.append(
-                    {
-                        "name": name,
-                        "url": conf.get("url"),
-                        "transport": conf.get("transport", "sse"),
-                    }
+        # If server_choice is empty, load all servers (backward compatibility)
+        if not server_choice:
+            self.logger.warning(
+                "server_choice is empty, loading all servers. "
+                "Please specify servers in server_choice to avoid loading unused servers."
+            )
+            server_choice = list(all_servers.keys())
+
+        # Load only selected servers
+        for name in server_choice:
+            if name not in all_servers:
+                self.logger.warning(
+                    f"Server '{name}' in server_choice not found in all_servers, skipping"
                 )
+                continue
+
+            conf = all_servers[name]
+
+            # Build command list from command and args
+            command = conf.get("command")
+            args = conf.get("args")
+
+            # Handle args as either string or list
+            if isinstance(args, str):
+                cmd_list = [command, args]
+            elif isinstance(args, list):
+                cmd_list = [command] + args
             else:
-                servers.append(
-                    {
-                        "name": name,
-                        "command": [conf.get("command")] + conf.get("args", []),
-                        "env": conf.get("env"),
-                        "cwd": conf.get("cwd"),
-                        "transport": conf.get("transport", "stdio"),
-                        "port": conf.get("port"),
-                        "endpoint": conf.get("endpoint", "/mcp"),
-                    }
-                )
+                cmd_list = [command]
 
+            servers.append(
+                {
+                    "name": name,
+                    "command": cmd_list,
+                    "env": conf.get("env", {}),
+                    "cwd": conf.get("cwd"),
+                    "transport": conf.get("transport", "stdio"),
+                    "port": conf.get("port"),
+                    "endpoint": conf.get("endpoint", "/mcp"),
+                }
+            )
+
+        self.logger.info(
+            f"Loaded {len(servers)}/{len(all_servers)} server configurations "
+            f"from server_choice: {server_choice}"
+        )
         return servers
 
     async def list_tools(self) -> Dict[str, Any]:
@@ -103,6 +138,10 @@ class MCPBase:
         try:
             self.logger.info("Discovering MCP tools...")
             all_tools = await self.server_manager.connect_all_servers()
+            tool_save_path = "data/tools.json"
+            if os.path.exists(tool_save_path):
+                with open(tool_save_path, "w", encoding="utf-8") as file:
+                    json.dump(all_tools, file, ensure_ascii=False, indent=2)
 
             if not all_tools:
                 raise RuntimeError("No MCP tools discovered")

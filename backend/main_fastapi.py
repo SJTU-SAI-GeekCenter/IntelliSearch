@@ -1,6 +1,7 @@
 """
 FastAPI主应用文件
 """
+# TODO REFACTOR FASTAPI BACKEND SERVICE
 import os
 import logging
 import sys
@@ -9,28 +10,20 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-# 添加当前目录到Python路径
 sys.path.append(os.getcwd())
-
-# 导入环境配置
-import dotenv
-
-# 导入日志配置
-from ui.log_config import setup_logging
-
-# 导入API路由
+from config.config_loader import Config
 from backend.api.chat_api import router as chat_router
+from core.logger import setup_logging, get_logger
 
-# 加载环境变量
-dotenv.load_dotenv()
+# Initialize global logging system
+setup_logging(
+    console_level="WARNING",
+    file_level="INFO"
+)
 
-# 设置日志
-setup_logging(log_file_path="./log/fastapi.log", project_prefix="IntelliSearch FastAPI")
-
-# 设置MCP日志级别
 logging.getLogger("mcp").setLevel(logging.CRITICAL)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
