@@ -60,6 +60,9 @@ class MCPBase:
         """
         Load MCP server configurations from YAML file.
 
+        Only loads servers that are specified in the 'server_choice' section
+        of the configuration file.
+
         Args:
             config_path: Path to YAML configuration file
 
@@ -75,8 +78,26 @@ class MCPBase:
 
         servers = []
         all_servers: Dict = cfg.get("all_servers", {})
+        server_choice: List[str] = cfg.get("server_choice", [])
 
-        for name, conf in all_servers.items():
+        # If server_choice is empty, load all servers (backward compatibility)
+        if not server_choice:
+            self.logger.warning(
+                "server_choice is empty, loading all servers. "
+                "Please specify servers in server_choice to avoid loading unused servers."
+            )
+            server_choice = list(all_servers.keys())
+
+        # Load only selected servers
+        for name in server_choice:
+            if name not in all_servers:
+                self.logger.warning(
+                    f"Server '{name}' in server_choice not found in all_servers, skipping"
+                )
+                continue
+
+            conf = all_servers[name]
+
             # Build command list from command and args
             command = conf.get("command")
             args = conf.get("args")
@@ -101,7 +122,10 @@ class MCPBase:
                 }
             )
 
-        self.logger.info(f"Loaded {len(servers)} server configurations from {config_path}")
+        self.logger.info(
+            f"Loaded {len(servers)}/{len(all_servers)} server configurations "
+            f"from server_choice: {server_choice}"
+        )
         return servers
 
     async def list_tools(self) -> Dict[str, Any]:
