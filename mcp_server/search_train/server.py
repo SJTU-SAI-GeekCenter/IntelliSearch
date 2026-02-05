@@ -10,8 +10,7 @@ from typing import Dict, List, Optional, Any
 from dateutil import tz
 
 from mcp.server.fastmcp import FastMCP
-from .types import TicketInfo, StationData
-from .api_client import (
+from api_client import (
     get_stations,
     get_lcquery_path,
     get_cookie,
@@ -21,11 +20,9 @@ from .api_client import (
     check_date,
     format_cookies,
     API_BASE,
-    SEARCH_API_BASE
+    SEARCH_API_BASE,
 )
-from .utils import (
-    format_ticket_status,
-)
+from utils import format_ticket_status, TicketInfo, StationData
 
 
 # Initialize MCP server

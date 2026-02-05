@@ -1,6 +1,5 @@
 import json
 import os
-import argparse
 import requests
 import time
 from mcp.server.fastmcp import FastMCP
@@ -1278,14 +1277,4 @@ def maps_around_search(location: str, radius: str = "1000", keywords: str = "") 
 
 
 if __name__ == "__main__":
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Amap MCP Server")
-    parser.add_argument(
-        "transport",
-        nargs="?",
-        default="stdio",
-        choices=["stdio", "sse", "streamable-http"],
-        help="Transport type (stdio, sse, or streamable-http)",
-    )
-    args = parser.parse_args()
     mcp.run()

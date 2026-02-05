@@ -1,18 +1,23 @@
 import os
-import argparse
 import hmac
 import hashlib
 import webbrowser
+import requests
+from tabulate import tabulate
+from typing import List, Dict, Any
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlencode, urlparse
-import requests
+from urllib.parse import urlparse
 from mcp.server.fastmcp import FastMCP
 
+mcp = FastMCP("Movie and Book Search")
 
-def get_cookie() -> str:
+# todo add api calls for TMDB
+# https://www.themoviedb.org/settings/api
+
+def get_douban_cookie() -> str:
     """Get Douban cookie from environment variables"""
-    cookie = os.getenv("COOKIE", "")
+    cookie = os.getenv("DOUBAN_COOKIE", "")
     return cookie
 
 
@@ -31,11 +36,7 @@ def get_frodo_sign(url: str, date: str, method: str = "GET") -> str:
     url_parsed = urlparse(url)
     url_path = url_parsed.path
     raw_sign = f"{method.upper()}&{url_path}&{date}"
-    hmac_obj = hmac.new(
-        b"bf7dddc7c9cfe6f7",
-        raw_sign.encode("utf-8"),
-        hashlib.sha1
-    )
+    hmac_obj = hmac.new(b"bf7dddc7c9cfe6f7", raw_sign.encode("utf-8"), hashlib.sha1)
     return hmac_obj.digest().decode("latin1")
 
 
@@ -45,7 +46,7 @@ def get_user_agent() -> str:
         "api-client/1 com.douban.frodo/7.22.0.beta9(231) Android/23 product/Mate 40 vendor/HUAWEI model/Mate 40 brand/HUAWEI  rom/android  network/wifi  platform/AndroidPad",
         "api-client/1 com.douban.frodo/7.18.0(230) Android/22 product/MI 9 vendor/Xiaomi model/MI 9 brand/Android  rom/miui6  network/wifi  platform/mobile nd/1",
         "api-client/1 com.douban.frodo/7.1.0(205) Android/29 product/perseus vendor/Xiaomi model/Mi MIX 3  rom/miui6  network/wifi  platform/mobile nd/1",
-        "api-client/1 com.douban.frodo/7.3.0(207) Android/22 product/MI 9 vendor/Xiaomi model/MI 9 brand/Android  rom/miui6  network/wifi platform/mobile nd/1"
+        "api-client/1 com.douban.frodo/7.3.0(207) Android/22 product/MI 9 vendor/Xiaomi model/MI 9 brand/Android  rom/miui6  network/wifi platform/mobile nd/1",
     ]
     # Use a simple index cycling
     if not hasattr(get_user_agent, "index"):
@@ -75,10 +76,7 @@ def request_frodo_api(url_path: str) -> Dict[str, Any]:
         "_sig": get_frodo_sign(full_url, date),
     }
 
-    headers = {
-        "user-agent": get_user_agent(),
-        "cookie": get_cookie()
-    }
+    headers = {"user-agent": get_user_agent(), "cookie": get_douban_cookie()}
 
     response = requests.get(full_url, params=params, headers=headers)
     response.raise_for_status()
@@ -87,34 +85,17 @@ def request_frodo_api(url_path: str) -> Dict[str, Any]:
 
 def format_table(headers: List[str], rows: List[Dict[str, Any]]) -> str:
     """
-    Format data as a markdown table.
-
-    Args:
-        headers: Table headers
-        rows: Table rows
-
-    Returns:
-        Formatted markdown table
+    使用 tabulate 将数据格式化为 Markdown 表格。
     """
     if not rows:
         return "No data available"
 
-    # Create header row
-    table = "| " + " | ".join(headers) + " |\n"
-    # Create separator row
-    table += "| " + " | ".join(["---"] * len(headers)) + " |\n"
-
-    # Create data rows
-    for row in rows:
-        table += "| " + " | ".join(str(row.get(h, "")) for h in headers) + " |\n"
-
-    return table
+    data = [[row.get(h, "") for h in headers] for row in rows]
+    return tabulate(data, headers=headers, tablefmt="github")
 
 
-# Initialize FastMCP
-mcp = FastMCP("douban-search")
+# * DOUBAN_SEARCH_TOOLS
 
-# Book search tools
 @mcp.tool()
 def search_book(q: Optional[str] = None, isbn: Optional[str] = None) -> str:
     """
@@ -136,13 +117,10 @@ def search_book(q: Optional[str] = None, isbn: Optional[str] = None) -> str:
         if q:
             # Search by keyword
             url = "https://api.douban.com/v2/book/search"
-            params = {
-                "q": q,
-                "apikey": "0ac44ae016490db2204ce0a042db2916"
-            }
+            params = {"q": q, "apikey": "0ac44ae016490db2204ce0a042db2916"}
             headers = {
                 "Accept": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             }
             response = requests.get(url, params=params, headers=headers)
             response.raise_for_status()
@@ -152,12 +130,10 @@ def search_book(q: Optional[str] = None, isbn: Optional[str] = None) -> str:
         elif isbn:
             # Search by ISBN
             url = f"https://api.douban.com/v2/book/isbn/{isbn}"
-            params = {
-                "apikey": "0ac44ae016490db2204ce0a042db2916"
-            }
+            params = {"apikey": "0ac44ae016490db2204ce0a042db2916"}
             headers = {
                 "Accept": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             }
             response = requests.get(url, params=params, headers=headers)
             response.raise_for_status()
@@ -172,7 +148,9 @@ def search_book(q: Optional[str] = None, isbn: Optional[str] = None) -> str:
             # Format pubdate
             pubdate = book.get("pubdate", "")
             if pubdate:
-                pubdate = pubdate.replace("年", "-").replace("月", "-").replace("日", "")
+                pubdate = (
+                    pubdate.replace("年", "-").replace("月", "-").replace("日", "")
+                )
                 try:
                     pubdate = datetime.strptime(pubdate, "%Y-%m-%d").strftime("%Y/%m")
                 except:
@@ -185,14 +163,16 @@ def search_book(q: Optional[str] = None, isbn: Optional[str] = None) -> str:
             # Format author
             author = "、".join(book.get("author", []))
 
-            rows.append({
-                "publish_date": pubdate,
-                "title": book.get("title", ""),
-                "author": author,
-                "rating": rating_str,
-                "id": book.get("id", ""),
-                "isbn": book.get("isbn13", "")
-            })
+            rows.append(
+                {
+                    "publish_date": pubdate,
+                    "title": book.get("title", ""),
+                    "author": author,
+                    "rating": rating_str,
+                    "id": book.get("id", ""),
+                    "isbn": book.get("isbn13", ""),
+                }
+            )
 
         return format_table(headers, rows)
 
@@ -227,12 +207,14 @@ def list_book_reviews(id: str) -> str:
             else:
                 rating_str = "N/A"
 
-            rows.append({
-                "title": review.get("title", ""),
-                "rating": rating_str,
-                "summary": review.get("abstract", ""),
-                "id": review.get("id", "")
-            })
+            rows.append(
+                {
+                    "title": review.get("title", ""),
+                    "rating": rating_str,
+                    "summary": review.get("abstract", ""),
+                    "id": review.get("id", ""),
+                }
+            )
 
         return format_table(headers, rows)
 
@@ -267,13 +249,15 @@ def search_movie(q: str) -> str:
             rating = movie.get("rating", {})
             rating_str = f"{rating.get('value', '0')} ({rating.get('count', 0)}人)"
 
-            rows.append({
-                "title": movie.get("title", ""),
-                "subtitle": movie.get("card_subtitle", ""),
-                "publish_date": movie.get("year", ""),
-                "rating": rating_str,
-                "id": movie.get("id", "")
-            })
+            rows.append(
+                {
+                    "title": movie.get("title", ""),
+                    "subtitle": movie.get("card_subtitle", ""),
+                    "publish_date": movie.get("year", ""),
+                    "rating": rating_str,
+                    "id": movie.get("id", ""),
+                }
+            )
 
         return format_table(headers, rows)
 
@@ -304,16 +288,20 @@ def list_movie_reviews(id: str) -> str:
         for review in reviews:
             rating = review.get("rating")
             if rating:
-                rating_str = f"{rating.get('value', 0)} (有用:{review.get('useful_count', 0)}人)"
+                rating_str = (
+                    f"{rating.get('value', 0)} (有用:{review.get('useful_count', 0)}人)"
+                )
             else:
                 rating_str = "N/A"
 
-            rows.append({
-                "title": review.get("title", ""),
-                "rating": rating_str,
-                "summary": review.get("abstract", ""),
-                "id": review.get("id", "")
-            })
+            rows.append(
+                {
+                    "title": review.get("title", ""),
+                    "rating": rating_str,
+                    "summary": review.get("abstract", ""),
+                    "id": review.get("id", ""),
+                }
+            )
 
         return format_table(headers, rows)
 
@@ -344,16 +332,20 @@ def list_tv_reviews(id: str) -> str:
         for review in reviews:
             rating = review.get("rating")
             if rating:
-                rating_str = f"{rating.get('value', 0)} (有用:{review.get('useful_count', 0)}人)"
+                rating_str = (
+                    f"{rating.get('value', 0)} (有用:{review.get('useful_count', 0)}人)"
+                )
             else:
                 rating_str = "N/A"
 
-            rows.append({
-                "title": review.get("title", ""),
-                "rating": rating_str,
-                "summary": review.get("abstract", ""),
-                "id": review.get("id", "")
-            })
+            rows.append(
+                {
+                    "title": review.get("title", ""),
+                    "rating": rating_str,
+                    "summary": review.get("abstract", ""),
+                    "id": review.get("id", ""),
+                }
+            )
 
         return format_table(headers, rows)
 
@@ -388,7 +380,7 @@ def browse(id: str) -> str:
 def list_group_topics(
     id: Optional[str] = None,
     tags: Optional[List[str]] = None,
-    from_date: Optional[str] = None
+    from_date: Optional[str] = None,
 ) -> str:
     """
     List group topics.
@@ -412,7 +404,8 @@ def list_group_topics(
         # Filter by tags
         if tags:
             topics = [
-                t for t in topics
+                t
+                for t in topics
                 if any(tag.get("name") in tags for tag in t.get("topic_tags", []))
             ]
 
@@ -421,8 +414,12 @@ def list_group_topics(
             try:
                 filter_date = datetime.strptime(from_date, "%Y-%m-%d")
                 topics = [
-                    t for t in topics
-                    if datetime.strptime(t.get("create_time", ""), "%Y-%m-%dT%H:%M:%S.%fZ") > filter_date
+                    t
+                    for t in topics
+                    if datetime.strptime(
+                        t.get("create_time", ""), "%Y-%m-%dT%H:%M:%S.%fZ"
+                    )
+                    > filter_date
                 ]
             except ValueError:
                 pass
@@ -434,7 +431,9 @@ def list_group_topics(
             # Format date
             create_time = topic.get("create_time", "")
             try:
-                pub_date = datetime.strptime(create_time, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%Y/%m/%d")
+                pub_date = datetime.strptime(
+                    create_time, "%Y-%m-%dT%H:%M:%S.%fZ"
+                ).strftime("%Y/%m/%d")
             except:
                 pub_date = create_time
 
@@ -445,12 +444,14 @@ def list_group_topics(
             # Format title with URL
             title = f"[{topic.get('title', '')}]({topic.get('url', '')})"
 
-            rows.append({
-                "publish_date": pub_date,
-                "tags": tags_str,
-                "title": title,
-                "id": topic.get("id", "")
-            })
+            rows.append(
+                {
+                    "publish_date": pub_date,
+                    "tags": tags_str,
+                    "title": title,
+                    "id": topic.get("id", ""),
+                }
+            )
 
         return format_table(headers, rows)
 
@@ -485,8 +486,9 @@ def get_group_topic_detail(id: str) -> str:
         content = topic.get("content", "")
         # Remove HTML tags (simple implementation)
         import re
-        content_plain = re.sub(r'<[^>]+>', '\n', content)
-        content_plain = re.sub(r'\n+', '\n', content_plain).strip()
+
+        content_plain = re.sub(r"<[^>]+>", "\n", content)
+        content_plain = re.sub(r"\n+", "\n", content_plain).strip()
 
         result = f"title: {topic.get('title', '')}\n"
         result += f"tags: {tags_str}\n"
@@ -502,14 +504,4 @@ def get_group_topic_detail(id: str) -> str:
 
 
 if __name__ == "__main__":
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Douban MCP Server")
-    parser.add_argument(
-        "transport",
-        nargs="?",
-        default="stdio",
-        choices=["stdio", "sse", "streamable-http"],
-        help="Transport type (stdio, sse, or streamable-http)",
-    )
-    args = parser.parse_args()
     mcp.run()

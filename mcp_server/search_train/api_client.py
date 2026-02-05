@@ -3,37 +3,42 @@
 
 Handles communication with 12306 APIs including authentication and data retrieval.
 """
+
 import re
 import requests
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from dateutil import tz
 
-from .types import (
-    TicketData, TicketInfo, StationData, Price
+from utils import (
+    TicketData,
+    TicketInfo,
+    StationData,
+    Price,
+    extract_prices,
+    extract_dw_flags,
 )
-from .utils import extract_prices, extract_dw_flags
 
 
 # API endpoints
-API_BASE = 'https://kyfw.12306.cn'
-SEARCH_API_BASE = 'https://search.12306.cn'
-WEB_URL = 'https://www.12306.cn/index/'
-LCQUERY_INIT_URL = 'https://kyfw.12306.cn/otn/lcQuery/init'
+API_BASE = "https://kyfw.12306.cn"
+SEARCH_API_BASE = "https://search.12306.cn"
+WEB_URL = "https://www.12306.cn/index/"
+LCQUERY_INIT_URL = "https://kyfw.12306.cn/otn/lcQuery/init"
 
 # Missing stations that need to be added manually
 MISSING_STATIONS = [
     StationData(
-        station_id='@cdd',
-        station_name='成  都东',
-        station_code='WEI',
-        station_pinyin='chengdudong',
-        station_short='cdd',
-        station_index='',
-        code='1707',
-        city='成都',
-        r1='',
-        r2=''
+        station_id="@cdd",
+        station_name="成  都东",
+        station_code="WEI",
+        station_pinyin="chengdudong",
+        station_short="cdd",
+        station_index="",
+        code="1707",
+        city="成都",
+        r1="",
+        r2="",
     )
 ]
 
@@ -44,6 +49,7 @@ _LCQUERY_PATH: Optional[str] = None
 
 class TrainSearchAPIError(Exception):
     """Custom exception for train search API errors."""
+
     pass
 
 
@@ -59,9 +65,9 @@ def parse_cookies(cookies: List[str]) -> Dict[str, str]:
     """
     cookie_record = {}
     for cookie in cookies:
-        key_value_part = cookie.split(';')[0]
-        if '=' in key_value_part:
-            key, value = key_value_part.split('=', 1)
+        key_value_part = cookie.split(";")[0]
+        if "=" in key_value_part:
+            key, value = key_value_part.split("=", 1)
             cookie_record[key.strip()] = value.strip()
     return cookie_record
 
@@ -76,7 +82,7 @@ def format_cookies(cookies: Dict[str, str]) -> str:
     Returns:
         Formatted cookie string
     """
-    return '; '.join([f'{k}={v}' for k, v in cookies.items()])
+    return "; ".join([f"{k}={v}" for k, v in cookies.items()])
 
 
 async def get_cookie() -> Optional[Dict[str, str]]:
@@ -86,15 +92,15 @@ async def get_cookie() -> Optional[Dict[str, str]]:
     Returns:
         Cookie dictionary or None if failed
     """
-    url = f'{API_BASE}/otn/leftTicket/init'
+    url = f"{API_BASE}/otn/leftTicket/init"
     try:
         response = requests.get(url)
-        set_cookie_headers = response.headers.get('Set-Cookie', '')
+        set_cookie_headers = response.headers.get("Set-Cookie", "")
         if set_cookie_headers:
-            return parse_cookies(set_cookie_headers.split(', '))
+            return parse_cookies(set_cookie_headers.split(", "))
         return None
     except Exception as e:
-        print(f'Error getting cookie: {e}')
+        print(f"Error getting cookie: {e}")
         return None
 
 
@@ -109,11 +115,11 @@ def parse_stations_data(raw_data: str) -> Dict[str, StationData]:
         Dictionary mapping station codes to StationData objects
     """
     result = {}
-    data_array = raw_data.split('|')
+    data_array = raw_data.split("|")
     data_list = []
 
     for i in range(len(data_array) // 10):
-        data_list.append(data_array[i * 10:(i + 1) * 10])
+        data_list.append(data_array[i * 10 : (i + 1) * 10])
 
     for group in data_list:
         if len(group) < 10:
@@ -129,7 +135,7 @@ def parse_stations_data(raw_data: str) -> Dict[str, StationData]:
             code=group[6],
             city=group[7],
             r1=group[8],
-            r2=group[9]
+            r2=group[9],
         )
 
         if station.station_code:
@@ -155,9 +161,9 @@ async def get_stations() -> Dict[str, StationData]:
         html = response.text
 
         # Extract station JS file path
-        match = re.search(r'\.(/script/core/common/station_name.+?\.js)', html)
+        match = re.search(r"\.(/script/core/common/station_name.+?\.js)", html)
         if not match:
-            raise TrainSearchAPIError('Failed to find station name JS file')
+            raise TrainSearchAPIError("Failed to find station name JS file")
 
         js_file_path = match.group(0)
         js_url = f'{WEB_URL.rstrip("/")}/{js_file_path.lstrip(".")}'
@@ -167,9 +173,9 @@ async def get_stations() -> Dict[str, StationData]:
         js_content = js_response.text
 
         # Extract station data variable
-        var_match = re.search(r'var station_names =\'(.+?)\'', js_content)
+        var_match = re.search(r"var station_names =\'(.+?)\'", js_content)
         if not var_match:
-            raise TrainSearchAPIError('Failed to parse station data')
+            raise TrainSearchAPIError("Failed to parse station data")
 
         raw_data = var_match.group(1)
         stations = parse_stations_data(raw_data)
@@ -183,7 +189,7 @@ async def get_stations() -> Dict[str, StationData]:
         return stations
 
     except Exception as e:
-        raise TrainSearchAPIError(f'Failed to get stations: {str(e)}')
+        raise TrainSearchAPIError(f"Failed to get stations: {str(e)}")
 
 
 async def get_lcquery_path() -> str:
@@ -203,19 +209,19 @@ async def get_lcquery_path() -> str:
 
         match = re.search(r" var lc_search_url = '(.+?)'", html)
         if not match:
-            raise TrainSearchAPIError('Failed to get LCQuery path')
+            raise TrainSearchAPIError("Failed to get LCQuery path")
 
         _LCQUERY_PATH = match.group(1)
         return _LCQUERY_PATH
 
     except Exception as e:
-        raise TrainSearchAPIError(f'Failed to get LCQuery path: {str(e)}')
+        raise TrainSearchAPIError(f"Failed to get LCQuery path: {str(e)}")
 
 
 def make_12306_request(
     url: str,
     params: Optional[Dict[str, str]] = None,
-    headers: Optional[Dict[str, str]] = None
+    headers: Optional[Dict[str, str]] = None,
 ) -> Optional[Any]:
     """
     Make HTTP request to 12306 API.
@@ -233,7 +239,7 @@ def make_12306_request(
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        print(f'Error making 12306 request: {e}')
+        print(f"Error making 12306 request: {e}")
         return None
 
 
@@ -249,7 +255,7 @@ def parse_tickets_data(raw_data: List[str]) -> List[TicketData]:
     """
     result = []
     for item in raw_data:
-        values = item.split('|')
+        values = item.split("|")
         if len(values) < 57:
             continue
 
@@ -308,7 +314,9 @@ def parse_tickets_data(raw_data: List[str]) -> List[TicketData]:
     return result
 
 
-def parse_tickets_info(tickets_data: List[TicketData], station_map: Dict[str, str]) -> List[TicketInfo]:
+def parse_tickets_info(
+    tickets_data: List[TicketData], station_map: Dict[str, str]
+) -> List[TicketInfo]:
     """
     Parse ticket data into ticket info with prices and dates.
 
@@ -322,41 +330,49 @@ def parse_tickets_info(tickets_data: List[TicketData], station_map: Dict[str, st
     result = []
 
     for ticket in tickets_data:
-        prices_list = extract_prices(ticket.yp_info_new, ticket.seat_discount_info, ticket)
+        prices_list = extract_prices(
+            ticket.yp_info_new, ticket.seat_discount_info, ticket
+        )
         dw_flag = extract_dw_flags(ticket.dw_flag)
 
         # Convert price dicts to Price objects
         prices = [
             Price(
-                seat_name=p['seat_name'],
-                short=p['short'],
-                seat_type_code=p['seat_type_code'],
-                num=p['num'],
-                price=p['price'],
-                discount=p.get('discount')
+                seat_name=p["seat_name"],
+                short=p["short"],
+                seat_type_code=p["seat_type_code"],
+                num=p["num"],
+                price=p["price"],
+                discount=p.get("discount"),
             )
             for p in prices_list
         ]
 
         # Parse dates and times
-        start_hours, start_minutes = map(int, ticket.start_time.split(':'))
-        duration_hours, duration_minutes = map(int, ticket.lishi.split(':'))
+        start_hours, start_minutes = map(int, ticket.start_time.split(":"))
+        duration_hours, duration_minutes = map(int, ticket.lishi.split(":"))
 
-        start_date = datetime.strptime(ticket.start_train_date, '%Y%m%d')
+        start_date = datetime.strptime(ticket.start_train_date, "%Y%m%d")
         start_date = start_date.replace(hour=start_hours, minute=start_minutes)
 
-        arrive_date = start_date + timedelta(hours=duration_hours, minutes=duration_minutes)
+        arrive_date = start_date + timedelta(
+            hours=duration_hours, minutes=duration_minutes
+        )
 
         ticket_info = TicketInfo(
             train_no=ticket.train_no,
             start_train_code=ticket.station_train_code,
-            start_date=start_date.strftime('%Y-%m-%d'),
-            arrive_date=arrive_date.strftime('%Y-%m-%d'),
+            start_date=start_date.strftime("%Y-%m-%d"),
+            arrive_date=arrive_date.strftime("%Y-%m-%d"),
             start_time=ticket.start_time,
             arrive_time=ticket.arrive_time,
             lishi=ticket.lishi,
-            from_station=station_map.get(ticket.from_station_telecode, ticket.from_station_telecode),
-            to_station=station_map.get(ticket.to_station_telecode, ticket.to_station_telecode),
+            from_station=station_map.get(
+                ticket.from_station_telecode, ticket.from_station_telecode
+            ),
+            to_station=station_map.get(
+                ticket.to_station_telecode, ticket.to_station_telecode
+            ),
             from_station_telecode=ticket.from_station_telecode,
             to_station_telecode=ticket.to_station_telecode,
             prices=prices,
@@ -377,9 +393,9 @@ def check_date(date_str: str) -> bool:
     Returns:
         True if date is valid (not in the past)
     """
-    shanghai_tz = tz.gettz('Asia/Shanghai')
+    shanghai_tz = tz.gettz("Asia/Shanghai")
     now = datetime.now(shanghai_tz).replace(hour=0, minute=0, second=0, microsecond=0)
-    input_date = datetime.strptime(date_str, '%Y-%m-%d')
+    input_date = datetime.strptime(date_str, "%Y-%m-%d")
     input_date = input_date.replace(tzinfo=shanghai_tz)
     input_date = input_date.replace(hour=0, minute=0, second=0, microsecond=0)
 

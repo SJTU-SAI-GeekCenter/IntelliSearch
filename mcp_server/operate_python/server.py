@@ -1,12 +1,13 @@
 import requests
+import os
 import asyncio
 from typing import Dict, Any, Optional
 from mcp.server.fastmcp import FastMCP
 
 # Configuration for the IPython backend server
-BACKEND_URL = "http://localhost:39256"
-
-mcp = FastMCP("ipython-mcp-server-v2")
+PORT = int(os.environ.get("TOOL_BACKEND_IPYTHON_PORT", 39256))
+BACKEND_URL = f"http://localhost:39256{PORT}"
+mcp = FastMCP("Python-Operator")
 
 
 def make_request(
