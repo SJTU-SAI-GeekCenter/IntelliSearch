@@ -4,8 +4,8 @@ IntelliSearch Evaluation Client
 Optimized version for model evaluation without streaming output.
 Focus on generating final answers with MCP tool integration.
 """
+# TODO TO BE REFACTORED FOR IntelliSearchEvalClient
 import os
-import dotenv
 import json
 import logging
 import asyncio
@@ -14,16 +14,14 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 from openai import OpenAI
 from datetime import datetime
+from config.config_loader import Config
 from tools.server_manager import MultiServerManager
 from mcp.types import CallToolResult
-from backend.tool_hash import fix_tool_args
-
-# Load environment variables
-dotenv.load_dotenv(override=True)
+from core.tool_hash import fix_tool_args
+from core.logger import get_logger
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class IntelliSearchEvalClient:

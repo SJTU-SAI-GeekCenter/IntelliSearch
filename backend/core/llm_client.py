@@ -1,17 +1,16 @@
 """
-LLM客户端核心模块，负责处理与语言模型的交互
+LLM客户端核心模块,负责处理与语言模型的交互
 """
 import os
-import logging
 import json
 import asyncio
-import dotenv
-dotenv.load_dotenv(override=True)
+from config.config_loader import Config
 from typing import List, Dict, Any, Optional, AsyncGenerator
 from openai import OpenAI
 
 from .mcp_client import MCPClient
-from backend.tool_hash import fix_tool_args
+from core.tool_hash import fix_tool_args
+from core.logger import get_logger
 
 
 class LLMClient:
@@ -25,7 +24,7 @@ class LLMClient:
     ):
         self.model_name = model_name
         self.base_url = base_url
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
         api_key = os.environ.get(api_key_env)
         if not api_key:

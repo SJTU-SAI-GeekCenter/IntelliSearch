@@ -1,22 +1,22 @@
 """
-MCP客户端核心模块，负责处理MCP服务器连接和工具调用
+MCP客户端核心模块,负责处理MCP服务器连接和工具调用
 """
 import os
 import json
-import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 from tools.server_manager import MultiServerManager
 from mcp.types import CallToolResult
+from core.logger import get_logger
 
 
 class MCPClient:
     """MCP客户端类，处理服务器连接和工具调用"""
 
     def __init__(self, config_path: str = "./config.json"):
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         self.config_path = config_path
         self.config = self.load_server_configs(config_path)
         self.server_manager = MultiServerManager(server_configs=self.config)
