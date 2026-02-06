@@ -1,8 +1,6 @@
-# IntelliSearch
-
 <div style="text-align: center;">
   <a href="https://git.io/typing-svg">
-    <img src="./assets/IntelliSearch.png" alt="IntelliSearch" />
+    <img src="./assets/Intellisearch-v3.1.png" alt="IntelliSearch" />
   </a>
 </div>
 
