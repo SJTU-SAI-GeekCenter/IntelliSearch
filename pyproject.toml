@@ -36,6 +36,7 @@ dependencies = [
     "qrcode>=8.2",
     "qrcode-terminal>=0.8",
     "apscheduler>=3.11.2",
+    "txtai>=9.4.1",
 ]
 
 [[tool.uv.index]]

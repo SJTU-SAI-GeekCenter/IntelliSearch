@@ -5,6 +5,7 @@ vector indexing, search, and persistence operations.
 """
 
 import logging
+import os
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 
@@ -43,6 +44,9 @@ class EmbeddingManager:
         self.content = content
         self.logger = logging.getLogger(__name__)
 
+        # Convert model path to absolute path if it's a local path
+        model_path = self._resolve_model_path(model_path)
+
         # Initialize txtai Embeddings
         self.embeddings = Embeddings(
             path=model_path,
@@ -51,6 +55,34 @@ class EmbeddingManager:
         )
 
         self._loaded = False
+
+    def _resolve_model_path(self, model_path: str) -> str:
+        """
+        Resolve model path to absolute path or HuggingFace ID.
+
+        Args:
+            model_path: Original model path
+
+        Returns:
+            Resolved absolute path or original HuggingFace ID
+        """
+        # If it's already a HuggingFace model ID (contains / but not starting with . or /)
+        if "/" in model_path and not model_path.startswith((".", "/")):
+            return model_path
+
+        # Convert to absolute path
+        if not os.path.isabs(model_path):
+            model_path = os.path.abspath(model_path)
+
+        # Check if path exists
+        if not os.path.exists(model_path):
+            self.logger.warning(
+                f"Model path does not exist: {model_path}. "
+                "Falling back to HuggingFace model ID: sentence-transformers/all-MiniLM-L6-v2"
+            )
+            return "sentence-transformers/all-MiniLM-L6-v2"
+
+        return model_path
 
     def index(self, documents: List[Tuple[str, str, Any]]) -> None:
         """

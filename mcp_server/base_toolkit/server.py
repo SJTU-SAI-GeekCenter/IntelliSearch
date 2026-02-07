@@ -17,7 +17,18 @@ def get_current_date() -> str:
     """
     try:
         now = datetime.now()
-        return now.strftime("%Y-%m-%d")
+        weekdays = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
+        weekday_str = weekdays[now.weekday()]
+
+        return f"{now.strftime('%Y-%m-%d')} {weekday_str}"
     except Exception as e:
         return f"Error getting current date: {str(e)}"
 
@@ -32,7 +43,17 @@ def get_current_time() -> str:
     """
     try:
         now = datetime.now()
-        return now.strftime("%Y-%m-%d,%H:%M:%S")
+        weekdays = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
+        weekday_str = weekdays[now.weekday()]
+        return f"{now.strftime('%Y-%m-%d,%H:%M:%S')} {weekday_str}"
     except Exception as e:
         return f"Error getting current time: {str(e)}"
 

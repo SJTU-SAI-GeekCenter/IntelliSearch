@@ -6,7 +6,7 @@ from mcp.server.fastmcp import FastMCP
 
 # Configuration for the IPython backend server
 PORT = int(os.environ.get("TOOL_BACKEND_IPYTHON_PORT", 39256))
-BACKEND_URL = f"http://localhost:39256{PORT}"
+BACKEND_URL = f"http://localhost:{PORT}"
 mcp = FastMCP("Python-Operator")
 
 

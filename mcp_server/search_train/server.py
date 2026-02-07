@@ -4,7 +4,9 @@
 Provides MCP tools for searching Chinese train tickets via 12306 API.
 """
 
+import asyncio
 import json
+import requests
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from dateutil import tz
@@ -34,11 +36,12 @@ _CITY_STATIONS: Optional[Dict[str, List[Dict[str, str]]]] = None
 _CITY_CODES: Optional[Dict[str, Dict[str, str]]] = None
 _NAME_STATIONS: Optional[Dict[str, Dict[str, str]]] = None
 _LCQUERY_PATH: Optional[str] = None
+_SESSION: Optional[requests.Session] = None
 
 
 async def _init_data():
     """Initialize global data caches."""
-    global _STATIONS, _CITY_STATIONS, _CITY_CODES, _NAME_STATIONS, _LCQUERY_PATH
+    global _STATIONS, _CITY_STATIONS, _CITY_CODES, _NAME_STATIONS, _LCQUERY_PATH, _SESSION
 
     if _STATIONS is None:
         _STATIONS = await get_stations()
@@ -75,6 +78,19 @@ async def _init_data():
 
     if _LCQUERY_PATH is None:
         _LCQUERY_PATH = await get_lcquery_path()
+
+    # Initialize session
+    if _SESSION is None:
+        _SESSION = requests.Session()
+        _SESSION.headers.update({
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36...",
+            "Referer": "https://kyfw.12306.cn/otn/leftTicket/init"
+        })
+        # Initialize session by visiting init page
+        try:
+            _SESSION.get("https://kyfw.12306.cn/otn/leftTicket/init", timeout=10)
+        except Exception as e:
+            pass
 
 
 @mcp.tool()
@@ -143,7 +159,7 @@ async def get_station_code_by_names(station_names: str) -> str:
     Get station codes by specific station names.
 
     Args:
-        stationNames: Station names separated by |, e.g., "北京南|上海虹桥"
+        station_names: Station names separated by |, e.g., "北京南|上海虹桥"
 
     Returns:
         JSON string mapping station names to their codes
@@ -164,8 +180,8 @@ async def get_station_code_by_names(station_names: str) -> str:
 @mcp.tool()
 async def get_tickets(
     date: str,
-    fromStation: str,
-    toStation: str,
+    from_station: str,
+    to_station: str,
     format: str = "text",
 ) -> str:
     """
@@ -173,8 +189,8 @@ async def get_tickets(
 
     Args:
         date: Query date in "yyyy-MM-dd" format
-        fromStation: Departure station code (use get-station-code-by-names or get-station-code-of-citys)
-        toStation: Arrival station code (use get-station-code-by-names or get-station-code-of-citys)
+        from_station: Departure station code (use get-station-code-by-names or get-station-code-of-citys)
+        to_station: Arrival station code (use get-station-code-by-names or get-station-code-of-citys)
         format: Output format ('text', 'csv', 'json')
 
     Returns:
@@ -187,28 +203,41 @@ async def get_tickets(
         return "Error: The date cannot be earlier than today."
 
     # Validate stations
-    if fromStation not in _STATIONS or toStation not in _STATIONS:
+    if from_station not in _STATIONS or to_station not in _STATIONS:
         return "Error: Station not found."
 
+    # Prepare request parameters
     params = {
         "leftTicketDTO.train_date": date,
-        "leftTicketDTO.from_station": fromStation,
-        "leftTicketDTO.to_station": toStation,
-        "purpose_codes": "ADULT",
+        "leftTicketDTO.from_station": from_station,
+        "leftTicketDTO.to_station": to_station,
+        "purpose_codes": "ADULT"
     }
 
-    cookies = await get_cookie()
-    if not cookies:
-        return "Error: Failed to get cookies. Check your network."
+    # Try multiple query paths to improve success rate
+    query_paths = ['query', 'queryA', 'queryZ', 'queryO']
+    response = None
 
-    response = make_12306_request(
-        f"{API_BASE}/otn/leftTicket/query",
-        params=params,
-        headers={"Cookie": format_cookies(cookies)},
-    )
+    for path in query_paths:
+        url = f"{API_BASE}/otn/leftTicket/{path}"
 
-    if not response or response.get("httpstatus") != "200":
-        return "Error: Failed to query ticket data."
+        try:
+            response = _SESSION.get(url, params=params, timeout=10)
+            data = response.json()
+
+            # Check if we got valid data
+            if data.get('data') and data['data'].get('result'):
+                # Successfully got data
+                response = data
+                break
+        except Exception as e:
+            continue
+
+        # Slight delay to avoid being blocked
+        await asyncio.sleep(0.5)
+
+    if not response or not response.get('data'):
+        return "Error: Failed to query ticket data - all query paths returned no results"
 
     try:
         tickets_data = parse_tickets_data(response["data"]["result"])

@@ -1,0 +1,35 @@
+{
+    "server_name": "Train Search Tools",
+    "tests": [
+        {
+            "tool": "get_current_date",
+            "input_params": {}
+        },
+        {
+            "tool": "get_stations_code_in_city",
+            "input_params": {
+                "city": "上海"
+            }
+        },
+        {
+            "tool": "get_station_code_of_citys",
+            "input_params": {
+                "citys": "北京|上海"
+            }
+        },
+        {
+            "tool": "get_station_code_by_names",
+            "input_params": {
+                "station_names": "北京南|上海虹桥"
+            }
+        },
+        {
+            "tool": "get_tickets",
+            "input_params": {
+                "date": "2026-02-08",
+                "fromStation": "BJP",
+                "toStation": "AOH"
+            }
+        }
+    ]
+}

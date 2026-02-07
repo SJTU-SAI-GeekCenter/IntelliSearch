@@ -352,12 +352,18 @@ def extract_prices(
     prices = []
     discounts = {}
 
-    # Parse discounts
-    for i in range(len(seat_discount_info) // DISCOUNT_STR_LENGTH):
-        discount_str = seat_discount_info[
-            i * DISCOUNT_STR_LENGTH : (i + 1) * DISCOUNT_STR_LENGTH
-        ]
-        discounts[discount_str[0]] = int(discount_str[1:])
+    # Parse discounts with error handling
+    if seat_discount_info:
+        for i in range(len(seat_discount_info) // DISCOUNT_STR_LENGTH):
+            discount_str = seat_discount_info[
+                i * DISCOUNT_STR_LENGTH : (i + 1) * DISCOUNT_STR_LENGTH
+            ]
+            try:
+                discount_value = int(discount_str[1:])
+                discounts[discount_str[0]] = discount_value
+            except (ValueError, IndexError):
+                # Skip invalid discount entries
+                continue
 
     # Parse prices
     for i in range(len(yp_info) // PRICE_STR_LENGTH):
