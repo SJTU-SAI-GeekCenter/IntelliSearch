@@ -560,7 +560,7 @@ async def run_quick_python_code(code: str) -> str:
 
     except Exception as e:
         return f"Error in quick execution: {str(e)}"
-    
+
 
 @mcp.tool()
 async def run_python_code(code: str) -> str:
@@ -569,9 +569,11 @@ async def run_python_code(code: str) -> str:
     """
     try:
         proc = await asyncio.create_subprocess_exec(
-            "python3", "-c", code,
+            "python3",
+            "-c",
+            code,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
         if stderr:

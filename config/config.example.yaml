@@ -92,10 +92,10 @@ all_servers:
     args: <YOUR_PWD>/mcp_server/operate_browser/server.py
     description: Browser automation tools using Playwright for web navigation, page interaction, and content extraction
 
-  operate_file:
+  filesystem:
     command: python
-    args: <YOUR_PWD>/mcp_server/operate_file/server.py
-    description: Local file system operations including create, read, write, delete, and specialized handling for CSV, PDF, and JSON files
+    args: <YOUR_PWD>/mcp_server/filesystem/server.py
+    description: Filesystem tools for reading, writing, and managing files and directories
 
   operate_python:
     command: python
@@ -110,42 +110,42 @@ all_servers:
   search_bilibili:
     command: python
     args: <YOUR_PWD>/mcp_server/search_bilibili/server.py
-    description: Search videos and content on Bilibili platform
+    description: Search videos and content from Bilibili
 
   search_geo:
     command: python
     args: <YOUR_PWD>/mcp_server/search_geo/server.py
-    description: Map search and location services based on Amap (高德地图) API including routing, geocoding, and POI search
+    description: Map search and location services based on Amap (高德地图) API matching address and POI
 
   search_github:
     command: python
     args: <YOUR_PWD>/mcp_server/search_github/server.py
-    description: GitHub Search tools for repositories, code, users, issues, and pull requests
+    description: Search code, repos, users on Github
 
   search_local:
     command: python
     args: <YOUR_PWD>/mcp_server/search_local/server.py
-    description: Local semantic search using RAG (Retrieval-Augmented Generation) on indexed documents with support for PDF, TXT, MD, and DOCX formats via txtai embeddings and vector index (requires backend service on port 39257)
+    description: Local semantic search using RAG (requires backend service on port 39257)
 
   search_movie:
     command: python
     args: <YOUR_PWD>/mcp_server/search_movie/server.py
-    description: Search books, movies, music and reviews on Douban platform
+    description: Search movies on Douban
 
   search_sai:
     command: python
     args: <YOUR_PWD>/mcp_server/search_sai/server.py
-    description: SAI Memos-based knowledge and conversation memory search for retrieving historical context and stored information using Memos API with user-specific and conversation-aware queries
+    description: Search user personal knowledge base (Memos)
 
   search_scholar:
     command: python
     args: <YOUR_PWD>/mcp_server/search_scholar/server.py
-    description: Search academic papers and citations on Google Scholar and recent papers on arXiv
+    description: Search academic papers on Google Scholar and Arxiv
 
   search_train:
     command: python
     args: <YOUR_PWD>/mcp_server/search_train/server.py
-    description: 12306 Train Search for querying train tickets, schedules, and station information in China
+    description: Search china railway train tickets (12306)
 
   search_web:
     command: python
@@ -160,7 +160,7 @@ all_servers:
 server_choice:
   - base_toolkit
   - operate_browser
-  - operate_file
+  - filesystem
   - operate_python
   - operate_terminal
   - search_bilibili
@@ -170,7 +170,7 @@ server_choice:
   - search_movie
   - search_sai
   - search_scholar
-  - search_train 
+  - search_train
   - search_web
   - search_wechat_official_account
 
