@@ -37,6 +37,7 @@ dependencies = [
     "qrcode-terminal>=0.8",
     "apscheduler>=3.11.2",
     "txtai>=9.4.1",
+    "pypdf>=5.1.0",
 ]
 
 [[tool.uv.index]]

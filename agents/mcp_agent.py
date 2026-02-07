@@ -151,11 +151,19 @@ class MCPBaseAgent(BaseAgent):
             )
 
         except Exception as e:
+            error_text = str(e)
+            if "Access Denied" in error_text or "denied" in error_text.lower():
+                return AgentResponse(
+                    status="failed",
+                    answer=error_text,
+                    metadata={"error": error_text, "error_type": type(e).__name__},
+                )
+
             self.logger.error(f"Inference failed: {e}", exc_info=True)
             return AgentResponse(
                 status="failed",
-                answer=f"Error during inference: {str(e)}",
-                metadata={"error": str(e), "error_type": type(e).__name__},
+                answer=f"Error during inference: {error_text}",
+                metadata={"error": error_text, "error_type": type(e).__name__},
             )
 
     async def _process_query_async(
@@ -219,9 +227,24 @@ class MCPBaseAgent(BaseAgent):
                     self.memory.add(completion.choices[0].message.model_dump())
 
                     # Execute tool calls using MCPBase component
-                    tool_results = await self.mcp_base.execute_tool_calls(
-                        tool_call_lists, tools
-                    )
+                    try:
+                        tool_results = await self.mcp_base.execute_tool_calls(
+                            tool_call_lists, tools
+                        )
+                    except Exception as tool_exc:
+                        # If permission was denied, rollback the last assistant tool-call message
+                        error_text = str(tool_exc)
+                        if (
+                            "Access Denied" in error_text
+                            or "denied" in error_text.lower()
+                        ):
+                            if (
+                                hasattr(self.memory, "entries")
+                                and self.memory.entries
+                                and self.memory.entries[-1].get("role") == "assistant"
+                            ):
+                                self.memory.entries.pop()
+                        raise
 
                     tools_called.extend(tool_results["tools_used"])
                     self.memory.add_many(tool_results["history"])
@@ -257,6 +280,10 @@ class MCPBaseAgent(BaseAgent):
             }
 
         except Exception as e:
+            error_text = str(e)
+            if "Access Denied" in error_text or "denied" in error_text.lower():
+                raise e
+
             error_message = f"Error during query processing: {e}"
             self.logger.error(error_message, exc_info=True)
             raise RuntimeError(error_message)

@@ -30,6 +30,17 @@ from core.schema import AgentRequest, AgentResponse
 from core.logger import get_logger
 from config.config_loader import Config
 
+# Import UI Modules for advanced interaction
+import logging
+
+try:
+    from ui.permission_ui import handle_permission_error
+    from mcp_server.operate_file.security import ImplicitDenyError, ExplicitDenyError
+except ImportError:
+    # 兼容处理
+    handle_permission_error = None
+    pass
+
 # Initialize global configuration and load environment variables
 config = Config(config_file_path="config/config.yaml")
 config.load_config(override=True)
@@ -188,7 +199,7 @@ class IntelliSearchCLI:
             "server_config_path": agent_config.get(
                 "server_config_path", "config/config.yaml"
             ),
-            "system_prompt": self.system_prompt
+            "system_prompt": self.system_prompt,
         }
 
         # Add optional API configuration
@@ -421,9 +432,7 @@ class IntelliSearchCLI:
             self.console.print(final_response_panel)
 
             # Display tool tracing
-            tool_tracing_md = Markdown(
-                tool_tracing, style=Style(color=ThemeColors.FG)
-            )
+            tool_tracing_md = Markdown(tool_tracing, style=Style(color=ThemeColors.FG))
             tool_tracing_panel = Panel(
                 tool_tracing_md,
                 title="[bold dim]Tool Tracing[/bold dim]",
@@ -797,7 +806,81 @@ class IntelliSearchCLI:
                 self.show_loading_indicator("Processing")
                 try:
                     request = AgentRequest(prompt=user_input)
-                    response = self.agent.inference(request)
+
+                    # --- UI Penetration Loop (Permission Handling) ---
+                    # ALERT: 这是目前架构的一个临时解决方案
+                    # 未来需要在 Agent 层面设计更优雅的权限处理机制
+                    # 如编写统一的错误处理模块
+                    max_retries = 3
+                    retry_count = 0
+                    response = None
+
+                    while retry_count < max_retries:
+                        try:
+                            response = self.agent.inference(request)
+
+                            # Check if valid response object but reflects a failure
+                            if response.status == "failed":
+                                # If it's a permission error, raise it so the except block handles it
+                                if (
+                                    "Access Denied" in response.answer
+                                    or "denied" in response.answer.lower()
+                                ):
+                                    raise Exception(response.answer)
+
+                            break  # Success!
+                        except Exception as e:
+                            # 1. 检查是否为权限错误
+                            if handle_permission_error and (
+                                "Access Denied" in str(e) or "denied" in str(e).lower()
+                            ):
+                                # 2. 暂停 Loading，弹出交互 UI
+                                self.clear_loading_indicator()
+
+                                # 将异常转化为 UI 请求
+                                # 注意：这里假设 e 是 Python Exception。
+                                # 如果是 RPC Error, 需要解析 msg
+                                is_authorized = handle_permission_error(e)
+
+                                if is_authorized:
+                                    self.console.print(
+                                        "[dim]🔄 Permission granted. Retrying operation...[/dim]"
+                                    )
+                                    retry_count += 1
+                                    self.show_loading_indicator("Retrying")
+                                    continue  # Loop back to try inference() again
+                                else:
+                                    # 用户拒绝，我们不应该抛出异常让程序崩溃退出，而是让它作为一次失败的对话结束
+                                    # 这样用户可以继续输入命令，而不是重启 CLI
+                                    self.console.print(
+                                        Text(
+                                            f"✋ Access Denied: Operation cancelled by user.",
+                                            style=Style(color=ThemeColors.WARNING),
+                                        )
+                                    )
+                                    # 手动构造一个失败的响应，让外层循环继续
+                                    response = AgentResponse(
+                                        status="failed",
+                                        answer="User denied permission request.",
+                                        metadata={"error": "Permission denied by user"},
+                                    )
+                                    break
+                            else:
+                                # 其他错误，返回失败响应，避免 CLI 直接退出
+                                self.logger.error(
+                                    "Inference error: {}", e, exc_info=True
+                                )
+                                response = AgentResponse(
+                                    status="failed",
+                                    answer=f"Error during inference: {str(e)}",
+                                    metadata={
+                                        "error": str(e),
+                                        "error_type": type(e).__name__,
+                                    },
+                                )
+                                break
+                    # ------------------------------------------------
+
                 finally:
                     self.clear_loading_indicator()
                     # Print a newline to move past the status line
