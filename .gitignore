@@ -250,7 +250,4 @@ spec
 test/test_results
 sai
 config/config.backup.yaml
-
-
-
-
+backend/tool_backend/sai_update/generate_slicing.py
