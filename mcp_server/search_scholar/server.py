@@ -3,7 +3,7 @@ import os
 import http.client
 import json
 import arxiv
-from typing import List, Dict, Literal, Union
+from typing import List, Dict, Union
 import httpx
 
 
@@ -142,7 +142,6 @@ async def search_dblp_papers(query: str, max_results: int = 5) -> str:
     Returns:
         A string containing multiple search results separated by '---'. 
         Each result includes: Title, Authors, Venue (with Year), Type, and Link.
-    !ATTENTION! You can read the pdf url with web parse tools after you have searched the pdf_url
     """
     url = "https://dblp.org/search/publ/api"
     hits = await _fetch_dblp(url, query, max_results)
@@ -200,7 +199,7 @@ async def search_dblp_authors(query: str, max_results: int = 5) -> str:
         max_results: Max number of authors to return (default 5).
 
     Returns:
-        A formatted list of matching authors, including their Name, Context (Affiliations/Awards), and Profile Link.
+        A formatted string containing matching author profiles, including Name, Context (Affiliations/Awards), and Profile Link.
     """
     url = "https://dblp.org/search/author/api"
     hits = await _fetch_dblp(url, query, max_results)
@@ -243,7 +242,7 @@ async def search_dblp_venues(query: str, max_results: int = 5) -> str:
         max_results: Max number of venues to return (default 5).
         
     Returns:
-        A list of matching venues containing Name, Acronym, and Type (Conference/Journal).
+        A formatted string containing matching venues, including Name, Acronym, and Type (Conference/Journal).
     """
     url = "https://dblp.org/search/venue/api"
     hits = await _fetch_dblp(url, query, max_results)
