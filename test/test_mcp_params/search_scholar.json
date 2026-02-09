@@ -1,0 +1,26 @@
+{
+    "server_name": "Scholar Search MCP Server",
+    "tests": [
+        {
+            "tool": "search_dblp_papers",
+            "input_params": {
+                "query": "Attention is all you need",
+                "max_results": 3
+            }
+        },
+        {
+            "tool": "search_dblp_authors",
+            "input_params": {
+                "query": "Geoffrey Hinton",
+                "max_results": 3
+            }
+        },
+        {
+            "tool": "search_dblp_venues",
+            "input_params": {
+                "query": "ICLR",
+                "max_results": 2
+            }
+        }
+    ]
+}
