@@ -38,6 +38,8 @@ dependencies = [
     "apscheduler>=3.11.2",
     "txtai>=9.4.1",
     "pypdf>=5.1.0",
+    "simpleeval>=1.0.3",
+    "playwright>=1.58.0",
 ]
 
 [[tool.uv.index]]

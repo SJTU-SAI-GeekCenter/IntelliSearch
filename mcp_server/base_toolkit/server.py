@@ -1,5 +1,12 @@
 import pyperclip
 import os
+import math
+from simpleeval import (
+    SimpleEval,
+    NameNotDefined,
+    FunctionNotDefined,
+    FeatureNotAvailable,
+)
 from datetime import datetime
 from PIL import ImageGrab
 from mcp.server.fastmcp import FastMCP
@@ -62,6 +69,8 @@ def get_current_time() -> str:
 def calculate_maths(expression: str) -> str:
     """
     Safely evaluate a mathematical expression and return the result.
+    supported expressions and functions:
+        - abs, round, min, max, pow, sqrt, sin, cos, tan, log, pi, e
 
     Args:
         expression (str): A mathematical expression string, e.g., "2 + 3 * 4".
@@ -69,35 +78,39 @@ def calculate_maths(expression: str) -> str:
     Returns:
         str: The result of the calculation as a string, or an error message.
     """
+    s = SimpleEval()
+    s.functions = {
+        "abs": abs,
+        "round": round,
+        "min": min,
+        "max": max,
+        "pow": pow,
+        "sqrt": math.sqrt,
+        "sin": math.sin,
+        "cos": math.cos,
+        "tan": math.tan,
+        "log": math.log,
+        "pi": math.pi,
+        "e": math.e,
+    }
+
     try:
-        # Use eval with restricted globals for safety
-        # Only allow mathematical operations
-        allowed_names = {
-            "__builtins__": {},
-            "abs": abs,
-            "round": round,
-            "min": min,
-            "max": max,
-            "sum": sum,
-            "pow": pow,
-        }
-
-        # Evaluate the expression
-        result = eval(expression, allowed_names, {})
-
-        # Format the result
-        if isinstance(result, float):
-            # Round to 6 decimal places to avoid floating point issues
-            result = round(result, 6)
-
-        return f"Result: {result}"
+        result = s.eval(expression)
+        if isinstance(result, (int, float)):
+            if isinstance(result, float):
+                result = round(result, 6)
+            return f"Result: {result}"
+        else:
+            return "Error: Expression did not return a number"
 
     except ZeroDivisionError:
         return "Error: Division by zero"
+    except (NameNotDefined, FunctionNotDefined) as e:
+        return f"Error: {str(e)}"
+    except FeatureNotAvailable:
+        return "Error: Use of forbidden Python features"
     except SyntaxError:
-        return f"Error: Invalid mathematical expression: '{expression}'"
-    except NameError:
-        return f"Error: Invalid characters or functions in expression: '{expression}'"
+        return f"Error: Invalid syntax in expression: '{expression}'"
     except Exception as e:
         return f"Error evaluating expression: {str(e)}"
 

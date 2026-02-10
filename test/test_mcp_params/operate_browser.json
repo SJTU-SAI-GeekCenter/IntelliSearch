@@ -1,0 +1,122 @@
+{
+    "server_name": "Operate-Browser MCP Server",
+    "tests": [
+        {
+            "tool": "open_url",
+            "input_params": {
+                "url": "https://www.example.com",
+                "wait_for_network": true
+            }
+        },
+        {
+            "tool": "get_browser_state",
+            "input_params": {}
+        },
+        {
+            "tool": "get_page_title",
+            "input_params": {}
+        },
+        {
+            "tool": "get_page_url",
+            "input_params": {}
+        },
+        {
+            "tool": "get_page_content",
+            "input_params": {
+                "selector": "h1",
+                "format": "text"
+            }
+        },
+        {
+            "tool": "get_element_text",
+            "input_params": {
+                "selector": "h1"
+            }
+        },
+        {
+            "tool": "get_element_attribute",
+            "input_params": {
+                "selector": "a",
+                "attribute": "href"
+            }
+        },
+        {
+            "tool": "get_page_structure",
+            "input_params": {}
+        },
+        {
+            "tool": "get_all_links",
+            "input_params": {}
+        },
+        {
+            "tool": "find_text",
+            "input_params": {
+                "search_text": "Example"
+            }
+        },
+        {
+            "tool": "take_page_screenshot",
+            "input_params": {
+                "save_path": "data/screenshot/browser_test.png",
+                "full_page": false
+            }
+        },
+        {
+            "tool": "scroll_page",
+            "input_params": {
+                "direction": "down",
+                "amount": 500
+            }
+        },
+        {
+            "tool": "scroll_page",
+            "input_params": {
+                "direction": "up"
+            }
+        },
+        {
+            "tool": "wait_for_timeout",
+            "input_params": {
+                "milliseconds": 1000
+            }
+        },
+        {
+            "tool": "refresh_page",
+            "input_params": {
+                "wait_for_network": true
+            }
+        },
+        {
+            "tool": "execute_javascript",
+            "input_params": {
+                "code": "document.title"
+            }
+        },
+        {
+            "tool": "new_tab",
+            "input_params": {
+                "url": "https://www.google.com"
+            }
+        },
+        {
+            "tool": "get_all_tabs",
+            "input_params": {}
+        },
+        {
+            "tool": "close_tab",
+            "input_params": {}
+        },
+        {
+            "tool": "get_cookies",
+            "input_params": {}
+        },
+        {
+            "tool": "get_html_source",
+            "input_params": {}
+        },
+        {
+            "tool": "close_browser",
+            "input_params": {}
+        }
+    ]
+}
