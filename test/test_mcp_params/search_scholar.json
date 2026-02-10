@@ -21,6 +21,24 @@
                 "query": "ICLR",
                 "max_results": 2
             }
+        },
+        {
+            "tool": "arxiv_search_by_author",
+            "input_params": {
+                "author_name": "Geoffrey Hinton"
+            }
+        },
+        {
+            "tool": "arxiv_search_by_content",
+            "input_params":{
+                "query_string": "Attention is all you need"
+            }
+        },
+        {
+            "tool": "google_scholar_search",
+            "input_params": {
+                "query": "Attention is all you need"
+            }
         }
     ]
 }

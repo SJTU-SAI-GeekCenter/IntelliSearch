@@ -5,6 +5,7 @@ import json
 import arxiv
 from typing import List, Dict, Union
 import httpx
+import asyncio
 
 
 client = arxiv.Client()
@@ -86,7 +87,7 @@ def arxiv_search_by_content(query_string: str, max_results: int = 5) -> List[Dic
 
 
 @mcp.tool()
-def scholar_search(query: str) -> str:
+def google_scholar_search(query: str) -> str:
     """perform google scholar search with query provided.
 
     Args:
@@ -110,21 +111,36 @@ def scholar_search(query: str) -> str:
 # dblp内部辅助函数
 def _safe_str(val: Union[str, List, None]) -> str:
     """Helper to handle DBLP's inconsistent XML-to-JSON list/string conversion."""
-    if val is None: return ""
-    if isinstance(val, list): return str(val[0]) if val else ""
+    if val is None:
+        return ""
+    if isinstance(val, list):
+        return str(val[0]) if val else ""
     return str(val)
 
+
 async def _fetch_dblp(api_url: str, query: str, max_results: int) -> List[Dict]:
-    """Internal helper to execute the HTTP request."""
+    """Internal helper to execute the HTTP request with exponential backoff retry."""
+    max_retries = 3
+    base_delay = 1.0
     params = {"q": query, "h": max_results, "format": "json"}
-    async with httpx.AsyncClient() as client:
-        response = await client.get(api_url, params=params, timeout=20.0)
-        response.raise_for_status()
-        data = response.json()
+
+    for attempt in range(max_retries):
         try:
-            return data["result"]["hits"]["hit"]
-        except (KeyError, TypeError):
-            return []
+            async with httpx.AsyncClient() as client:
+                response = await client.get(api_url, params=params, timeout=20.0)
+                response.raise_for_status()
+                data = response.json()
+                try:
+                    return data["result"]["hits"]["hit"]
+                except (KeyError, TypeError):
+                    return []
+        except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as e:
+            if attempt == max_retries - 1:
+                raise
+            delay = base_delay * (2 ** attempt)
+            await asyncio.sleep(delay)
+
+    return []
 
 
 @mcp.tool()
@@ -140,12 +156,12 @@ async def search_dblp_papers(query: str, max_results: int = 5) -> str:
         max_results: Max number of papers to return (default 5).
 
     Returns:
-        A string containing multiple search results separated by '---'. 
+        A string containing multiple search results separated by '---'.
         Each result includes: Title, Authors, Venue (with Year), Type, and Link.
     """
     url = "https://dblp.org/search/publ/api"
     hits = await _fetch_dblp(url, query, max_results)
-    
+
     if not hits:
         return f"No papers found for query: '{query}'"
 
@@ -162,7 +178,7 @@ async def search_dblp_papers(query: str, max_results: int = 5) -> str:
         if venue_raw:
             venue_str = f"{_safe_str(venue_raw)} ({year})"
         else:
-            venue_str = f"{pub_type} ({year})" # 针对 Thesis 等无 Venue 情况
+            venue_str = f"{pub_type} ({year})"  # 针对 Thesis 等无 Venue 情况
 
         # 作者处理
         authors_data = info.get("authors", {}).get("author", [])
@@ -175,11 +191,11 @@ async def search_dblp_papers(query: str, max_results: int = 5) -> str:
         authors_str = ", ".join(names) if names else "Unknown Authors"
 
         entry = (
-            f"📄 [Paper] {title}\n"
-            f"👥 Authors: {authors_str}\n"
-            f"🏛 Venue: {venue_str}\n"
-            f"📌 Type: {pub_type}\n"
-            f"🔗 Link: {doi_link}"
+            f"[Paper] {title}\n"
+            f"Authors: {authors_str}\n"
+            f"Venue: {venue_str}\n"
+            f"Type: {pub_type}\n"
+            f"Link: {doi_link}"
         )
         formatted_output.append(entry)
 
@@ -215,15 +231,19 @@ async def search_dblp_authors(query: str, max_results: int = 5) -> str:
 
         # 解析 Notes (机构/奖项)
         notes_raw = info.get("notes", {}).get("note", [])
-        notes_list = [notes_raw] if isinstance(notes_raw, dict) else (notes_raw if isinstance(notes_raw, list) else [])
-        affiliations = [n.get("text", "") for n in notes_list if isinstance(n, dict) and "text" in n]
-        
-        notes_str = f"🏢 Context: {'; '.join(affiliations)}\n" if affiliations else ""
+        notes_list = (
+            [notes_raw]
+            if isinstance(notes_raw, dict)
+            else (notes_raw if isinstance(notes_raw, list) else [])
+        )
+        affiliations = [
+            n.get("text", "") for n in notes_list if isinstance(n, dict) and "text" in n
+        ]
+
+        notes_str = f"Context: {'; '.join(affiliations)}\n" if affiliations else ""
 
         entry = (
-            f"🧑‍🔬 [Author] {author_name}\n"
-            f"{notes_str}"
-            f"🔗 Profile: {url_link}"
+            f"[Author] {author_name}\n" f"{notes_str}" f"Profile: {url_link}"
         )
         formatted_output.append(entry)
 
@@ -240,7 +260,7 @@ async def search_dblp_venues(query: str, max_results: int = 5) -> str:
     Args:
         query: The venue name or acronym (e.g., "CVPR", "ICLR", "IEEE Transactions").
         max_results: Max number of venues to return (default 5).
-        
+
     Returns:
         A formatted string containing matching venues, including Name, Acronym, and Type (Conference/Journal).
     """
@@ -265,34 +285,13 @@ async def search_dblp_venues(query: str, max_results: int = 5) -> str:
             display_name = venue_name
 
         entry = (
-            f"🏛 [Venue] {display_name}\n"
-            f"📌 Type: {venue_type}\n"
-            f"🔗 Link: {url_link}"
+            f"[Venue] {display_name}\n"
+            f"Type: {venue_type}\n"
+            f"Link: {url_link}"
         )
         formatted_output.append(entry)
 
     return "\n\n---\n\n".join(formatted_output)
-
-# dblp test
-# import asyncio
-# async def main():
-#     print("====== 测试 1: 搜论文 ======")
-#     result_paper = await search_dblp_papers("Torch.manual_seed(3407) is all you need")
-#     print(result_paper)
-#     print("\n")
-
-#     print("====== 测试 2: 搜作者 ======")
-#     result_author = await search_dblp_authors("Yan Lecun")
-#     print(result_author)
-#     print("\n")
-
-#     print("====== 测试 3: 搜会议 ======")
-#     result_venue = await search_dblp_venues("CVPR")
-#     print(result_venue)
-
-# if __name__ == "__main__":
-#     asyncio.run(main())
-
 
 
 if __name__ == "__main__":
