@@ -1,0 +1,25 @@
+{
+  "tests": [
+    {
+      "tool": "local_search",
+      "input_params": {
+        "query": "machine learning"
+      }
+    },
+    {
+      "tool": "local_search",
+      "input_params": {
+        "query": "artificial intelligence",
+        "limit": 5
+      }
+    },
+    {
+      "tool": "local_search",
+      "input_params": {
+        "query": "neural networks",
+        "limit": 3,
+        "threshold": 0.8
+      }
+    }
+  ]
+}

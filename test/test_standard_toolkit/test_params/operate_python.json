@@ -1,0 +1,188 @@
+{
+    "server_name": "Python-Operator MCP Server",
+    "tests": [
+        {
+            "tool": "check_ipython_health",
+            "input_params": {}
+        },
+        {
+            "tool": "create_ipython_session",
+            "input_params": {}
+        },
+        {
+            "tool": "create_ipython_session",
+            "input_params": {}
+        },
+        {
+            "tool": "list_ipython_sessions",
+            "input_params": {}
+        },
+        {
+            "tool": "list_ipython_sessions",
+            "input_params": {}
+        },
+        {
+            "tool": "get_session_info",
+            "input_params": {
+                "session_id": "session_1"
+            }
+        },
+        {
+            "tool": "get_session_info",
+            "input_params": {
+                "session_id": "session_2"
+            }
+        },
+        {
+            "tool": "add_code_cell",
+            "input_params": {
+                "session_id": "session_1",
+                "code": "x = 10\nprint(f'x = {x}')"
+            }
+        },
+        {
+            "tool": "add_code_cell",
+            "input_params": {
+                "session_id": "session_1",
+                "code": "y = x * 2\nprint(f'y = {y}')"
+            }
+        },
+        {
+            "tool": "add_code_cell",
+            "input_params": {
+                "session_id": "session_2",
+                "code": "import math\nprint(math.sqrt(16))"
+            }
+        },
+        {
+            "tool": "list_session_cells",
+            "input_params": {
+                "session_id": "session_1"
+            }
+        },
+        {
+            "tool": "list_session_cells",
+            "input_params": {
+                "session_id": "session_2"
+            }
+        },
+        {
+            "tool": "get_cell_info",
+            "input_params": {
+                "session_id": "session_1",
+                "cell_id": 1
+            }
+        },
+        {
+            "tool": "get_cell_info",
+            "input_params": {
+                "session_id": "session_1",
+                "cell_id": 2
+            }
+        },
+        {
+            "tool": "execute_python_code",
+            "input_params": {
+                "session_id": "session_1",
+                "code": "z = x + y\nprint(f'z = {z}')"
+            }
+        },
+        {
+            "tool": "execute_python_code",
+            "input_params": {
+                "session_id": "session_2",
+                "code": "result = [i**2 for i in range(5)]\nprint(result)"
+            }
+        },
+        {
+            "tool": "execute_session_cell",
+            "input_params": {
+                "session_id": "session_1",
+                "cell_id": 1
+            }
+        },
+        {
+            "tool": "execute_session_cell",
+            "input_params": {
+                "session_id": "session_1",
+                "cell_id": 2
+            }
+        },
+        {
+            "tool": "execute_session_all_cells",
+            "input_params": {
+                "session_id": "session_1"
+            }
+        },
+        {
+            "tool": "execute_session_all_cells",
+            "input_params": {
+                "session_id": "session_2"
+            }
+        },
+        {
+            "tool": "get_session_execution_status",
+            "input_params": {
+                "session_id": "session_1"
+            }
+        },
+        {
+            "tool": "get_session_execution_status",
+            "input_params": {
+                "session_id": "session_2"
+            }
+        },
+        {
+            "tool": "smart_session_workflow",
+            "input_params": {
+                "session_id": "session_1",
+                "workflow_type": "sequential"
+            }
+        },
+        {
+            "tool": "smart_session_workflow",
+            "input_params": {
+                "session_id": "session_2",
+                "workflow_type": "all"
+            }
+        },
+        {
+            "tool": "run_quick_python_code",
+            "input_params": {
+                "code": "print(2 + 2)"
+            }
+        },
+        {
+            "tool": "run_quick_python_code",
+            "input_params": {
+                "code": "import math\nprint(f'Pi = {math.pi}')"
+            }
+        },
+        {
+            "tool": "delete_cell",
+            "input_params": {
+                "session_id": "session_1",
+                "cell_id": 2
+            }
+        },
+        {
+            "tool": "delete_cell",
+            "input_params": {
+                "session_id": "session_2",
+                "cell_id": 1
+            }
+        },
+        {
+            "tool": "delete_ipython_session",
+            "input_params": {
+                "session_id": "session_1"
+            }
+        },
+        {
+            "tool": "delete_ipython_session",
+            "input_params": {
+                "session_id": "session_2"
+            }
+        }
+    ]
+}

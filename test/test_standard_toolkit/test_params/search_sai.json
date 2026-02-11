@@ -1,0 +1,24 @@
+{
+  "tests": [
+    {
+      "tool": "search_sai",
+      "input_params": {
+        "query": "人工智能学院"
+      }
+    },
+    {
+      "tool": "search_sai",
+      "input_params": {
+        "query": "上海交通大学",
+        "conversation_id": "test_conversation_001"
+      }
+    },
+    {
+      "tool": "search_sai",
+      "input_params": {
+        "query": "星图 AI 引擎",
+        "conversation_id": "test_conversation_002"
+      }
+    }
+  ]
+}
