@@ -1,0 +1,207 @@
+{
+    "server_name": "github-search MCP Server",
+    "tests": [
+        {
+            "tool": "search_code",
+            "input_params": {
+                "keyword": "fastapi",
+                "language": "python",
+                "per_page": 10
+            }
+        },
+        {
+            "tool": "search_code",
+            "input_params": {
+                "keyword": "useState",
+                "language": "javascript",
+                "per_page": 15
+            }
+        },
+        {
+            "tool": "search_code",
+            "input_params": {
+                "keyword": "def main",
+                "repo": "python/cpython",
+                "per_page": 20
+            }
+        },
+        {
+            "tool": "search_code",
+            "input_params": {
+                "keyword": "MCP",
+                "user": "anthropics",
+                "per_page": 10
+            }
+        },
+        {
+            "tool": "search_repositories",
+            "input_params": {
+                "keyword": "machine learning",
+                "language": "python",
+                "sort": "stars",
+                "order": "desc",
+                "per_page": 10
+            }
+        },
+        {
+            "tool": "search_repositories",
+            "input_params": {
+                "keyword": "react",
+                "language": "javascript",
+                "sort": "stars",
+                "per_page": 15
+            }
+        },
+        {
+            "tool": "search_repositories",
+            "input_params": {
+                "keyword": "web framework",
+                "user": "facebook",
+                "per_page": 20
+            }
+        },
+        {
+            "tool": "search_repositories",
+            "input_params": {
+                "keyword": "cli tool",
+                "sort": "updated",
+                "order": "desc",
+                "per_page": 10
+            }
+        },
+        {
+            "tool": "search_users",
+            "input_params": {
+                "keyword": "torvalds",
+                "per_page": 10
+            }
+        },
+        {
+            "tool": "search_users",
+            "input_params": {
+                "keyword": "python developer",
+                "per_page": 15
+            }
+        },
+        {
+            "tool": "search_issues",
+            "input_params": {
+                "keyword": "bug",
+                "repo": "facebook/react",
+                "state": "open",
+                "per_page": 10
+            }
+        },
+        {
+            "tool": "search_issues",
+            "input_params": {
+                "keyword": "feature request",
+                "repo": "microsoft/vscode",
+                "state": "open",
+                "per_page": 15
+            }
+        },
+        {
+            "tool": "search_issues",
+            "input_params": {
+                "keyword": "performance",
+                "language": "python",
+                "state": "all",
+                "per_page": 20
+            }
+        },
+        {
+            "tool": "search_issues",
+            "input_params": {
+                "keyword": "error",
+                "user": "python",
+                "state": "closed",
+                "per_page": 10
+            }
+        },
+        {
+            "tool": "search_pull_requests",
+            "input_params": {
+                "keyword": "fix",
+                "repo": "facebook/react",
+                "state": "open",
+                "per_page": 10
+            }
+        },
+        {
+            "tool": "search_pull_requests",
+            "input_params": {
+                "keyword": "refactor",
+                "repo": "microsoft/vscode",
+                "state": "merged",
+                "per_page": 15
+            }
+        },
+        {
+            "tool": "search_pull_requests",
+            "input_params": {
+                "keyword": "feature",
+                "language": "python",
+                "state": "open",
+                "per_page": 20
+            }
+        },
+        {
+            "tool": "search_pull_requests",
+            "input_params": {
+                "keyword": "update",
+                "user": "anthropics",
+                "state": "all",
+                "per_page": 10
+            }
+        },
+        {
+            "tool": "get_repository_readme",
+            "input_params": {
+                "owner": "facebook",
+                "repo": "react"
+            }
+        },
+        {
+            "tool": "get_repository_readme",
+            "input_params": {
+                "owner": "microsoft",
+                "repo": "vscode"
+            }
+        },
+        {
+            "tool": "comprehensive_github_search",
+            "input_params": {
+                "keyword": "fastapi",
+                "search_type": "all",
+                "per_page": 5
+            }
+        },
+        {
+            "tool": "comprehensive_github_search",
+            "input_params": {
+                "keyword": "machine learning",
+                "search_type": "repos",
+                "language": "python",
+                "per_page": 10
+            }
+        },
+        {
+            "tool": "comprehensive_github_search",
+            "input_params": {
+                "keyword": "anthropics",
+                "search_type": "code",
+                "user": "anthropics",
+                "per_page": 15
+            }
+        },
+        {
+            "tool": "comprehensive_github_search",
+            "input_params": {
+                "keyword": "python",
+                "search_type": "users",
+                "per_page": 20
+            }
+        }
+    ]
+}

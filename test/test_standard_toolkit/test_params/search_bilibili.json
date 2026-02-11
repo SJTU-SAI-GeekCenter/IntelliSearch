@@ -1,0 +1,61 @@
+{
+    "server_name": "bilibili-search MCP Server",
+    "tests": [
+        {
+            "tool": "search_video",
+            "input_params": {
+                "keyword": "人工智能",
+                "page": 1,
+                "page_size": 10
+            }
+        },
+        {
+            "tool": "search_video",
+            "input_params": {
+                "keyword": "Python教程",
+                "page": 1,
+                "page_size": 20
+            }
+        },
+        {
+            "tool": "search_video",
+            "input_params": {
+                "keyword": "深度学习",
+                "page": 2,
+                "page_size": 15
+            }
+        },
+        {
+            "tool": "search_video",
+            "input_params": {
+                "keyword": "机器学习",
+                "page": 1,
+                "page_size": 5
+            }
+        },
+        {
+            "tool": "get_video_info",
+            "input_params": {
+                "bvid": "BV1uv411q7Mv"
+            }
+        },
+        {
+            "tool": "get_video_info",
+            "input_params": {
+                "bvid": "BV1xx411c7mX"
+            }
+        },
+        {
+            "tool": "get_video_subtitle",
+            "input_params": {
+                "bvid": "BV1uv411q7Mv"
+            }
+        },
+        {
+            "tool": "get_video_subtitle",
+            "input_params": {
+                "bvid": "BV1xx411c7mX"
+            }
+        }
+    ]
+}

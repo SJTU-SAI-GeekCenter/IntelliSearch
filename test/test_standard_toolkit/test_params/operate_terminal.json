@@ -1,0 +1,164 @@
+{
+    "server_name": "Operate-Terminals MCP Server",
+    "tests": [
+        {
+            "tool": "get_basic_info",
+            "input_params": {}
+        },
+        {
+            "tool": "get_environments",
+            "input_params": {}
+        },
+        {
+            "tool": "check_command_exists",
+            "input_params": {
+                "command_name": "git"
+            }
+        },
+        {
+            "tool": "check_command_exists",
+            "input_params": {
+                "command_name": "python"
+            }
+        },
+        {
+            "tool": "check_command_exists",
+            "input_params": {
+                "command_name": "nonexistent_command_xyz"
+            }
+        },
+        {
+            "tool": "execute_command",
+            "input_params": {
+                "command": "echo 'Hello from MCP Terminal'",
+                "timeout": 1
+            }
+        },
+        {
+            "tool": "execute_command",
+            "input_params": {
+                "command": "pwd"
+            }
+        },
+        {
+            "tool": "list_running_processes",
+            "input_params": {}
+        },
+        {
+            "tool": "list_running_processes",
+            "input_params": {
+                "filter_name": "python"
+            }
+        },
+        {
+            "tool": "get_process_details",
+            "input_params": {
+                "pid": 1
+            }
+        },
+        {
+            "tool": "get_disk_usage",
+            "input_params": {
+                "path": "."
+            }
+        },
+        {
+            "tool": "get_memory_usage",
+            "input_params": {}
+        },
+        {
+            "tool": "get_cpu_usage",
+            "input_params": {}
+        },
+        {
+            "tool": "check_port",
+            "input_params": {
+                "port": 80,
+                "host": "localhost"
+            }
+        },
+        {
+            "tool": "check_port",
+            "input_params": {
+                "port": 99999,
+                "host": "localhost"
+            }
+        },
+        {
+            "tool": "test_connection",
+            "input_params": {
+                "host": "google.com",
+                "port": 443,
+                "timeout": 1
+            }
+        },
+        {
+            "tool": "test_connection",
+            "input_params": {
+                "host": "localhost",
+                "timeout": 1
+            }
+        },
+        {
+            "tool": "get_network_info",
+            "input_params": {}
+        },
+        {
+            "tool": "git_status",
+            "input_params": {
+                "repo_path": "."
+            }
+        },
+        {
+            "tool": "git_branch_info",
+            "input_params": {
+                "repo_path": ".",
+                "show_all": false
+            }
+        },
+        {
+            "tool": "git_branch_info",
+            "input_params": {
+                "repo_path": ".",
+                "show_all": true
+            }
+        },
+        {
+            "tool": "git_diff",
+            "input_params": {
+                "repo_path": ".",
+                "file_path": null,
+                "staged": false
+            }
+        },
+        {
+            "tool": "create_shell_session",
+            "input_params": {
+                "session_name": "test_session",
+                "shell_path": null
+            }
+        },
+        {
+            "tool": "execute_in_session",
+            "input_params": {
+                "session_name": "test_session",
+                "command": "echo 'Test command in session'",
+                "timeout": 1
+            }
+        },
+        {
+            "tool": "execute_in_session",
+            "input_params": {
+                "session_name": "test_session",
+                "command": "pwd",
+                "timeout": 1
+            }
+        },
+        {
+            "tool": "close_session",
+            "input_params": {
+                "session_name": "test_session"
+            }
+        }
+    ]
+}

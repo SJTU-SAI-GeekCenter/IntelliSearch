@@ -74,6 +74,17 @@ class Config:
         """
         return str(Path(__file__).parent / "config.yaml")
 
+    @staticmethod
+    def reset_instance():
+        """
+        Reset the singleton instance.
+
+        This method is primarily intended for testing purposes.
+        It clears the existing Config instance and allows creating a new one.
+        """
+        Config._instance = None
+        Config._config = None
+
     def load_config(self, override: bool = True) -> None:
         """
         Load configuration from YAML file and apply environment variables.
