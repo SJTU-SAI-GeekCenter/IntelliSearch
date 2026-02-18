@@ -29,6 +29,7 @@ dependencies = [
     "python-dateutil>=2.9.0.post0",
     "werkzeug>=3.1.5",
     "pytest>=9.0.2",
+    "pytest-asyncio>=0.24.0",
     "bilibili-api-python<=17.3.0",
     "pillow>=12.1.0",
     "pycryptodomex>=3.23.0",
@@ -37,6 +38,12 @@ dependencies = [
     "qrcode-terminal>=0.8",
     "apscheduler>=3.11.2",
     "txtai>=9.4.1",
+    "pypdf>=5.1.0",
+    "simpleeval>=1.0.3",
+    "playwright>=1.58.0",
+    "psutil>=7.2.2",
+    "pytest-xdist>=3.8.0",
+    "pytest-html>=4.2.0",
 ]
 
 [[tool.uv.index]]

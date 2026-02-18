@@ -30,6 +30,12 @@
             "input_params": {
                 "expression": "round(1 / 3, 4)"
             }
+        },
+        {
+            "tool": "calculate_maths",
+            "input_params": {
+                "expression": "sin(90)"
+            }
         }
     ]
 }

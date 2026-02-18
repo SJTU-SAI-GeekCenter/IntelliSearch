@@ -1,0 +1,193 @@
+{
+    "server_name": "amap-maps MCP Server",
+    "tests": [
+        {
+            "tool": "maps_get_from_coordinates",
+            "input_params": {
+                "coordinates": "116.397428,39.90923"
+            }
+        },
+        {
+            "tool": "maps_get_from_coordinates",
+            "input_params": {
+                "coordinates": "121.473701,31.230416"
+            }
+        },
+        {
+            "tool": "maps_get_adcode",
+            "input_params": {
+                "address": "南京"
+            }
+        },
+        {
+            "tool": "maps_get_adcode",
+            "input_params": {
+                "address": "北京市",
+                "city": "北京"
+            }
+        },
+        {
+            "tool": "maps_get_from_location",
+            "input_params": {
+                "address": "天安门"
+            }
+        },
+        {
+            "tool": "maps_get_from_location",
+            "input_params": {
+                "address": "夫子庙",
+                "city": "南京"
+            }
+        },
+        {
+            "tool": "maps_get_structured_location",
+            "input_params": {
+                "address": "北京大学"
+            }
+        },
+        {
+            "tool": "maps_get_structured_location",
+            "input_params": {
+                "address": "外滩",
+                "city": "上海"
+            }
+        },
+        {
+            "tool": "maps_weather",
+            "input_params": {
+                "city": "北京"
+            }
+        },
+        {
+            "tool": "maps_weather",
+            "input_params": {
+                "city": "南京"
+            }
+        },
+        {
+            "tool": "maps_bicycling_by_address",
+            "input_params": {
+                "origin_address": "北京大学",
+                "destination_address": "清华大学"
+            }
+        },
+        {
+            "tool": "maps_bicycling_by_address",
+            "input_params": {
+                "origin_address": "天安门",
+                "destination_address": "故宫",
+                "origin_city": "北京",
+                "destination_city": "北京"
+            }
+        },
+        {
+            "tool": "maps_walking_by_address",
+            "input_params": {
+                "origin_address": "北京站",
+                "destination_address": "天安门"
+            }
+        },
+        {
+            "tool": "maps_walking_by_address",
+            "input_params": {
+                "origin_address": "南京站",
+                "destination_address": "夫子庙",
+                "origin_city": "南京",
+                "destination_city": "南京"
+            }
+        },
+        {
+            "tool": "maps_driving_by_address",
+            "input_params": {
+                "origin_address": "北京大学",
+                "destination_address": "北京西站"
+            }
+        },
+        {
+            "tool": "maps_driving_by_address",
+            "input_params": {
+                "origin_address": "复旦大学",
+                "destination_address": "上海站",
+                "origin_city": "上海",
+                "destination_city": "上海"
+            }
+        },
+        {
+            "tool": "maps_direction",
+            "input_params": {
+                "origin_address": "北京大学",
+                "destination_address": "清华大学",
+                "origin_city": "北京",
+                "destination_city": "北京"
+            }
+        },
+        {
+            "tool": "maps_direction",
+            "input_params": {
+                "origin_address": "南京站",
+                "destination_address": "南京南站",
+                "origin_city": "南京",
+                "destination_city": "南京"
+            }
+        },
+        {
+            "tool": "maps_input_prompt",
+            "input_params": {
+                "keywords": "肯德基"
+            }
+        },
+        {
+            "tool": "maps_input_prompt",
+            "input_params": {
+                "keywords": "医院"
+            }
+        },
+        {
+            "tool": "maps_distance",
+            "input_params": {
+                "origin": "北京大学",
+                "destination": "清华大学",
+                "type": "1"
+            }
+        },
+        {
+            "tool": "maps_distance",
+            "input_params": {
+                "origin": "天安门",
+                "destination": "故宫",
+                "type": "0"
+            }
+        },
+        {
+            "tool": "maps_poi_search",
+            "input_params": {
+                "keywords": "肯德基",
+                "city": "北京"
+            }
+        },
+        {
+            "tool": "maps_poi_search",
+            "input_params": {
+                "keywords": "加油站",
+                "city": "南京",
+                "citylimit": "true"
+            }
+        },
+        {
+            "tool": "maps_around_search",
+            "input_params": {
+                "location": "天安门",
+                "radius": "1000",
+                "keywords": "餐厅"
+            }
+        },
+        {
+            "tool": "maps_around_search",
+            "input_params": {
+                "location": "夫子庙",
+                "radius": "500",
+                "keywords": ""
+            }
+        }
+    ]
+}

@@ -541,41 +541,16 @@ async def run_quick_python_code(code: str) -> str:
         print(result)  # Shows: 4.0
     """
     try:
-        # Create temporary session
-        session_response = make_request("POST", "/sessions")
-        session_id = session_response["session_id"]
-
-        # Execute code
-        execution_response = make_request(
-            "POST", f"/sessions/{session_id}/execute", {"code": code}
-        )
-
-        # Clean up session
-        make_request("DELETE", f"/sessions/{session_id}")
-
-        if execution_response["success"]:
-            return execution_response["result"]
-        else:
-            return f"❌ Execution failed:\n{execution_response['result']}"
-
-    except Exception as e:
-        return f"Error in quick execution: {str(e)}"
-    
-
-@mcp.tool()
-async def run_python_code(code: str) -> str:
-    """
-    Execute Python code and return the output.
-    """
-    try:
         proc = await asyncio.create_subprocess_exec(
-            "python3", "-c", code,
+            "python3",
+            "-c",
+            code,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
         if stderr:
-            return f"❌ Error:\n{stderr.decode()}"
+            return f"Error:\n{stderr.decode()}"
         return stdout.decode() or "(no output)"
     except Exception as e:
         return f"Exception: {e}"

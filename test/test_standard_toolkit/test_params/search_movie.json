@@ -1,0 +1,55 @@
+{
+    "server_name": "Movie and Book Search MCP Server",
+    "tests": [
+        {
+            "tool": "search_book",
+            "input_params": {
+                "q": "Python"
+            }
+        },
+        {
+            "tool": "search_book",
+            "input_params": {
+                "q": "三体"
+            }
+        },
+        {
+            "tool": "search_movie",
+            "input_params": {
+                "q": "Inception"
+            }
+        },
+        {
+            "tool": "search_movie",
+            "input_params": {
+                "q": "霸王别姬"
+            }
+        },
+        {
+            "tool": "search_book",
+            "input_params": {
+                "isbn": "9787501524044"
+            }
+        },
+        {
+            "tool": "list_group_topics",
+            "input_params": {
+                "id": "732764"
+            }
+        },
+        {
+            "tool": "list_group_topics",
+            "input_params": {
+                "id": "732764",
+                "tags": ["Python"]
+            }
+        },
+        {
+            "tool": "list_group_topics",
+            "input_params": {
+                "id": "732764",
+                "from_date": "2024-01-01"
+            }
+        }
+    ]
+}

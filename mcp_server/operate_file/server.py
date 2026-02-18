@@ -1,201 +1,160 @@
+import sys
 import os
-import shutil
+import logging
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("Operate-Files")
+# Ensure the current directory is in the path so imports work when run as a script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
-# todo 总体目标
-# 实现本地文件操作的工具设计
-# * 设计的工具内容都是涉及文件的 CRUD 封装操作
-# * WE NEED MORE! 实现对不同类别文件的单独操作
-# e.g. pandas operations for csv files
-# e.g. simple operations for pdf files & png files
-# e.g. AST Parser & JSON Parser for files
+try:
+    # Try direct imports first (for script execution)
+    from list_ops import list_directory_impl, list_tree_impl
+    from read_ops import read_file_impl, search_files_impl
+    from write_ops import write_file_impl, append_file_impl
+    from manage_ops import mkdir_impl, rm_impl, mv_impl, copy_impl
+except ImportError:
+    # Fallback to relative imports (for module execution)
+    from .list_ops import list_directory_impl, list_tree_impl
+    from .read_ops import read_file_impl, search_files_impl
+    from .write_ops import write_file_impl, append_file_impl
+    from .manage_ops import mkdir_impl, rm_impl, mv_impl, copy_impl
 
-# 具体任务：
-# 完成若干 @mcp.tool() 的函数实现
-# 优化 Docstring
+# Initialize FastMCP Server
+mcp = FastMCP("operate_file")
 
 
 @mcp.tool()
-def create_folder(path: str) -> str:
-    """Create a new folder at the specified path.
+def ls(path: str = ".") -> str:
+    """
+    List directory contents with details (size, time).
+    Recommended for checking specific folders. For overview, use 'tree' instead.
 
     Args:
-        path (str): The path where the folder should be created.
-
-    Returns:
-        str: A message indicating success or failure.
+        path: Directory path (relative to allowed root or absolute). Defaults to current directory.
     """
-    try:
-        os.makedirs(path, exist_ok=True)
-        return f"Created folder: {path}"
-    except Exception as e:
-        return f"Error: {e}"
+    return list_directory_impl(path)
 
 
 @mcp.tool()
-def list_directory(path: str) -> list:
-    """List all files and subdirectories in the specified directory.
+def cat(path: str) -> str:
+    """
+    Read file content. Supports text files and PDF (extracts text). Excel preview is disabled.
+
+    [Optimization]
+    If the file is large (>100 lines) or you only need specific information, prefer using 'search_files' first.
 
     Args:
-        path (str): The path of the directory to list.
-
-    Returns:
-        list: A list of file and directory names, or an error message.
+        path: File path to read.
     """
-    try:
-        list_dir = os.listdir(path)
-        return f"LIST_FILE_PATH: {list_dir}"
-    except Exception as e:
-        return [f"Error: {e}"]
+    return read_file_impl(path)
 
 
 @mcp.tool()
-def delete_item(path: str) -> str:
-    """Delete the specified file or folder.
+def touch(path: str, content: str = "") -> str:
+    """
+    Create or update a file with content.
+
+    [CAUTION]
+    This will OVERWRITE existing files completely. To add content, use 'append' instead.
 
     Args:
-        path (str): The path of the item to delete.
-
-    Returns:
-        str: A message indicating success or failure.
+        path: File path to write to.
+        content: Text content to write.
     """
-    try:
-        if os.path.isdir(path):
-            shutil.rmtree(path)
-        else:
-            os.remove(path)
-        return f"Deleted: {path}"
-    except Exception as e:
-        return f"Error: {e}"
+    return write_file_impl(path, content)
 
 
 @mcp.tool()
-def rename_item(src: str, dest: str) -> str:
-    """Rename a file or folder.
+def mkdir(path: str) -> str:
+    """
+    Create a new directory (recursive).
+    Args:
+        path: Directory path to create.
+    """
+    return mkdir_impl(path)
+
+
+@mcp.tool()
+def rm(path: str) -> str:
+    """
+    Remove a file or directory.
+
+    [WARNING]
+    This action is IRREVERSIBLE. Check contents with 'ls' or 'tree' before deleting directories.
+    Do not delete files unless explicitly requested by the user.
 
     Args:
-        src (str): The current path of the item.
-        dest (str): The new path for the item.
-
-    Returns:
-        str: A message indicating success or failure.
+        path: Path to remove.
     """
-    try:
-        os.rename(src, dest)
-        return f"Renamed {src} to {dest}"
-    except Exception as e:
-        return f"Error: {e}"
+    return rm_impl(path)
 
 
 @mcp.tool()
-def move_file(src: str, dest: str) -> str:
-    """Move a file to a new location.
+def mv(src: str, dest: str) -> str:
+    """
+    Move or rename a file or directory.
+    Args:
+        src: Source path.
+        dest: Destination path.
+    """
+    return mv_impl(src, dest)
+
+
+@mcp.tool()
+def copy(src: str, dest: str) -> str:
+    """
+    Copy a file or directory (recursive).
+    Args:
+        src: Source path.
+        dest: Destination path.
+    """
+    return copy_impl(src, dest)
+
+
+@mcp.tool()
+def append(path: str, content: str) -> str:
+    """
+    Append content to a file.
+    Args:
+        path: File path to append to.
+        content: Text content to append.
+    """
+    return append_file_impl(path, content)
+
+
+@mcp.tool()
+def tree(path: str = ".", max_depth: int = 2) -> str:
+    """
+    Recursively list directory contents in a tree structure.
+
+    [IMPORTANT]
+    - ALWAYS specify a constrained 'max_depth' (e.g. 2 or 3) to prevent context overflow.
+    - Default is depth 2. Use -1 only if you are sure the directory is small.
 
     Args:
-        src (str): The current path of the file.
-        dest (str): The destination path for the file.
-
-    Returns:
-        str: A message indicating success or failure.
+        path: Root directory path.
+        max_depth: Maximum depth to traverse. Defaults to 2.
     """
-    try:
-        shutil.move(src, dest)
-        return f"Moved {src} to {dest}"
-    except Exception as e:
-        return f"Error: {e}"
+    return list_tree_impl(path, max_depth)
 
 
 @mcp.tool()
-def read_file(path: str) -> str:
-    """Read the contents of a file.
+def search_files(path: str, pattern: str) -> str:
+    """
+    Search for a text pattern in files within a directory used for grep.
+
+    [Hint]
+    Use specific, unique keywords. Common words will return too many results.
 
     Args:
-        path (str): The path of the file to read.
-
-    Returns:
-        str: The file contents or an error message.
+        path: Root directory to search in.
+        pattern: Text pattern to search for.
     """
-    try:
-        with open(path, "r", encoding="utf-8") as file:
-            return file.read()
-    except Exception as e:
-        return f"Error: {e}"
-
-
-@mcp.tool()
-def write_file(path: str, content: str) -> str:
-    """Write content to a file.
-
-    Args:
-        path (str): The path of the file to write to.
-        content (str): The content to write to the file.
-
-    Returns:
-        str: A message indicating success or failure.
-    """
-    try:
-        with open(path, "w", encoding="utf-8") as file:
-            file.write(content)
-        return f"Successfully wrote to {path}"
-    except Exception as e:
-        return f"Error: {e}"
-
-
-@mcp.tool()
-def get_file_info(path: str) -> dict:
-    """Get information about a file or directory.
-
-    Args:
-        path (str): The path of the file or directory.
-
-    Returns:
-        dict: A dictionary containing file information or an error message.
-    """
-    try:
-        stat = os.stat(path)
-        return {
-            "path": path,
-            "size": stat.st_size,
-            "is_directory": os.path.isdir(path),
-            "created": stat.st_ctime,
-            "modified": stat.st_mtime,
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@mcp.tool()
-def get_current_directory() -> str:
-    """Get the current working directory.
-
-    Returns:
-        str: The current working directory path.
-    """
-    try:
-        return os.getcwd()
-    except Exception as e:
-        return f"Error: {e}"
-
-
-@mcp.tool()
-def create_file(path: str) -> str:
-    """Create a new empty file at the specified path.
-
-    Args:
-        path (str): The path where the file should be created.
-
-    Returns:
-        str: A message indicating success or failure.
-    """
-    try:
-        with open(path, "w") as file:
-            pass  # Create an empty file
-        return f"Created file: {path}"
-    except Exception as e:
-        return f"Error: {e}"
+    return search_files_impl(path, pattern)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     mcp.run()

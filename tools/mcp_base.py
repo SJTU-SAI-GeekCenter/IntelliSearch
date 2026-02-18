@@ -208,13 +208,81 @@ class MCPBase:
                     result = await self.get_tool_response(
                         call_params=tool_args, tool_name=tool_name_long
                     )
-                    result_text = result.model_dump()["content"][0]["text"]
+
+                    # 检查 MCP 协议层面的工具执行错误
+                    if getattr(result, "isError", False):
+                        # 尝试从内容中提取错误信息
+                        content = result.content if hasattr(result, "content") else []
+                        error_texts = [
+                            item.text for item in content if hasattr(item, "text")
+                        ]
+                        full_error_msg = (
+                            "\n".join(error_texts)
+                            if error_texts
+                            else "Unknown Tool Error"
+                        )
+
+                        # 如果包含权限拒绝信息，主动抛出异常以触发 UI 交互
+                        if (
+                            "Access Denied" in full_error_msg
+                            or "denied" in full_error_msg.lower()
+                        ):
+                            raise Exception(full_error_msg)
+
+                    # Safe result extraction
+                    result_text = ""
+                    try:
+                        if hasattr(result, "model_dump"):
+                            dumped = result.model_dump()
+                            # Ensure content exists and has items
+                            if dumped.get("content") and len(dumped["content"]) > 0:
+                                result_text = dumped["content"][0]["text"]
+                            else:
+                                result_text = "(No string content returned)"
+                        elif isinstance(result, dict):
+                            # Fallback for dict-like results (e.g. from HTTP/SSE if not using Pydantic models)
+                            if "content" in result and len(result["content"]) > 0:
+                                result_text = result["content"][0].get("text", "")
+                            elif "error" in result:
+                                raise Exception(result["error"])
+                            else:
+                                result_text = str(result)
+                        else:
+                            result_text = str(result)
+
+                    except Exception as extract_err:
+                        error_msg = str(extract_err)
+                        if (
+                            "Access Denied" in error_msg
+                            or "denied" in error_msg.lower()
+                        ):
+                            raise extract_err
+
+                        self.logger.error(
+                            f"Error extracting tool result: {extract_err} | Result type: {type(result)} | Result: {result}"
+                        )
+                        result_text = f"Error processing tool output: {extract_err}"
+
+                    # Double Check: 即使 isError=False，内容里如果包含 Access Denied 也要拦截
+                    if (
+                        "Access Denied" in result_text
+                        or "denied" in result_text.lower()
+                    ):
+                        # 注意：这里需要谨慎，防止误杀包含 "access denied" 的普通文本内容
+                        # 但对于 filesystem 操作来说，通常是可以接受的
+                        if tool_name_long and "filesystem" in tool_name_long:
+                            raise Exception(result_text)
 
                     # Display result with styled UI
                     tool_ui.display_execution_status("completed")
                     tool_ui.display_tool_result(result_text, max_length=500)
 
                 except Exception as e:
+                    # 重新抛出 SecurityError 相关的权限异常，以便 cli.py 捕获并处理 UI 交互
+                    error_msg = str(e)
+                    if "Access Denied" in error_msg or "denied" in error_msg.lower():
+                        raise e
+
                     error_msg = f"Tool execution failed: {e}"
                     tool_ui.display_tool_error(error_msg)
                     result_text = error_msg

@@ -1,0 +1,41 @@
+{
+    "server_name": "Web Search MCP Server",
+    "tests": [
+        {
+            "tool": "google_search",
+            "input_params": {
+                "query": "Python programming tutorial"
+            }
+        },
+        {
+            "tool": "google_search",
+            "input_params": {
+                "query": "Hello World Different Programming Languages"
+            }
+        },
+        {
+            "tool": "web_search_chinese",
+            "input_params": {
+                "query": "上海交通大学"
+            }
+        },
+        {
+            "tool": "web_search_chinese",
+            "input_params": {
+                "query": "动手写大语言模型"
+            }
+        },
+        {
+            "tool": "web_parse",
+            "input_params": {
+                "url": "https://www.python.org"
+            }
+        },
+        {
+            "tool": "web_parse",
+            "input_params": {
+                "url": "https://github.com"
+            }
+        }
+    ]
+}
