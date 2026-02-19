@@ -127,7 +127,7 @@ main() {
     echo ""
     echo "Next steps:"
     echo -e "  - Configure API keys in ${GREEN}config/config.yaml${NC}"
-    echo -e "  - Start backend services: ${GREEN}bash start_backend.sh${NC}"
+    echo -e "  - Start backend services: ${GREEN}python backend/tool_backend/run.py${NC}"
     echo -e "  - Run the application: ${GREEN}python cli.py${NC}"
     echo ""
 }
