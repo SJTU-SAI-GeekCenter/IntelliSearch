@@ -312,7 +312,7 @@ def stop_services(config):
 
 def show_status(config):
     """Show status of all backend services."""
-    logger.info("Checking backend services status...")
+    print("Checking backend services status...")
 
     # Load config (using singleton pattern)
     config = Config.get_instance()
@@ -325,12 +325,12 @@ def show_status(config):
     services = discover_services(tool_backend_dir, config)
 
     if not services:
-        logger.warning("No services found")
+        print("No services found")
         return
 
-    logger.info("\n" + "=" * 60)
-    logger.info("Service Status:")
-    logger.info("=" * 60)
+    print("\n" + "=" * 60)
+    print("Service Status:")
+    print("=" * 60)
 
     # Check each service
     running_count = 0
@@ -341,20 +341,20 @@ def show_status(config):
             status = "✓ Running"
             running_count += 1
 
-        logger.info(f"  {service_name:20} (port {port}): {status}")
+        print(f"  {service_name:20} (port {port}): {status}")
 
-    logger.info("=" * 60)
-    logger.info(f"Total: {running_count}/{len(services)} services running")
-    logger.info("=" * 60)
+    print("=" * 60)
+    print(f"Total: {running_count}/{len(services)} services running")
+    print("=" * 60)
 
     # Check tmux session
     tmux = TmuxManager()
     if tmux.session_exists():
-        logger.info(f"\ntmux session '{tmux.session_name}' exists")
-        logger.info(f"Windows: {', '.join(tmux.list_windows())}")
-        logger.info(f"\nAttach with: tmux attach-session -t {tmux.session_name}")
+        print(f"\ntmux session '{tmux.session_name}' exists")
+        print(f"Windows: {', '.join(tmux.list_windows())}")
+        print(f"\nAttach with: tmux attach-session -t {tmux.session_name}")
     else:
-        logger.info(f"\ntmux session '{tmux.session_name}' does not exist")
+        print(f"\ntmux session '{tmux.session_name}' does not exist")
 
 
 def main(config):
