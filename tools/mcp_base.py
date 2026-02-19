@@ -13,7 +13,7 @@ from typing import List, Dict, Any, Optional
 from tools.server_manager import MultiServerManager
 from mcp.types import CallToolResult
 from ui.tool_ui import tool_ui
-from core.tool_hash import fix_tool_args
+from tools.tool_hash import fix_tool_args
 from core.logger import get_logger
 
 
@@ -51,7 +51,7 @@ class MCPBase:
             ValueError: If configuration file is invalid
         """
         self.config_path = config_path
-        self.logger = get_logger(__name__)
+        self.logger = get_logger(__name__, "tool")
         self.config = self._load_server_configs(config_path)
         self.server_manager = MultiServerManager(server_configs=self.config)
         self.logger.info("MCPBase initialized")

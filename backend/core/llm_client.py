@@ -3,13 +3,11 @@ LLM客户端核心模块,负责处理与语言模型的交互
 """
 import os
 import json
-import asyncio
-from config.config_loader import Config
 from typing import List, Dict, Any, Optional, AsyncGenerator
 from openai import OpenAI
 
 from .mcp_client import MCPClient
-from core.tool_hash import fix_tool_args
+from tools.tool_hash import fix_tool_args
 from core.logger import get_logger
 
 

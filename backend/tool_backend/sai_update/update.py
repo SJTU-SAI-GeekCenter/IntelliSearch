@@ -16,7 +16,7 @@ from pathlib import Path
 from config.config_loader import Config
 from core.logger import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("sai_update", "sai_update")
 
 
 class MemosUploader:

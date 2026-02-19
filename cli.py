@@ -30,14 +30,10 @@ from core.schema import AgentRequest, AgentResponse
 from core.logger import get_logger
 from config.config_loader import Config
 
-# Import UI Modules for advanced interaction
-import logging
-
 try:
     from ui.permission_ui import handle_permission_error
     from mcp_server.operate_file.security import ImplicitDenyError, ExplicitDenyError
 except ImportError:
-    # 兼容处理
     handle_permission_error = None
     pass
 
@@ -85,7 +81,8 @@ class IntelliSearchCLI:
         self.agent_config: dict = {}
         self.running: bool = False
         self.config_path = config_path or "config/config.yaml"
-        self.logger = get_logger(__name__)
+        self.logger = get_logger(__name__, "cli")
+        self.logger.info("CLI Services Started.")
 
         # Initialize rich console with theme
         self.console = Console()

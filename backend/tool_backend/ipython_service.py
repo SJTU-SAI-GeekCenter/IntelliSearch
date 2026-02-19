@@ -14,7 +14,7 @@ from core.logger import get_logger
 from config.config_loader import Config
 
 # Initialize logger using global logging system
-logger = get_logger(__name__)
+logger = get_logger("ipython_backend", "ipython_backend")
 config = Config(config_file_path="config/config.yaml")
 config.load_config()
 

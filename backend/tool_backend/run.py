@@ -26,7 +26,7 @@ sys.path.append(os.getcwd())
 from core.logger import get_logger
 from config.config_loader import Config
 
-logger = get_logger(__name__)
+logger = get_logger("tool_backend", "tool_backend")
 config = Config(config_file_path="config/config.yaml")
 config.load_config(override=True)
 

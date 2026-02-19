@@ -23,7 +23,7 @@ setup_logging(
 
 logging.getLogger("mcp").setLevel(logging.CRITICAL)
 
-logger = get_logger(__name__)
+logger = get_logger("backend_fastapi", "backend_fastapi")
 
 
 @asynccontextmanager

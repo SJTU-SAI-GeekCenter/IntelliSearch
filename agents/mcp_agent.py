@@ -104,7 +104,7 @@ class MCPBaseAgent(BaseAgent):
         self.available_tools = []
 
         # Setup logger
-        self.logger = get_logger(__name__)
+        self.logger = get_logger(__name__, "agent")
         self.logger.info(f"{self.name} initialized with model: {self.model_name}")
 
     def inference(self, request: AgentRequest) -> AgentResponse:

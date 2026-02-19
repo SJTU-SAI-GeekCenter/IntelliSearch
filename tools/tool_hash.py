@@ -41,7 +41,7 @@ class ToolArgumentFixer:
         Args:
             similarity_threshold: Minimum similarity ratio (0.0-1.0) for automatic parameter mapping
         """
-        self.logger = get_logger(__name__)
+        self.logger = get_logger(__name__, "tool")
         self.similarity_threshold = similarity_threshold
 
     def _get_similarity(self, s1: str, s2: str) -> float:

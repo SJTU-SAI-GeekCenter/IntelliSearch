@@ -8,7 +8,6 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 from tools.server_manager import MultiServerManager
-from mcp.types import CallToolResult
 from core.logger import get_logger
 
 

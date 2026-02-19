@@ -13,6 +13,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.config_loader import Config
+from core.logger import get_logger
 from tools.mcp_base import MCPBase
 
 
@@ -37,6 +38,7 @@ class TestResultCollector:
         self.total_tests = 0
         self.total_passed = 0
         self.total_failed = 0
+        self.logger = get_logger("tool_test", "tool_test")
         self._lock = threading.Lock()  # Thread-safe lock for in-memory data
 
     def add_test_result(
@@ -105,7 +107,7 @@ class TestResultCollector:
                 json.dump(test_record, f, ensure_ascii=False)
                 f.write("\n")  # Newline after each record
         except Exception as e:
-            print(f"[ERROR] Failed to write to JSONL file: {e}")
+            self.logger.error(f"Failed to write to JSONL file: {e}")
 
     def generate_summary_report(self, output_dir: Path = None) -> Path:
         """
@@ -122,7 +124,7 @@ class TestResultCollector:
         # Read all JSONL records
         jsonl_file = output_dir / f"test_results_{self.timestamp_str}.jsonl"
         if not jsonl_file.exists():
-            print(f"[WARNING] JSONL file not found: {jsonl_file}")
+            self.logger.warning(f"JSONL file not found: {jsonl_file}")
             return None
 
         all_records = []
@@ -136,11 +138,11 @@ class TestResultCollector:
                         except json.JSONDecodeError:
                             continue
         except Exception as e:
-            print(f"[ERROR] Failed to read JSONL file: {e}")
+            self.logger.error(f"Failed to read JSONL file: {e}") 
             return None
 
         if not all_records:
-            print(f"[WARNING] No test records found in JSONL file")
+            self.logger.warning(f"No test records found in JSONL file: {jsonl_file}")
             return None
 
         # Group by server
@@ -191,7 +193,7 @@ class TestResultCollector:
                 json.dump(summary_data, f, indent=2, ensure_ascii=False)
             return summary_file
         except Exception as e:
-            print(f"[ERROR] Failed to write summary file: {e}")
+            self.logger.error(f"Failed to write summary file: {e}")
             return None
 
 
@@ -209,6 +211,7 @@ class TestMCPServers:
         self.config.load_config(override=True)
         self.mcp_base = None
         self.session_result_collector = session_result_collector
+        self.logger = get_logger("tool_test", "tool_test")
 
         yield
 
@@ -245,6 +248,9 @@ class TestMCPServers:
         tool_name = test_case["tool"]
         input_params = test_case["input_params"]
 
+        self.logger.info(f"Starting test for server='{server_name}', tool='{tool_name}'")
+        self.logger.debug(f"Input parameters: {input_params}")
+
         # Verify server exists in config
         all_servers = self.config.get("all_servers", {})
         if server_name not in all_servers:
@@ -252,6 +258,7 @@ class TestMCPServers:
 
         # Create temporary config
         temp_config = self._create_temp_config(server_name)
+        self.logger.debug(f"Created temporary config: {temp_config}")
 
         # Variables to store test result
         success = False
@@ -262,14 +269,18 @@ class TestMCPServers:
         try:
             # Initialize MCP connection
             if not self.mcp_base:
+                self.logger.info(f"Initializing MCP connection to server '{server_name}'")
                 self.mcp_base = MCPBase(config_path=temp_config)
 
             # List available tools
+            self.logger.debug(f"Listing available tools from server '{server_name}'")
             tools = await self.mcp_base.list_tools()
             tool_names = [tool.get("name") for tool in tools.values()]
+            self.logger.debug(f"Available tools: {', '.join(tool_names)}")
 
             if tool_name not in tool_names:
                 error_message = f"Tool '{tool_name}' not found. Available: {', '.join(tool_names)}"
+                self.logger.error(error_message)
                 pytest.fail(error_message)
 
             # Find full tool name (server:tool format)
@@ -283,8 +294,10 @@ class TestMCPServers:
 
             if not tool_name_long:
                 error_message = f"Could not find full tool name for '{tool_name}'"
+                self.logger.error(error_message)
                 pytest.fail(error_message)
 
+            self.logger.info(f"Executing tool '{tool_name_long}' with parameters")
             start_time = time.time()
 
             response = await self.mcp_base.get_tool_response(
@@ -300,21 +313,22 @@ class TestMCPServers:
             result_data = response.model_dump()
             success = True
 
-            # Print detailed output for debugging (with truncation for console)
-            print(f"\n{'='*60}")
-            print(f"Tool: {tool_name}")
-            print(f"Input: {input_params}")
-            print(f"Duration: {duration_ms:.2f}ms")
-            print(f"Output:")
-            print(self._format_output(result_data, max_length=500))
-            print(f"{'='*60}")
+            # Log detailed output for debugging
+            self.logger.info(f"{'='*60}")
+            self.logger.info(f"Tool execution completed: {tool_name}")
+            self.logger.info(f"Input: {input_params}")
+            self.logger.info(f"Duration: {duration_ms:.2f}ms")
+            self.logger.info(f"Output preview:\n{self._format_output(result_data, max_length=500)}")
+            self.logger.info(f"{'='*60}")
 
         except Exception as e:
             error_message = str(e)
+            self.logger.error(f"Tool execution failed: {error_message}")
             pytest.fail(f"Tool execution failed: {error_message}")
 
         finally:
             # Add test result to session collector (save complete data without truncation)
+            self.logger.debug(f"Adding test result to session collector: success={success}")
             self.session_result_collector.add_test_result(
                 server_name=server_name,
                 tool_name=tool_name,
@@ -328,8 +342,9 @@ class TestMCPServers:
             # Cleanup temp config
             try:
                 Path(temp_config).unlink(missing_ok=True)
-            except:
-                pass
+                self.logger.debug(f"Cleaned up temporary config: {temp_config}")
+            except Exception as e:
+                self.logger.warning(f"Failed to cleanup temp config: {e}")
 
     def _format_output(self, content: Any, max_length: int = 500) -> str:
         """Format output with length limit"""

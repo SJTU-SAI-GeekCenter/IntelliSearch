@@ -36,7 +36,7 @@ class ToolCache:
             enabled: Whether caching is enabled
             server_whitelist: Server whitelist, only cache tool calls from these servers (None or empty list means cache all)
         """
-        self.logger = get_logger(__name__)
+        self.logger = get_logger(__name__, "tool")
         self.enabled = enabled
         if not self.enabled:
             self.logger.info("Tool cache is disabled")

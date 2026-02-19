@@ -36,7 +36,7 @@ class MCPConnector:
         self.port = port
         self.endpoint = endpoint
         self.server_url = server_url  # Full URL for URL-based connections
-        self.logger = get_logger(__name__)
+        self.logger = get_logger(__name__, "tool")
 
         if transport_type == "stdio":
             if server_command is None:

@@ -20,7 +20,7 @@ class MultiServerManager:
     """Manages multiple MCP server connections and coordinates tool discovery."""
 
     def __init__(self, server_configs: List[Dict[str, Any]]):
-        self.logger = get_logger(__name__)
+        self.logger = get_logger(__name__, "tool")
         self.server_configs = server_configs
         self.connectors: Dict[str, MCPConnector] = {}
         self.sessions: Dict[str, ClientSession] = {}

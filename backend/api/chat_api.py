@@ -26,7 +26,7 @@ from core.logger import get_logger
 
 # 配置日志
 logging.getLogger("mcp").setLevel(logging.CRITICAL)
-logger = get_logger(__name__)
+logger = get_logger(__name__, "backend_fastapi")
 
 # 创建路由器
 router = APIRouter(prefix="/api/chat", tags=["chat"])
