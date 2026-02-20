@@ -12,15 +12,15 @@ This module provides a centralized logging system powered by loguru:
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-
 from loguru import logger as _logger
 
 # Remove default handler
 _logger.remove()
 
 # Custom log levels for IntelliSearch
-TOOL_CALL_ERROR = 35  # Between ERROR(40) and WARNING(30)
-MCP_COMMUNICATION = 25  # Between WARNING(30) and INFO(20)
+TOOL_CALL_ERROR = 35
+MCP_COMMUNICATION = 25
+# * For Devs: custom logger levels can be added here
 
 # Define log level name mapping
 LOG_LEVEL_NAMES = {
@@ -119,14 +119,14 @@ class IntelliSearchLogger:
             return (
                 "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
                 "<level>{level: <16}</level> | "
-                "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
+                "<cyan>{extra[name]}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
                 "<level>{message}</level>"
             )
         else:
             return (
                 "{time:YYYY-MM-DD HH:mm:ss} | "
                 "{level: <16} | "
-                "{name}:{function}:{line} | "
+                "{extra[name]}:{function}:{line} | "
                 "{message}"
             )
 
@@ -172,12 +172,16 @@ class IntelliSearchLogger:
 
         self._initialized = True
 
-    def get_logger(self, name: str):
+    def get_logger(self, name: str, log_file_name: Optional[str] = None):
         """
         Get a logger instance with the specified name.
 
         Args:
             name: Logger name, typically __name__ of the calling module
+            log_file_name: Optional custom log file name for this module.
+                          If provided, logs will be written to a separate file
+                          named "intellisearch_{log_file_name}.log".
+                          Example: log_file_name="mcp_tools" -> "intellisearch_mcp_tools.log"
 
         Returns:
             Logger instance with configured handlers
@@ -187,12 +191,64 @@ class IntelliSearchLogger:
             >>> logger_manager.initialize()
             >>> logger = logger_manager.get_logger(__name__)
             >>> logger.info("Module initialized")
+            >>> # Create separate log file for specific module
+            >>> mcp_logger = logger_manager.get_logger(__name__, log_file_name="mcp_tools")
         """
         if not self._initialized:
             self.initialize()
 
+        # If custom log file is requested, check if handler already exists
+        if log_file_name:
+            self._ensure_module_file_handler(name, log_file_name)
+
         # Bind context with module name
-        return _logger.bind(name=name)
+        logger_instance = _logger.bind(name=name)
+
+        return logger_instance
+
+    def _ensure_module_file_handler(self, module_name: str, log_file_name: str) -> None:
+        """
+        Ensure a dedicated file handler exists for a specific module.
+        Only creates handler if it doesn't already exist.
+
+        Args:
+            module_name: The module name to filter logs for
+            log_file_name: Name for the log file (without prefix/suffix)
+        """
+        # Generate a unique handler ID for this module
+        handler_id = f"module_{module_name}"
+
+        # Check if we already created a handler for this module
+        if hasattr(self, '_module_handlers'):
+            if handler_id in self._module_handlers:
+                return  # Handler already exists
+        else:
+            self._module_handlers = {}
+
+        # Generate module-specific log file path
+        module_log_filename = self._generate_log_filename(name=log_file_name)
+        module_log_path = self.log_dir / module_log_filename
+
+        # Create a filter to only capture logs from this specific module
+        def module_filter(record):
+            return record["extra"].get("name") == module_name
+
+        # Add module-specific file handler
+        handler_id_value = _logger.add(
+            sink=str(module_log_path),
+            level=self.file_level,
+            format=self._get_log_format(with_color=False),
+            rotation="10 MB",
+            retention="10 days",
+            compression="zip",
+            backtrace=True,
+            diagnose=True,
+            encoding="utf-8",
+            filter=module_filter,
+        )
+
+        # Store handler ID to prevent duplicates
+        self._module_handlers[handler_id] = handler_id_value
 
 
 # Global logger manager instance
@@ -235,7 +291,7 @@ def setup_logging(
     return _logger_manager
 
 
-def get_logger(name: str):
+def get_logger(name: str, log_file_name: Optional[str] = None):
     """
     Get a logger instance with the specified name.
 
@@ -245,6 +301,10 @@ def get_logger(name: str):
 
     Args:
         name: Logger name, typically __name__ of the calling module
+        log_file_name: Optional custom log file name for this module.
+                      If provided, logs will be written to a separate file
+                      named "intellisearch_{log_file_name}.log".
+                      Example: log_file_name="mcp_tools" -> "intellisearch_mcp_tools.log"
 
     Returns:
         Logger instance with configured handlers
@@ -255,6 +315,8 @@ def get_logger(name: str):
         >>> logger.info("Module initialized")
         >>> logger.debug("Detailed debug information")
         >>> logger.error("An error occurred")
+        >>> # Create separate log file for specific module
+        >>> mcp_logger = get_logger(__name__, log_file_name="mcp_tools")
     """
     global _logger_manager
 
@@ -262,7 +324,7 @@ def get_logger(name: str):
         # Initialize with default settings if not already initialized
         setup_logging()
 
-    return _logger_manager.get_logger(name)
+    return _logger_manager.get_logger(name, log_file_name=log_file_name)
 
 
 def get_log_file_path() -> Optional[Path]:

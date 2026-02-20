@@ -3,7 +3,7 @@
 {% block title %}Chat - IntelliSearch{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/desktop.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/desktop.css') }}?v=3.3.0">
 {% endblock %}
 
 {% block body_class %}desktop-chat{% endblock %}
@@ -20,14 +20,34 @@
         </div>
         
         <nav class="sidebar-nav">
-            <a href="{{ url_for('new_chat') }}" class="nav-item nav-item-new">
+            <a href="{{ url_for('new_chat') }}" class="nav-item nav-item-new" id="new-chat-btn">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/>
                     <line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
                 New Chat
             </a>
-            
+
+            <!-- Session List -->
+            <div class="nav-section">
+                <div class="nav-section-title">
+                    <span>Recent Chats</span>
+                    <button class="btn-refresh-sessions" id="refresh-sessions-btn" title="Refresh sessions">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6"/>
+                            <path d="M1 20v-6h6"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="sessions-list" id="sessions-list">
+                    <!-- Sessions will be loaded dynamically -->
+                    <div class="sessions-loading">
+                        <div class="spinner spinner-sm"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="nav-section">
                 <div class="nav-section-title">Navigation</div>
                 <a href="{{ url_for('desktop_chat') }}" class="nav-item active">
@@ -56,7 +76,7 @@
         
         <div class="sidebar-footer">
             <div class="user-info">
-                <div class="avatar" style="background: {{ user['avatar_color'] or '#6366f1' }}">
+                <div class="avatar" data-avatar-color="{{ user['avatar_color'] or '#6366f1' }}">
                     {{ (user['display_name'] or user['username'])[0] }}
                 </div>
                 <div class="user-details">
@@ -93,7 +113,7 @@
                 </label>
             </div>
         </header>
-        
+
         <div class="chat-messages" id="chat-messages">
             <div class="welcome-message">
                 <div class="welcome-icon">
@@ -168,190 +188,14 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/base.js') }}"></script>
 <script>
-    const chatMessages = document.getElementById('chat-messages');
-    const chatForm = document.getElementById('chat-form');
-    const messageInput = document.getElementById('message-input');
-    const sendBtn = document.getElementById('send-btn');
-    const processIndicator = document.getElementById('process-indicator');
-    const useToolsCheckbox = document.getElementById('use-tools');
-    
-    let isStreaming = false;
-    
-    // Auto-resize textarea
-    messageInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 200) + 'px';
-    });
-    
-    // Handle Enter key
-    messageInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (!isStreaming && this.value.trim()) {
-                chatForm.dispatchEvent(new Event('submit'));
-            }
-        }
-    });
-    
-    // Send quick prompt
-    function sendQuickPrompt(text) {
-        messageInput.value = text;
-        chatForm.dispatchEvent(new Event('submit'));
-    }
-    
-    // Create message element
-    function createMessage(role, content) {
-        const welcomeMsg = chatMessages.querySelector('.welcome-message');
-        if (welcomeMsg) welcomeMsg.remove();
-        
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message message-${role}`;
-        
-        const avatar = document.createElement('div');
-        avatar.className = 'message-avatar';
-        
-        if (role === 'user') {
-            avatar.style.background = '{{ user["avatar_color"] or "#6366f1" }}';
-            avatar.textContent = '{{ (user["display_name"] or user["username"])[0] }}';
-        } else {
-            avatar.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
-        }
-        
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content markdown-content';
-        
-        if (role === 'user') {
-            contentDiv.textContent = content;
-        } else {
-            contentDiv.innerHTML = renderMarkdown(content);
-            renderLatex(contentDiv);
-        }
-        
-        msgDiv.appendChild(avatar);
-        msgDiv.appendChild(contentDiv);
-        chatMessages.appendChild(msgDiv);
-        
-        return contentDiv;
-    }
-    
-    // Create tool call indicator
-    function createToolIndicator(toolName) {
-        const indicator = document.createElement('div');
-        indicator.className = 'tool-indicator';
-        indicator.innerHTML = `
-            <div class="tool-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                </svg>
-            </div>
-            <span>Using tool: <strong>${toolName}</strong></span>
-            <div class="spinner" style="width: 14px; height: 14px;"></div>
-        `;
-        chatMessages.appendChild(indicator);
-        return indicator;
-    }
-    
-    // Handle form submission
-    chatForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const message = messageInput.value.trim();
-        if (!message || isStreaming) return;
-        
-        isStreaming = true;
-        sendBtn.disabled = true;
-        messageInput.value = '';
-        messageInput.style.height = 'auto';
-        
-        // Add user message
-        createMessage('user', message);
-        scrollToBottom();
-        
-        // Show process indicator
-        processIndicator.classList.add('visible');
-        processIndicator.querySelector('.process-text').textContent = 'Thinking...';
-        
-        // Create assistant message placeholder
-        const assistantContent = createMessage('assistant', '');
-        let fullContent = '';
-        let currentToolIndicator = null;
-        
-        try {
-            const response = await fetch('/api/chat/stream', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: message,
-                    use_tools: useToolsCheckbox.checked
-                })
-            });
-            
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
-                
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6);
-                        
-                        if (data === '[DONE]') {
-                            processIndicator.classList.remove('visible');
-                            continue;
-                        }
-                        
-                        try {
-                            const event = JSON.parse(data);
-                            
-                            if (event.type === 'content') {
-                                if (currentToolIndicator) {
-                                    currentToolIndicator.classList.add('completed');
-                                    currentToolIndicator = null;
-                                }
-                                fullContent += event.content;
-                                assistantContent.innerHTML = renderMarkdown(fullContent);
-                                renderLatex(assistantContent);
-                                scrollToBottom();
-                            } else if (event.type === 'tool_call_start') {
-                                processIndicator.querySelector('.process-text').textContent = 
-                                    `Using ${event.tool_call.name}...`;
-                                currentToolIndicator = createToolIndicator(event.tool_call.name);
-                                scrollToBottom();
-                            } else if (event.type === 'tool_result') {
-                                if (currentToolIndicator) {
-                                    currentToolIndicator.classList.add('completed');
-                                    currentToolIndicator.querySelector('.spinner').remove();
-                                }
-                                processIndicator.querySelector('.process-text').textContent = 'Processing results...';
-                            } else if (event.type === 'error') {
-                                assistantContent.innerHTML = `<div class="error-message">${event.error}</div>`;
-                            }
-                        } catch (err) {
-                            console.error('Parse error:', err);
-                        }
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Stream error:', error);
-            assistantContent.innerHTML = `<div class="error-message">Connection error. Please try again.</div>`;
-        } finally {
-            isStreaming = false;
-            sendBtn.disabled = false;
-            processIndicator.classList.remove('visible');
-            messageInput.focus();
-        }
-    });
-    
-    function scrollToBottom() {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
+    // Pass user data to JavaScript (from template)
+    window.USER_DATA = {
+        avatarColor: '{{ user["avatar_color"] or "#6366f1" }}',
+        displayNameInitial: '{{ (user["display_name"] or user["username"])[0] }}'
+    };
 </script>
+<script src="{{ url_for('static', filename='js/desktop_chat.js') }}"></script>
 {% endblock %}
 

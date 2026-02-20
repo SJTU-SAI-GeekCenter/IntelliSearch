@@ -17,9 +17,8 @@ from datetime import datetime
 sys.path.insert(0, os.getcwd())
 from config.config_loader import Config
 from core.logger import get_logger
-from test_standard_toolkit.test_mcp_standard import TestResultCollector
 
-logger = get_logger(__name__)
+logger = get_logger("tool_test", "tool_test")
 
 
 # =============================================================================
