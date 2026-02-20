@@ -54,7 +54,7 @@ To support the evolution of IntelliSearch-v3.1 into more personalized and flexib
 
 ### Design Philosophy
 
-> [!IMPORATNT]
+> [!IMPORTANT]
 > To be refactored and rewritten in the future.
 
 Adopts a **layered architecture** design that clearly separates system responsibilities into the following layers:
