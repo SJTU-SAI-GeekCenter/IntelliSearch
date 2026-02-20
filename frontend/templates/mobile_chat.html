@@ -3,7 +3,7 @@
 {% block title %}Chat - IntelliSearch{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}?v=3.3.0">
 <meta name="theme-color" content="#0a0a0f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -41,7 +41,7 @@
     <nav class="mobile-menu" id="mobile-menu">
         <div class="menu-header">
             <div class="user-info">
-                <div class="avatar" style="background: {{ user['avatar_color'] or '#6366f1' }}">
+                <div class="avatar" data-avatar-color="{{ user['avatar_color'] or '#6366f1' }}">
                     {{ (user['display_name'] or user['username'])[0] }}
                 </div>
                 <div class="user-details">
@@ -160,182 +160,14 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/base.js') }}"></script>
 <script>
-    const chatMessages = document.getElementById('chat-messages');
-    const chatForm = document.getElementById('chat-form');
-    const messageInput = document.getElementById('message-input');
-    const sendBtn = document.getElementById('send-btn');
-    const processBar = document.getElementById('process-bar');
-    const useToolsCheckbox = document.getElementById('use-tools');
-    const menuBtn = document.getElementById('menu-btn');
-    const mobileMenu = document.getElementById('mobile-menu');
-    const menuOverlay = document.getElementById('menu-overlay');
-    
-    let isStreaming = false;
-    
-    // Menu toggle
-    menuBtn.addEventListener('click', () => {
-        mobileMenu.classList.add('open');
-        menuOverlay.classList.add('visible');
-    });
-    
-    menuOverlay.addEventListener('click', () => {
-        mobileMenu.classList.remove('open');
-        menuOverlay.classList.remove('visible');
-    });
-    
-    // Auto-resize textarea
-    messageInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-    });
-    
-    // Handle Enter key
-    messageInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (!isStreaming && this.value.trim()) {
-                chatForm.dispatchEvent(new Event('submit'));
-            }
-        }
-    });
-    
-    // Send quick prompt
-    function sendQuickPrompt(text) {
-        messageInput.value = text;
-        chatForm.dispatchEvent(new Event('submit'));
-    }
-    
-    // Create message element
-    function createMessage(role, content) {
-        const welcomeMsg = chatMessages.querySelector('.welcome-message');
-        if (welcomeMsg) welcomeMsg.remove();
-        
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message message-${role}`;
-        
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content';
-        
-        if (role === 'user') {
-            contentDiv.textContent = content;
-        } else {
-            contentDiv.className += ' markdown-content';
-            contentDiv.innerHTML = renderMarkdown(content);
-            renderLatex(contentDiv);
-        }
-        
-        if (role === 'assistant') {
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar-mobile';
-            avatar.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
-            msgDiv.appendChild(avatar);
-        }
-        
-        msgDiv.appendChild(contentDiv);
-        chatMessages.appendChild(msgDiv);
-        
-        return contentDiv;
-    }
-    
-    // Create tool indicator
-    function createToolIndicator(toolName) {
-        const indicator = document.createElement('div');
-        indicator.className = 'tool-indicator-mobile';
-        indicator.innerHTML = `
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-            </svg>
-            <span>${toolName}</span>
-        `;
-        chatMessages.appendChild(indicator);
-        return indicator;
-    }
-    
-    // Handle form submission
-    chatForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const message = messageInput.value.trim();
-        if (!message || isStreaming) return;
-        
-        isStreaming = true;
-        sendBtn.disabled = true;
-        messageInput.value = '';
-        messageInput.style.height = 'auto';
-        
-        // Add user message
-        createMessage('user', message);
-        scrollToBottom();
-        
-        // Show process bar
-        processBar.classList.add('visible');
-        processBar.querySelector('.process-text').textContent = 'Thinking...';
-        
-        // Create assistant message placeholder
-        const assistantContent = createMessage('assistant', '');
-        let fullContent = '';
-        
-        try {
-            const response = await fetch('/api/chat/stream', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: message,
-                    use_tools: useToolsCheckbox.checked
-                })
-            });
-            
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
-                
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6);
-                        
-                        if (data === '[DONE]') {
-                            processBar.classList.remove('visible');
-                            continue;
-                        }
-                        
-                        try {
-                            const event = JSON.parse(data);
-                            
-                            if (event.type === 'content') {
-                                fullContent += event.content;
-                                assistantContent.innerHTML = renderMarkdown(fullContent);
-                                renderLatex(assistantContent);
-                                scrollToBottom();
-                            } else if (event.type === 'tool_call_start') {
-                                processBar.querySelector('.process-text').textContent = event.tool_call.name;
-                                createToolIndicator(event.tool_call.name);
-                                scrollToBottom();
-                            } else if (event.type === 'error') {
-                                assistantContent.innerHTML = `<div class="error-message">${event.error}</div>`;
-                            }
-                        } catch (err) {}
-                    }
-                }
-            }
-        } catch (error) {
-            assistantContent.innerHTML = '<div class="error-message">Connection error</div>';
-        } finally {
-            isStreaming = false;
-            sendBtn.disabled = false;
-            processBar.classList.remove('visible');
-        }
-    });
-    
-    function scrollToBottom() {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
+    // Pass user data to JavaScript (from template)
+    window.USER_DATA = {
+        avatarColor: '{{ user["avatar_color"] or "#6366f1" }}',
+        displayNameInitial: '{{ (user["display_name"] or user["username"])[0] }}'
+    };
 </script>
+<script src="{{ url_for('static', filename='js/mobile_chat.js') }}"></script>
 {% endblock %}
 
