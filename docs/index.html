@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IntelliSearch - Unifying Search, Empowering Action</title>
+    <link rel="icon" type="image/png" href="assets/IntelliSearch-SAI.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Animated Background Particles -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">
+                    <img src="assets/IntelliSearch-SAI.png" alt="IntelliSearch Logo">
+                </div>
+                <div class="logo-text">IntelliSearch</div>
+            </div>
+            <nav class="nav-links">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#demo" class="nav-link">Demo</a>
+                <a href="#dev" class="nav-link">Developers</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div>
+                <div class="hero-badge">IntelliSearch-V3.1</div>
+                <h1>Unifying Search, Empowering Action</h1>
+                <p>IntelliSearch is an MCP-rooted search agent evolved into a decoupled, lightweight infrastructure for the Agentic ecosystem. By unifying context memory, dynamic tool scheduling, and multi-agent communication, it provides developers with a perfectly balanced and adaptable framework.</p>
+                <div class="cta-buttons">
+                    <a href="#demo" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        Watch Demo
+                    </a>
+                    <a href="#dev" class="btn btn-secondary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="16 18 22 12 16 6"/>
+                            <polyline points="8 6 2 12 8 18"/>
+                        </svg>
+                        Get Started
+                    </a>
+                </div>
+            </div>
+            <div class="hero-screenshot">
+                <img src="assets/Intellisearch-v3.1.png" alt="IntelliSearch v3.1 Interface">
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <h2 class="section-title">Powerful Features</h2>
+        <p class="section-subtitle">Everything you need for intelligent search and operations</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                </div>
+                <h3>Tool Ecosystem</h3>
+                <p>Introduce <b>IntelliSearch-Toolkit</b>, a high quality toolkit including multi-source search tools and safe operation tools with environment interactions. It also supports extensible MCP-based tools for customization and advanced workflows.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </div>
+                <h3>Multi-Domain Search</h3>
+                <p>Integrated <b>multi-source search engines</b> including Web (Google/ZHIPU), Scholar, GitHub, Bilibili, WeChat, and more. Supports both Chinese and English content retrieval with intelligent domain selection.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="16 18 22 12 16 6"/>
+                        <polyline points="8 6 2 12 8 18"/>
+                    </svg>
+                </div>
+                <h3>External Environment Interactions</h3>
+                <p>Safely interact with external environments through <b>MCP-based tools</b>. Execute terminal commands, read/write files, operate browsers, and run Python code with SecurityManager protection and fine-grained permission control.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                        <line x1="12" y1="7" x2="12" y2="21"/>
+                        <path d="M5 7v1m0 4v1m0 4v1"/>
+                        <path d="M19 7v1m0 4v1m0 4v1"/>
+                    </svg>
+                </div>
+                <h3>Long Horizon Memories</h3>
+                <p>Supports <b>pluggable long-term memory systems</b> for maintaining conversation context across sessions. Sequential memory architecture enables agents to remember and reason over extended interactions with persistent storage.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                        <circle cx="6.5" cy="6.5" r="0.75" fill="currentColor"/>
+                        <circle cx="17.5" cy="6.5" r="0.75" fill="currentColor"/>
+                        <circle cx="17.5" cy="17.5" r="0.75" fill="currentColor"/>
+                        <circle cx="6.5" cy="17.5" r="0.75" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3>Agent Universe</h3>
+                <p>Provides a <b>pluggable agent architecture</b> supporting multiple agent structures for different tasks. Built on MCP-based framework with extensible design for custom agent development and seamless integration.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                    </svg>
+                </div>
+                <h3>Multiple Backend Service</h3>
+                <p>Offers <b>both Web and CLI backend modes</b> for flexible deployment. One-click setup with zero configuration for quick start, while supporting deep customization for open-source developers.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Video Demo Section -->
+    <section class="demo-section" id="demo">
+        <h2 class="section-title">See It In Action</h2>
+        <p class="section-subtitle">Watch how IntelliSearch transforms your workflow</p>
+        <div class="demo-grid">
+            <div class="video-container">
+                <div class="demo-image">
+                    <video controls preload="metadata">
+                        <source src="assets/demo/cli_demo1.MOV" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <h3 class="demo-title">Every Second Counts: Multi-Constraint Collaborative Spring Festival Travel Planning</h3>
+                <p class="demo-description">Navigating complex time constraints and multi-modal transit challenges, IntelliSearch leverages multi-source cross-verification to deliver a refined travel plan that balances cost-effectiveness, strict scheduling, and safety redundancy. The solution provides minute-accurate itineraries, cost estimates, and contingency backups, while maintaining full transparency and security by documenting the entire tool-invocation process for verifiable decision-making.</p>
+            </div>
+            <div class="video-container">
+                <div class="demo-image">
+                    <video controls preload="metadata">
+                        <source src="assets/demo/cli_demo2.MOV" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <h3 class="demo-title">Needle in a Haystack: Synergizing Breadth and Depth in Academic Search</h3>
+                <p class="demo-description">IntelliSearch implements a "Breadth-First, Depth-Follow" tool orchestration paradigm, utilizing a layered strategy of wide-scale recall followed by intensive verification to prevent information gaps and suppress noise accumulation. This framework converges massive data into high-confidence conclusions, delivering structured bibliographies—complete with authorship, direct links, and audit references—to ensure both comprehensiveness and verifiability.</p>
+            </div>
+            <div class="video-container">
+                <div class="demo-image">
+                    <video controls preload="metadata">
+                        <source src="assets/demo/cli_demo3.MOV" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <h3 class="demo-title">Long-Term Memory: A Dedicated Knowledge Base for SAIers</h3>
+                <p class="demo-description">IntelliSearch has significantly upgraded its local data capabilities with a 10,000+ word SAI-exclusive knowledge base, meticulously developed by the Geek Center.</p>
+            </div>
+            <div class="video-container">
+                <div class="demo-image">
+                    <video controls preload="metadata">
+                        <source src="assets/demo/cli_demo4.MOV" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <h3 class="demo-title">Long-Term Memory: A Dedicated Knowledge Base for SAIers</h3>
+                <p class="demo-description">By integrating official media, regulatory documents, and campus archives into a structured hub, it serves as a dedicated information nucleus that empowers SAIers in their daily affairs and academic planning.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Developer Setup Section -->
+    <section class="dev-section" id="dev">
+        <div class="dev-card">
+            <div class="dev-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+            </div>
+            <h2>Get Started with IntelliSearch</h2>
+            <p>Choose your preferred way to experience IntelliSearch - whether you're a student at SJTU or an open-source enthusiast exploring AI-powered search.</p>
+            <div class="doc-links">
+                <div class="doc-links-left">
+                    <a href="https://chat.sai-sjtu.top/" target="_blank" class="doc-link doc-link-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2H3a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10"/>
+                            <path d="M18 12v1a4 4 0 0 1-4 4H9"/>
+                            <path d="M21 12a5 5 0 0 0-5-5"/>
+                            <circle cx="9" cy="9" r="2"/>
+                            <circle cx="18" cy="9" r="2"/>
+                            <path d="M13 13v1"/>
+                            <path d="M18 12v1"/>
+                        </svg>
+                        <div class="doc-link-text">
+                            <div class="doc-link-title">Quick Access</div>
+                            <div class="doc-link-desc">Use web version directly (SJTU campus network required)</div>
+                        </div>
+                    </a>
+                </div>
+                <div class="doc-links-right">
+                    <a href="DEV_SETUP.md" class="doc-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        <div class="doc-link-text">
+                            <div class="doc-link-title">Open Source Setup</div>
+                            <div class="doc-link-desc">Deploy locally with full customization</div>
+                        </div>
+                    </a>
+                    <a href="DEV_ARCHITECTURE.md" class="doc-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                        <div class="doc-link-text">
+                            <div class="doc-link-title">Architecture</div>
+                            <div class="doc-link-desc">System design overview</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2026 IntelliSearch, by SJTU-SAI-GeekCenter.</p>
+        <div class="footer-links">
+            <a href="https://sjtu-sai-geekcenter.github.io/IntelliSearch">Documentation</a>
+            <a href="https://github.com/SJTU-SAI-GeekCenter/IntelliSearch">GitHub</a>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
