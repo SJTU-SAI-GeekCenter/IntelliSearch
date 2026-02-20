@@ -1,6 +1,6 @@
 <div style="text-align: center;">
   <a href="https://git.io/typing-svg">
-    <img src="./assets/Intellisearch-v3.1.png" alt="IntelliSearch" />
+    <img src="docs/assets/Intellisearch-v3.1.png" alt="IntelliSearch" />
   </a>
 </div>
 
@@ -9,8 +9,10 @@
 </h1>
 
 <div align="center">
-<a href="https://sjtu-sai-geekcenter.github.io/IntelliSearch/DEV_SETUP" target="_blank">
-  <img src="https://img.shields.io/badge/Webpage-IntelliSearch-green.svg" alt="Webpage"/></a>  
+  <a href="https://sjtu-sai-geekcenter.github.io/IntelliSearch/" target="_blank">
+  <img src="https://img.shields.io/badge/Web Pages-IntelliSearch-blue.svg" alt="Webpage"/></a>
+  <a href="https://sjtu-sai-geekcenter.github.io/IntelliSearch/DEV_SETUP" target="_blank">
+  <img src="https://img.shields.io/badge/Dev Document-IntelliSearch-green.svg" alt="Webpage"/></a>  
   <a href="./README.md" target="_blank"><img src="https://img.shields.io/badge/English-README-pink.svg" alt="README (English Version)"/></a>
   <a href="./README_ZH.md" target="_blank"><img src="https://img.shields.io/badge/Chinses-README_ZH-red.svg" alt="README (Chinese Version)"/></a>
 </div>
@@ -42,12 +44,6 @@ IntelliSearch-v3.1（交小AI-智搜）为 IntelliSearch 系列智能体发布�
 - 终端命令执行 (超时控制、输出捕获)
 - 基础工具集 (日期时间、UUID、随机数等实用工具)
 
-<div style="text-align: center;">
-  <a href="https://git.io/typing-svg">
-    <img src="./assets/cli_interface_demo.png" alt="IntelliSearch" />
-  </a>
-</div>
-
 ### 开发者指南
 
 详见 [DEV_SETUP](./docs/DEV_SETUP.md)
@@ -55,6 +51,9 @@ IntelliSearch-v3.1（交小AI-智搜）为 IntelliSearch 系列智能体发布�
 ## IntelliSearch-v3.1 BackBone
 
 为了支持 IntelliSearch-v3.1 演化出更个性化、更灵活的若干智能体模块设计，IntelliSearch-v3.1 实现了版本级的项目重构和更新 (IntelliSearch-v3.1 BackBone)，志在搭建轻量化但高效的智能体模块分层设计，为上层建筑提供基建支持。
+
+> [!IMPORATNT]
+> To be refactored and rewritten in the future.
 
 ### 设计理念
 

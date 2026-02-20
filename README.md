@@ -1,6 +1,6 @@
 <div style="text-align: center;">
   <a href="https://git.io/typing-svg">
-    <img src="./assets/Intellisearch-v3.1.png" alt="IntelliSearch" />
+    <img src="docs/assets/Intellisearch-v3.1.png" alt="IntelliSearch" />
   </a>
 </div>
 
@@ -9,7 +9,9 @@
 </h1>
 
 <div align="center">
-<a href="https://sjtu-sai-geekcenter.github.io/IntelliSearch/DEV_SETUP" target="_blank">
+  <a href="https://sjtu-sai-geekcenter.github.io/IntelliSearch/" target="_blank">
+  <img src="https://img.shields.io/badge/Web Pages-IntelliSearch-blue.svg" alt="Webpage"/></a>
+  <a href="https://sjtu-sai-geekcenter.github.io/IntelliSearch/DEV_SETUP" target="_blank">
   <img src="https://img.shields.io/badge/Dev Document-IntelliSearch-green.svg" alt="Webpage"/></a>  
   <a href="./README.md" target="_blank"><img src="https://img.shields.io/badge/English-README-pink.svg" alt="README (English Version)"/></a>
   <a href="./README_ZH.md" target="_blank"><img src="https://img.shields.io/badge/Chinses-README_ZH-red.svg" alt="README (Chinese Version)"/></a>
@@ -41,11 +43,6 @@ IntelliSearch-v3.1 (SJTU AI - Intelligent Search) is the second model release in
 - Terminal Command Execution (timeout control, output capture)
 - Basic Tool Kit (date/time, UUID, random numbers, and other utilities)
 
-<div style="text-align: center;">
-  <a href="https://git.io/typing-svg">
-    <img src="./assets/cli_interface_demo.png" alt="IntelliSearch" />
-  </a>
-</div>
 
 ### Developer Guide
 
@@ -56,6 +53,9 @@ See [DEV_SETUP](./docs/DEV_SETUP.md) for details
 To support the evolution of IntelliSearch-v3.1 into more personalized and flexible agent module designs, we implemented a version-level project refactoring and update (IntelliSearch-v3.1 BackBone). This aims to build a lightweight yet efficient layered agent module design, providing infrastructure support for upper-level applications.
 
 ### Design Philosophy
+
+> [!IMPORATNT]
+> To be refactored and rewritten in the future.
 
 Adopts a **layered architecture** design that clearly separates system responsibilities into the following layers:
 
