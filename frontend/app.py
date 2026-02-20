@@ -7,6 +7,7 @@ import os
 import uuid
 import json
 import sqlite3
+import requests
 from datetime import datetime
 from functools import wraps
 from flask import (
@@ -22,7 +23,7 @@ from flask import (
     g,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
-import requests
+from config.config_loader import Config
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "intellisearch-secret-key-2024")
@@ -30,6 +31,24 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "intellisearch-secret-key-20
 # Configuration
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8001")
 DATABASE = os.path.join(os.path.dirname(__file__), "intellisearch.db")
+
+# Global config instance (will be initialized in init_config())
+config = None
+
+
+def init_config(config_path: str = "config/config.yaml"):
+    """
+    Initialize the Config singleton.
+
+    This should be called once at application startup.
+
+    Args:
+        config_path: Path to configuration file
+    """
+    global config
+    if config is None:
+        config = Config(config_file_path=config_path)
+        config.load_config(override=True)
 
 
 # ============================================================================
@@ -73,7 +92,7 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            
+
             CREATE TABLE IF NOT EXISTS chat_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -85,7 +104,17 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             );
-            
+
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                session_id TEXT UNIQUE NOT NULL,
+                title TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            );
+
             CREATE TABLE IF NOT EXISTS token_usage (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -96,9 +125,11 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users (id),
                 UNIQUE(user_id, date)
             );
-            
+
             CREATE INDEX IF NOT EXISTS idx_chat_logs_user ON chat_logs(user_id);
             CREATE INDEX IF NOT EXISTS idx_chat_logs_session ON chat_logs(session_id);
+            CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+            CREATE INDEX IF NOT EXISTS idx_sessions_session_id ON sessions(session_id);
             CREATE INDEX IF NOT EXISTS idx_token_usage_date ON token_usage(date);
         """
         )
@@ -217,6 +248,87 @@ def update_token_usage(user_id, tokens):
             (user_id, today, tokens, tokens),
         )
         db.commit()
+
+
+# ============================================================================
+# Session Management Helpers
+# ============================================================================
+
+
+def get_or_create_session(user_id, session_id):
+    """Get existing session or create new one."""
+    db = get_db()
+
+    # Try to get existing session
+    session = db.execute(
+        "SELECT * FROM sessions WHERE user_id = ? AND session_id = ?",
+        (user_id, session_id),
+    ).fetchone()
+
+    if session:
+        # Update updated_at timestamp
+        db.execute(
+            "UPDATE sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (session["id"],),
+        )
+        db.commit()
+        return dict(session)
+
+    # Create new session
+    db.execute(
+        "INSERT INTO sessions (user_id, session_id) VALUES (?, ?)",
+        (user_id, session_id),
+    )
+    db.commit()
+
+    return db.execute(
+        "SELECT * FROM sessions WHERE user_id = ? AND session_id = ?",
+        (user_id, session_id),
+    ).fetchone()
+
+
+def generate_session_title(user_id, session_id):
+    """Generate session title from first user message."""
+    db = get_db()
+
+    # Get first user message in this session
+    first_message = db.execute(
+        """
+        SELECT content FROM chat_logs
+        WHERE user_id = ? AND session_id = ? AND role = 'user'
+        ORDER BY created_at ASC
+        LIMIT 1
+    """,
+        (user_id, session_id),
+    ).fetchone()
+
+    if first_message:
+        # Use first 50 characters of first message
+        content = first_message["content"]
+        title = content[:50] + "..." if len(content) > 50 else content
+        # Remove newlines for cleaner display
+        title = title.replace("\n", " ").strip()
+        return title
+
+    return "新对话"
+
+
+def update_session_title(user_id, session_id, title):
+    """Update session title."""
+    db = get_db()
+    db.execute(
+        "UPDATE sessions SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND session_id = ?",
+        (title, user_id, session_id),
+    )
+    db.commit()
+
+
+def delete_session_db(user_id, session_id):
+    """Delete session and all related chat logs."""
+    db = get_db()
+    db.execute("DELETE FROM chat_logs WHERE user_id = ? AND session_id = ?", (user_id, session_id))
+    db.execute("DELETE FROM sessions WHERE user_id = ? AND session_id = ?", (user_id, session_id))
+    db.commit()
 
 
 # ============================================================================
@@ -395,6 +507,9 @@ def proxy_chat_stream():
     user_id = session["user_id"]
     session_id = session.get("chat_session_id", str(uuid.uuid4()))
 
+    # Ensure session exists in database
+    get_or_create_session(user_id, session_id)
+
     data = request.get_json()
     message = data.get("message", "")
     use_tools = data.get("use_tools", True)
@@ -405,6 +520,11 @@ def proxy_chat_stream():
     def generate():
         """Generate SSE response from backend."""
         try:
+            # Get frontend timeout from config (should be greater than backend_timeout)
+            frontend_timeout = (
+                config.get("mcp.connection.backend_timeout", 100) + 20
+            )  # Add 20s buffer
+
             response = requests.post(
                 f"{BACKEND_URL}/api/chat/stream",
                 json={
@@ -413,7 +533,7 @@ def proxy_chat_stream():
                     "use_tools": use_tools,
                 },
                 stream=True,
-                timeout=120,
+                timeout=frontend_timeout,
             )
 
             assistant_content = ""
@@ -479,7 +599,7 @@ def get_user_history():
     db = get_db()
     logs = db.execute(
         """
-        SELECT * FROM chat_logs 
+        SELECT * FROM chat_logs
         WHERE user_id = ? AND session_id = ?
         ORDER BY created_at ASC
     """,
@@ -487,6 +607,139 @@ def get_user_history():
     ).fetchall()
 
     return jsonify([dict(log) for log in logs])
+
+
+@app.route("/api/sessions", methods=["GET"])
+@login_required
+def get_sessions():
+    """Get all sessions for current user."""
+    db = get_db()
+    user_id = session["user_id"]
+
+    # Get all sessions with message count
+    sessions_data = db.execute(
+        """
+        SELECT
+            s.session_id,
+            s.title,
+            s.created_at,
+            s.updated_at,
+            COUNT(cl.id) as message_count
+        FROM sessions s
+        LEFT JOIN chat_logs cl ON s.session_id = cl.session_id AND s.user_id = cl.user_id
+        WHERE s.user_id = ?
+        GROUP BY s.session_id
+        ORDER BY s.updated_at DESC
+    """,
+        (user_id,),
+    ).fetchall()
+
+    # Generate titles for sessions that don't have one
+    sessions_list = []
+    for sess in sessions_data:
+        sess_dict = dict(sess)
+
+        # If no custom title, generate from first message
+        if not sess_dict["title"]:
+            generated_title = generate_session_title(user_id, sess_dict["session_id"])
+
+            # Save generated title if session has messages
+            if sess_dict["message_count"] > 0:
+                update_session_title(user_id, sess_dict["session_id"], generated_title)
+                sess_dict["title"] = generated_title
+            else:
+                sess_dict["title"] = "新对话"
+        else:
+            sess_dict["title"] = sess_dict["title"]
+
+        sessions_list.append(sess_dict)
+
+    return jsonify(sessions_list)
+
+
+@app.route("/api/sessions/switch", methods=["POST"])
+@login_required
+def switch_session():
+    """Switch to a different session."""
+    data = request.get_json()
+    new_session_id = data.get("session_id")
+
+    if not new_session_id:
+        return jsonify({"error": "session_id is required"}), 400
+
+    # Verify session belongs to current user
+    db = get_db()
+    sess = db.execute(
+        "SELECT * FROM sessions WHERE user_id = ? AND session_id = ?",
+        (session["user_id"], new_session_id),
+    ).fetchone()
+
+    if not sess:
+        return jsonify({"error": "Session not found"}), 404
+
+    # Update Flask session
+    session["chat_session_id"] = new_session_id
+
+    return jsonify({"status": "success", "session_id": new_session_id})
+
+
+@app.route("/api/sessions/rename", methods=["PUT"])
+@login_required
+def rename_session():
+    """Rename a session."""
+    data = request.get_json()
+    session_id = data.get("session_id")
+    new_title = data.get("title", "").strip()
+
+    if not session_id:
+        return jsonify({"error": "session_id is required"}), 400
+
+    if not new_title:
+        return jsonify({"error": "title cannot be empty"}), 400
+
+    # Verify session belongs to current user
+    db = get_db()
+    sess = db.execute(
+        "SELECT * FROM sessions WHERE user_id = ? AND session_id = ?",
+        (session["user_id"], session_id),
+    ).fetchone()
+
+    if not sess:
+        return jsonify({"error": "Session not found"}), 404
+
+    # Update title
+    update_session_title(session["user_id"], session_id, new_title)
+
+    return jsonify({"status": "success", "title": new_title})
+
+
+@app.route("/api/sessions/delete", methods=["DELETE"])
+@login_required
+def delete_session():
+    """Delete a session."""
+    session_id = request.args.get("session_id")
+
+    if not session_id:
+        return jsonify({"error": "session_id is required"}), 400
+
+    # Don't allow deleting current session
+    if session.get("chat_session_id") == session_id:
+        return jsonify({"error": "Cannot delete active session"}), 400
+
+    # Verify session belongs to current user
+    db = get_db()
+    sess = db.execute(
+        "SELECT * FROM sessions WHERE user_id = ? AND session_id = ?",
+        (session["user_id"], session_id),
+    ).fetchone()
+
+    if not sess:
+        return jsonify({"error": "Session not found"}), 404
+
+    # Delete session and chat logs
+    delete_session_db(session["user_id"], session_id)
+
+    return jsonify({"status": "success"})
 
 
 # ============================================================================

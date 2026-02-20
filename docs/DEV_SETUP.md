@@ -1,4 +1,4 @@
-# IntelliSearch-v3.0 开发者使用指南
+# IntelliSearch-v3.1 开发者使用指南
 
 IntelliSearch-v3.0 全栈框架开源，并提供 **命令行类 Claude Code 使用**模式和**网页端**使用模式两种方式。
 
@@ -76,7 +76,7 @@ python backend/tool_backend/run.py --stop && python backend/tool_backend/run.py
 
 模仿 Claude Code 风格界面设计，在命令行窗口实现简单高效并且可视化的搜索智能体。
 
-![CLI Interface Demo](/assets/cli_interface_demo.png)
+![CLI Interface Demo](./assets/cli_interface_demo.png)
 
 ```bash
 python cli.py
@@ -84,15 +84,14 @@ python cli.py
 
 #### Web 使用
 
-> [!IMPORTANT]
-> 该部分正在重构中，暂时不可用。
+IntelliSearch 支持本地 Web 部署，使用 FastAPI 作为后端提供标准化的流式输出接口
 
-IntelliSearch 支持本地 Web 部署，使用 FastAPI 作为后端提供标准化的流式输出接口：
+![Web Interface Demo](./assets/web_interface_demo.png)
 
 ```bash
-# 终端 1：启动 FastAPI 后端服务（默认端口 8001）
-python backend/main_fastapi.py
-
-# 终端 2：启动 Flask 前端服务（默认端口 50001）
-python frontend/app.py
+python api.py
+# 前端服务：本地 50001 端口
+# 后端服务：本地 8001 端口
+# 后端 API 文档：http://localhost:8001/docs
+python api.py
 ```

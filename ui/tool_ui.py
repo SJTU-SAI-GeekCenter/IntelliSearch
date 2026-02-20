@@ -5,14 +5,16 @@ This module provides a singleton manager for displaying tool execution
 information with a consistent visual style across the application.
 """
 
+import json
+import time
 from typing import Optional, Dict, Any
 from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
 from rich.table import Table
 from rich.style import Style
-
 from .theme import ThemeColors
+from .status_manager import get_status_manager
 
 
 class ToolUIManager:
@@ -75,9 +77,6 @@ class ToolUIManager:
         """
         if not self._enabled or not self._console:
             return
-
-        # Clear any existing status before printing
-        from .status_manager import get_status_manager
         status_mgr = get_status_manager()
         status_mgr.clear()
         self._console.print()  # Add newline after clearing status
@@ -95,9 +94,7 @@ class ToolUIManager:
             )
         )
 
-    def display_tool_input(
-        self, tool_name: str, arguments: Dict[str, Any]
-    ) -> None:
+    def display_tool_input(self, tool_name: str, arguments: Dict[str, Any]) -> None:
         """
         Display tool input parameters.
 
@@ -119,9 +116,6 @@ class ToolUIManager:
         table.add_column("Value", style=Style(color=ThemeColors.FG))
 
         table.add_row("Tool", tool_name)
-
-        # Format arguments
-        import json
         args_str = json.dumps(arguments, indent=2, ensure_ascii=False)
         table.add_row("Arguments", Text(args_str, style=Style(color=ThemeColors.DIM)))
 
@@ -135,7 +129,9 @@ class ToolUIManager:
             )
         )
 
-    def display_execution_status(self, status: str = "executing", message: str = "") -> None:
+    def display_execution_status(
+        self, status: str = "executing", message: str = ""
+    ) -> None:
         """
         Display tool execution status using unified status manager.
 
@@ -146,7 +142,6 @@ class ToolUIManager:
         if not self._enabled:
             return
 
-        from .status_manager import get_status_manager
         status_mgr = get_status_manager()
 
         if status == "executing":
@@ -155,8 +150,6 @@ class ToolUIManager:
         elif status == "completed":
             msg = message or "Tool completed"
             status_mgr.set_success(msg)
-            # Clear after a short delay
-            import time
             time.sleep(0.3)
             status_mgr.clear()
 
@@ -170,9 +163,6 @@ class ToolUIManager:
         """
         if not self._enabled or not self._console:
             return
-
-        # Clear any existing status before printing
-        from .status_manager import get_status_manager
         status_mgr = get_status_manager()
         status_mgr.clear()
         self._console.print()  # Add newline after clearing status
@@ -184,7 +174,10 @@ class ToolUIManager:
 
         # Truncate if too long
         if len(result) > max_length:
-            truncated = result[:max_length] + f"...(truncated, full length: {len(result)} chars)"
+            truncated = (
+                result[:max_length]
+                + f"...(truncated, full length: {len(result)} chars)"
+            )
             result_text = Text(truncated, style=Style(color=ThemeColors.FG))
         else:
             result_text = Text(result, style=Style(color=ThemeColors.FG))
@@ -209,9 +202,6 @@ class ToolUIManager:
         """
         if not self._enabled or not self._console:
             return
-
-        # Clear any existing status before printing
-        from .status_manager import get_status_manager
         status_mgr = get_status_manager()
         status_mgr.clear()
         self._console.print()  # Add newline after clearing status

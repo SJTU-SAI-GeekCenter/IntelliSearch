@@ -18,7 +18,7 @@ from core.logger import get_logger
 from config.config_loader import Config
 from backend.tool_backend.rag_src import RAGService
 
-logger = get_logger(__name__)
+logger = get_logger("rag_service_backend", "rag_service_backend")
 config = Config(config_file_path="config/config.yaml")
 config.load_config()
 rag_service: Optional[RAGService] = None

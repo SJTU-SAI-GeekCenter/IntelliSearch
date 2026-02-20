@@ -473,3 +473,290 @@
     font-size: 0.9em;
 }
 
+/* ============================================================================
+   Tool Card Styles (Mobile)
+   ============================================================================ */
+
+.tool-card {
+    margin: 12px 0;
+    border: 2px solid #10b981;  /* Green border matching theme */
+    border-radius: 8px;
+    background: #1f2937;  /* Dark background */
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.tool-card:hover {
+    border-color: #34d399;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.tool-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    background: #111827;  /* Darker header */
+    transition: background 0.2s ease;
+}
+
+.tool-card-header:hover {
+    background: #1f2937;
+}
+
+.tool-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.tool-icon-small {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #065f46;  /* Dark green */
+    color: #34d399;  /* Light green */
+}
+
+.tool-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #e5e7eb;  /* Light text */
+}
+
+.tool-status-success {
+    color: #34d399;  /* Light green */
+}
+
+.tool-status-error {
+    color: #ef4444;
+}
+
+.tool-chevron {
+    color: #9ca3af;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.tool-card-content {
+    padding: 16px;
+    background: #1f2937;  /* Dark background */
+    border-top: 1px solid #374151;
+}
+
+.tool-section {
+    margin-bottom: 16px;
+}
+
+.tool-section:last-child {
+    margin-bottom: 0;
+}
+
+.tool-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #9ca3af;  /* Light gray */
+    margin-bottom: 8px;
+}
+
+.tool-code {
+    background: #111827;  /* Darker background */
+    border: 1px solid #374151;
+    border-radius: 6px;
+    padding: 12px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #e5e7eb;  /* Light text */
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+}
+
+/* Tool Card Animations */
+@keyframes toolCardSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tool-card, .response-card, .tracing-card, .error-card {
+    animation: toolCardSlideIn 0.3s ease;
+}
+
+/* ============================================================================
+   Final Response Card (Blue theme) - Mobile
+   ============================================================================ */
+
+.response-card {
+    margin: 12px 0;
+    border: 2px solid #3b82f6;  /* Blue border */
+    border-radius: 8px;
+    background: #1e3a8a;  /* Dark blue background */
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.response-card:hover {
+    border-color: #60a5fa;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.response-card-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #1e40af;  /* Slightly darker blue */
+}
+
+.response-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.response-icon-small {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #1d4ed8;  /* Medium blue */
+    color: #93c5fd;  /* Light blue */
+}
+
+.response-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #dbeafe;  /* Very light blue text */
+}
+
+.response-card-content {
+    padding: 16px;
+    background: #1e3a8a;  /* Dark blue background */
+    color: #e0f2fe;  /* Light text */
+}
+
+/* ============================================================================
+   Tool Tracing Card (Purple theme) - Mobile
+   ============================================================================ */
+
+.tracing-card {
+    margin: 12px 0;
+    border: 2px solid #8b5cf6;  /* Purple border */
+    border-radius: 8px;
+    background: #5b21b6;  /* Dark purple background */
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.tracing-card:hover {
+    border-color: #a78bfa;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.tracing-card-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #6d28d9;  /* Slightly darker purple */
+}
+
+.tracing-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tracing-icon-small {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #7c3aed;  /* Medium purple */
+    color: #c4b5fd;  /* Light purple */
+}
+
+.tracing-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #ede9fe;  /* Very light purple text */
+}
+
+.tracing-card-content {
+    padding: 16px;
+    background: #5b21b6;  /* Dark purple background */
+    color: #f3e8ff;  /* Light text */
+}
+
+/* ============================================================================
+   Error Card (Red theme) - Mobile
+   ============================================================================ */
+
+.error-card {
+    margin: 12px 0;
+    border: 2px solid #ef4444;  /* Red border */
+    border-radius: 8px;
+    background: #991b1b;  /* Dark red background */
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.error-card:hover {
+    border-color: #f87171;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.error-card-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #b91c1c;  /* Slightly darker red */
+}
+
+.error-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.error-icon-small {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #dc2626;  /* Medium red */
+    color: #fca5a5;  /* Light red */
+}
+
+.error-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #fee2e2;  /* Very light red text */
+}
+
+.error-card-content {
+    padding: 16px;
+    background: #991b1b;  /* Dark red background */
+    color: #fef2f2;  /* Light text */
+}
+

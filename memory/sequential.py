@@ -43,7 +43,7 @@ class SequentialMemory(BaseMemory):
         """
         self.system_prompt = system_prompt
         self.entries: List[Dict[str, Any]] = []
-        self.logger = get_logger(__name__)
+        self.logger = get_logger(__name__, "memory")
 
         # Initialize with system prompt if provided
         if system_prompt:
