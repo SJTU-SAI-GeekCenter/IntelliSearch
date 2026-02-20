@@ -52,7 +52,7 @@ IntelliSearch-v3.1（交小AI-智搜）为 IntelliSearch 系列智能体发布�
 
 为了支持 IntelliSearch-v3.1 演化出更个性化、更灵活的若干智能体模块设计，IntelliSearch-v3.1 实现了版本级的项目重构和更新 (IntelliSearch-v3.1 BackBone)，志在搭建轻量化但高效的智能体模块分层设计，为上层建筑提供基建支持。
 
-> [!IMPORATNT]
+> [!IMPORTANT]
 > To be refactored and rewritten in the future.
 
 ### 设计理念
