@@ -8,7 +8,6 @@ from rich.style import Style
 from ui.theme import ThemeColors
 
 
-
 class ToolCallUI:
     """
     Helper class for displaying MCP tool calls with styled UI.
@@ -46,9 +45,7 @@ class ToolCallUI:
             )
         )
 
-    def display_tool_input(
-        self, tool_name: str, arguments: Dict[str, Any]
-    ) -> None:
+    def display_tool_input(self, tool_name: str, arguments: Dict[str, Any]) -> None:
         """
         Display tool input parameters.
 
@@ -92,11 +89,15 @@ class ToolCallUI:
         if status == "executing":
             status_text = Text()
             status_text.append("⟳ ", style=Style(color=ThemeColors.TOOL_ACCENT))
-            status_text.append("Executing...", style=Style(color=ThemeColors.TOOL_SECONDARY))
+            status_text.append(
+                "Executing...", style=Style(color=ThemeColors.TOOL_SECONDARY)
+            )
         else:
             status_text = Text()
             status_text.append("✓ ", style=Style(color=ThemeColors.SUCCESS))
-            status_text.append("Completed", style=Style(color=ThemeColors.TOOL_SECONDARY))
+            status_text.append(
+                "Completed", style=Style(color=ThemeColors.TOOL_SECONDARY)
+            )
 
         self.console.print(status_text)
 
@@ -115,7 +116,10 @@ class ToolCallUI:
 
         # Truncate if too long
         if len(result) > max_length:
-            truncated = result[:max_length] + f"...(truncated, full length: {len(result)} chars)"
+            truncated = (
+                result[:max_length]
+                + f"...(truncated, full length: {len(result)} chars)"
+            )
             result_text = Text(truncated, style=Style(color=ThemeColors.FG))
         else:
             result_text = Text(result, style=Style(color=ThemeColors.FG))

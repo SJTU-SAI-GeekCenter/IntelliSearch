@@ -165,10 +165,11 @@ class MCPBase:
             available_tools: Dictionary of available tools
 
         Returns:
-            Dictionary with tools_used list and history entries
+            Dictionary with tools_used list, history entries, and detailed tool call info
         """
         tool_results_for_history = []
         tools_used = []
+        tools_detailed = []
 
         for tool_call in tool_calls:
             tool_name = tool_call.function.name
@@ -287,8 +288,16 @@ class MCPBase:
                     tool_ui.display_tool_error(error_msg)
                     result_text = error_msg
 
-            # Record tool call
-            tools_used.append(tool_name_long or tool_name)
+                # Record tool call with detailed info
+                tools_used.append(tool_name_long or tool_name)
+
+                # Store detailed tool call information for frontend
+                tools_detailed.append({
+                    "name": tool_name_long or tool_name,
+                    "arguments": tool_args,
+                    "result": result_text,
+                    "success": not result_text.startswith("Error")
+                })
 
             # Add result to history
             tool_results_for_history.append(
@@ -299,7 +308,11 @@ class MCPBase:
                 }
             )
 
-        return {"tools_used": tools_used, "history": tool_results_for_history}
+        return {
+            "tools_used": tools_used,
+            "history": tool_results_for_history,
+            "tools_detailed": tools_detailed
+        }
 
     async def get_tool_response(
         self,
@@ -329,6 +342,7 @@ class MCPBase:
             result = await self.server_manager.call_tool(
                 tool_name, call_params or {}, use_cache=False
             )
+            # todo 此处的 info 加一个对 result 的截断显示
             self.logger.info("Tool call executed successfully")
             return result
 

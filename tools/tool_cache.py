@@ -12,7 +12,7 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 from core.logger import get_logger
-
+from config import config_loader
 
 
 class ToolCache:
@@ -111,7 +111,7 @@ class ToolCache:
             Cache key
         """
         # Normalize and sort parameters to ensure same params generate same key
-        normalized_params = json.dumps(params, sort_keys=True,ensure_ascii=False)
+        normalized_params = json.dumps(params, sort_keys=True, ensure_ascii=False)
         key_string = f"{server_name}:{tool_name}:{normalized_params}"
         cache_key = hashlib.md5(key_string.encode()).hexdigest()
         return cache_key
@@ -163,7 +163,9 @@ class ToolCache:
                     self.logger.info(
                         f"Cache HIT: {server_name}:{tool_name} (age: {age_minutes:.1f} minutes)"
                     )
-                    self.logger.info(f"  Cached params: {json.dumps(params, indent=2, ensure_ascii=False)}")
+                    self.logger.info(
+                        f"  Cached params: {json.dumps(params, indent=2, ensure_ascii=False)}"
+                    )
                     return result
                 else:
                     # Expired, delete it
@@ -175,7 +177,9 @@ class ToolCache:
             self.logger.error(f"Cache read error: {e}")
 
         self.logger.info(f"Cache MISS: {server_name}:{tool_name}")
-        self.logger.debug(f"  Params: {json.dumps(params, indent=2,ensure_ascii=False)}")
+        self.logger.debug(
+            f"  Params: {json.dumps(params, indent=2,ensure_ascii=False)}"
+        )
         return None
 
     def set(
@@ -210,7 +214,9 @@ class ToolCache:
 
         # Don't cache error responses
         if isinstance(result, dict) and "error" in result:
-            self.logger.debug(f"Not caching error response for {server_name}:{tool_name}")
+            self.logger.debug(
+                f"Not caching error response for {server_name}:{tool_name}"
+            )
             return False
 
         # Check for error keywords (rate limit, 503, 429, etc.)
@@ -276,7 +282,9 @@ class ToolCache:
             self.logger.info(
                 f"Cache SET: {server_name}:{tool_name} (size: {result_size} bytes)"
             )
-            self.logger.debug(f"  Params: {json.dumps(params, indent=2,ensure_ascii=False)}")
+            self.logger.debug(
+                f"  Params: {json.dumps(params, indent=2,ensure_ascii=False)}"
+            )
             return True
 
         except (sqlite3.Error, json.JSONEncodeError) as e:
@@ -417,9 +425,6 @@ def get_cache(**kwargs) -> ToolCache:
     """
     global _cache_instance
     if _cache_instance is None:
-        # Read cache settings from config file
-        from config import config_loader
-
         # If no arguments provided, use config file settings
         if not kwargs:
             kwargs = {

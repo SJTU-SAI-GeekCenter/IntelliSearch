@@ -7,6 +7,7 @@ Manages multiple MCP server connections and coordinates tool discovery and execu
 import asyncio
 import json
 import os
+import traceback
 import aiohttp
 from typing import Dict, List, Any, Optional
 from mcp import ClientSession
@@ -118,7 +119,7 @@ class MultiServerManager:
         """Connects to a STDIO MCP server."""
         connector = self.connectors[server_name]
 
-        self.logger.info(
+        self.logger.debug(
             f"Connecting to {server_name} with STDIO params: {connector.server_params}"
         )
         try:
@@ -136,8 +137,6 @@ class MultiServerManager:
         except Exception as e:
             # Special handling for TaskGroup errors to get more details
             if "TaskGroup" in str(e):
-                import traceback
-
                 self.logger.error(f"Error connecting to STDIO server {server_name}: {e}")
                 self.logger.error(f"Full traceback:\n{traceback.format_exc()}")
                 # Try to extract the actual sub-exception
@@ -170,8 +169,6 @@ class MultiServerManager:
 
         except Exception as e:
             self.logger.error(f"ERROR in connecting to HTTP server {server_name}: {e}")
-            import traceback
-
             self.logger.error(f"Full traceback: {traceback.format_exc()}")
             await connector.stop_http_server()
             raise
@@ -194,8 +191,6 @@ class MultiServerManager:
 
         except Exception as e:
             self.logger.error(f"ERROR in connecting to SSE server {server_name}: {e}")
-            import traceback
-
             self.logger.error(f"Full traceback: {traceback.format_exc()}")
             await connector.stop_sse_server()
             raise
@@ -215,8 +210,6 @@ class MultiServerManager:
 
         except Exception as e:
             self.logger.error(f"ERROR in connecting to URL server {server_name}: {e}")
-            import traceback
-
             self.logger.error(f"Full traceback: {traceback.format_exc()}")
             await connector.stop_url_server()
             raise
@@ -294,8 +287,6 @@ class MultiServerManager:
             self.logger.log(
                 TOOL_CALL_ERROR, f"ERROR in calling STDIO tool '{tool_name}': {e}"
             )
-            import traceback
-
             self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
             raise
 
@@ -349,8 +340,6 @@ class MultiServerManager:
             self.logger.log(
                 TOOL_CALL_ERROR, f"ERROR in calling HTTP tool '{tool_name}': {e}"
             )
-            import traceback
-
             self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
             raise
 
@@ -362,8 +351,6 @@ class MultiServerManager:
             return await connector.call_tool_sse(tool_name, parameters)
         except Exception as e:
             self.logger.log(TOOL_CALL_ERROR, f"ERROR in calling SSE tool '{tool_name}': {e}")
-            import traceback
-
             self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
             raise
 
@@ -375,8 +362,6 @@ class MultiServerManager:
             return await connector.call_tool_url(tool_name, parameters)
         except Exception as e:
             self.logger.log(TOOL_CALL_ERROR, f"ERROR in calling URL tool '{tool_name}': {e}")
-            import traceback
-
             self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
             raise
 
@@ -436,8 +421,6 @@ class MultiServerManager:
             await connector.stop_http_server()
         except Exception as e:
             self.logger.error(f"ERROR in cleaning up HTTP server {server_name}: {e}")
-            import traceback
-
             self.logger.error(f"Full traceback: {traceback.format_exc()}")
             raise
 
@@ -447,8 +430,6 @@ class MultiServerManager:
             await connector.stop_sse_server()
         except Exception as e:
             self.logger.error(f"ERROR in cleaning up SSE server {server_name}: {e}")
-            import traceback
-
             self.logger.error(f"Full traceback: {traceback.format_exc()}")
             raise
 
@@ -458,7 +439,5 @@ class MultiServerManager:
             await connector.stop_url_server()
         except Exception as e:
             self.logger.error(f"ERROR in cleaning up URL server {server_name}: {e}")
-            import traceback
-
             self.logger.error(f"Full traceback: {traceback.format_exc()}")
             raise

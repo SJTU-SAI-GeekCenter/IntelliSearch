@@ -44,6 +44,11 @@ class AgentFactory:
 
             cls._agents["mcp_base_agent"] = MCPBaseAgent
 
+        if "mcp_async_agent" not in cls._agents:
+            from agents.mcp_agent_async import MCPAsyncAgent
+
+            cls._agents["mcp_async_agent"] = MCPAsyncAgent
+
     @classmethod
     def register_agent(cls, agent_type: str, agent_class: Type[BaseAgent]) -> None:
         """
