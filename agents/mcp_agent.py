@@ -6,17 +6,19 @@ to enhance search and retrieval capabilities with multi-step reasoning.
 """
 
 import os
-import json
 import asyncio
-from typing import List, Dict, Any, Optional
+import nest_asyncio
+from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime
 from openai import OpenAI
 from core.base import BaseAgent
 from core.schema import AgentRequest, AgentResponse
 from tools.mcp_base import MCPBase
-from ui.status_manager import get_status_manager
 from memory.sequential import SequentialMemory
 from core.logger import get_logger
+
+# Type alias for status callback function
+StatusCallback = Callable[[str, str], None]
 
 
 class MCPBaseAgent(BaseAgent):
@@ -61,6 +63,7 @@ class MCPBaseAgent(BaseAgent):
         max_tool_call: int = 5,
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
+        status_callback: Optional[StatusCallback] = None,
     ):
         """
         Initialize the MCPBaseAgent.
@@ -73,6 +76,7 @@ class MCPBaseAgent(BaseAgent):
             max_tool_call: Maximum tool calls allowed per query
             base_url: Optional base URL for LLM API (default: from env BASE_URL)
             api_key: Optional API key (default: from env OPENAI_API_KEY)
+            status_callback: Optional callback function for status updates
 
         Raises:
             ValueError: If required configuration is missing
@@ -82,6 +86,7 @@ class MCPBaseAgent(BaseAgent):
         self.model_name = model_name
         self.system_prompt = system_prompt
         self.max_tool_call = int(max_tool_call)
+        self.status_callback = status_callback
 
         # Initialize memory component
         self.memory = SequentialMemory(system_prompt=system_prompt)
@@ -107,6 +112,21 @@ class MCPBaseAgent(BaseAgent):
         self.logger = get_logger(__name__, "agent")
         self.logger.info(f"{self.name} initialized with model: {self.model_name}")
 
+    def _notify_status(self, status_type: str, message: str) -> None:
+        """
+        Notify status changes to registered callback.
+
+        This method allows the agent to report status updates without directly
+        depending on UI modules. The caller can provide different callbacks
+        for different environments (CLI, Web, testing, etc.).
+
+        Args:
+            status_type: Type of status update (e.g., "processing", "summarizing", "clear")
+            message: Status message content
+        """
+        if self.status_callback:
+            self.status_callback(status_type, message)
+
     def inference(self, request: AgentRequest) -> AgentResponse:
         """
         Execute agent inference with MCP tool enhancement.
@@ -128,13 +148,23 @@ class MCPBaseAgent(BaseAgent):
         max_iterations = request.metadata.get("max_iterations", self.max_tool_call)
 
         try:
-            # Run async processing
-            result = asyncio.run(
-                self._process_query_async(
-                    user_message=request.prompt,
-                    max_iterations=max_iterations,
+            try:
+                loop = asyncio.get_running_loop()
+                nest_asyncio.apply()
+                result = loop.run_until_complete(
+                    self._process_query_async(
+                        user_message=request.prompt,
+                        max_iterations=max_iterations,
+                    )
                 )
-            )
+            except RuntimeError:
+                # No running event loop, safe to use asyncio.run
+                result = asyncio.run(
+                    self._process_query_async(
+                        user_message=request.prompt,
+                        max_iterations=max_iterations,
+                    )
+                )
 
             # Build response metadata
             response_metadata = {
@@ -143,6 +173,12 @@ class MCPBaseAgent(BaseAgent):
                 "tools_called": result.get("tools_called", []),
                 "tokens_used": result.get("tokens", {}),
             }
+
+            # Add detailed tool call information for web UI
+            if hasattr(self, "_tools_detailed"):
+                response_metadata["tool_calls"] = self._tools_detailed
+                # Clear for next request
+                delattr(self, "_tools_detailed")
 
             return AgentResponse(
                 status="success",
@@ -247,19 +283,25 @@ class MCPBaseAgent(BaseAgent):
                         raise
 
                     tools_called.extend(tool_results["tools_used"])
+
+                    # Store detailed tool information for web UI
+                    if "tools_detailed" in tool_results:
+                        if not hasattr(self, "_tools_detailed"):
+                            self._tools_detailed = []
+                        self._tools_detailed.extend(tool_results["tools_detailed"])
+
                     self.memory.add_many(tool_results["history"])
                     continue
 
                 else:
-                    # LLM completed without tool calls - show SUMMARIZING status
+                    # LLM completed without tool calls - notify summarizing status
 
-                    status_mgr = get_status_manager()
-                    status_mgr.set_summarizing("Generating final response...")
+                    self._notify_status("summarizing", "Generating final response...")
 
                     final_answer = completion.choices[0].message.content
                     self.memory.add({"role": "assistant", "content": final_answer})
 
-                    status_mgr.clear()
+                    self._notify_status("clear", "")
 
                     return {
                         "answer": final_answer,
@@ -269,7 +311,8 @@ class MCPBaseAgent(BaseAgent):
                     }
 
             # Max iterations reached
-            self.logger.warning(f"Max tool call limit reached: {max_iterations}")
+            self.logger.info(f"Max tool call limit reached: {max_iterations}")
+            self._notify_status("warning", f"Reached maximum tool call limit ({max_iterations}), generating final response...")
             final_answer = await self._generate_final_response()
 
             return {
@@ -292,16 +335,11 @@ class MCPBaseAgent(BaseAgent):
         """
         Generate final response after max iterations reached.
 
-        Args:
-            available_tools: List of available tools (empty to force final response)
-
         Returns:
             Final text response from LLM
         """
-        # Show SUMMARIZING status
-
-        status_mgr = get_status_manager()
-        status_mgr.set_summarizing("Synthesizing gathered information...")
+        # Notify summarizing status
+        self._notify_status("summarizing", "Synthesizing gathered information...")
 
         self.memory.add(
             {
@@ -320,7 +358,7 @@ class MCPBaseAgent(BaseAgent):
         final_content = completion.choices[0].message.content
         self.memory.add({"role": "assistant", "content": final_content})
 
-        status_mgr.clear()
+        self._notify_status("clear", "")
 
         return final_content
 
