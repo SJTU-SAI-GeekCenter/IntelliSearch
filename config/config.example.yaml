@@ -73,6 +73,8 @@ env:
   SERPER_API_KEY: your-api-key
   MEMOS_API_KEY: your-api-key
   MEMOS_BASE_URL: "https://memos.memtensor.cn/api/openmem/v1"
+  MEMOS_USER_ID: your_user_id
+  # ! SAI 本地数据库暂不开放，用户可以接入自己的 MemOS 云端数据库！
   GITHUB_TOKEN: your-api-key
   AMAP_MAPS_API_KEY: your-api-key
   BILIBILI_SESSDATA: your-api-key
@@ -134,7 +136,7 @@ all_servers:
 
   search_sai:
     command: python
-    args: <YOUR_PWD>/mcp_server/search_sai/server.py
+    args: <YOUR_PWD>/mcp_server/search_memos/server.py
     description: SAI Memos-based knowledge and conversation memory search for retrieving historical context and stored information using Memos API with user-specific and conversation-aware queries
 
   search_scholar:

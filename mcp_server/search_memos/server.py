@@ -18,7 +18,7 @@ import requests
 
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("SAI-LocalSearch")
+mcp = FastMCP("Memos-RemoteSearch")
 
 
 @mcp.tool()
@@ -52,6 +52,7 @@ def search_sai(query: str, conversation_id: str = None):
         >>> search_sai("Tell me about SAI research labs",
         ...            conversation_id="conv_12345")
     """
+    user_id = os.environ["MEMOS_USER_ID"]
     # Generate conversation ID if not provided
     if not conversation_id:
         conversation_id = str(uuid.uuid4())
@@ -59,7 +60,7 @@ def search_sai(query: str, conversation_id: str = None):
     # Build request payload
     data = {
         "query": query,
-        "user_id": "memos_user_geekcenter",
+        "user_id": user_id,
         "conversation_id": conversation_id,
     }
 

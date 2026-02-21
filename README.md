@@ -17,62 +17,42 @@
   <a href="./README_ZH.md" target="_blank"><img src="https://img.shields.io/badge/Chinses-README_ZH-red.svg" alt="README (Chinese Version)"/></a>
 </div>
 
-
-IntelliSearch began as a simple search agent based on the MCP (Model Context Protocol) protocol, with the vision of evolving into a lightweight, decoupled, and extensible Agentic Infrastructure and ecosystem foundation. It integrates agent topology, multi-dimensional internal context memory and external document management, dynamic external tool scheduling and environmental interaction mechanisms, as well as multi-agent communication protocols, providing developers with a framework that balances ease of use and flexibility.
-
-## IntelliSearch-v3.1
-
-IntelliSearch-v3.1 (SJTU AI - Intelligent Search) is the second model release in the IntelliSearch agent series. Through the MCP protocol, it achieves integration of multi-dimensio nal, multi-source high-quality information sources and tools, while providing a simple sequential context memory module that significantly expands the boundaries and exploration capabilities of language models. IntelliSearch integrates numerous high-quality MCP tools, including:
-
-**Search Tools:**
-- Web Search (`Google Search`, `Zhipu AI Search`, `Web Content Parser`)
-- GitHub Search - Repository, code, user, Issue, and PR search
-- Academic Search (`Google Scholar`, `arXiv` latest papers)
-- Geographic Information Search (Amap API - route planning, geocoding, POI search)
-- Bilibili Video Search
-- Douban Movie/Book/Review Search
-- 12306 Train Information Query
-- WeChat Official Account Article Search
-- Local Semantic Search (RAG - supports PDF, TXT, MD, DOCX)
-- SAI Memos Knowledge Base Search
-
-**Operation Tools:**
-- Browser Automation (Playwright - web navigation, interaction, content extraction)
-- File System Operations (create, read, write, delete, supports CSV/PDF/JSON)
-- Python Code Execution (IPython backend - state persistence, result capture)
-- Terminal Command Execution (timeout control, output capture)
-- Basic Tool Kit (date/time, UUID, random numbers, and other utilities)
-
-
-### Developer Guide
-
-See [DEV_SETUP](./docs/DEV_SETUP.md) for details
-
-## IntelliSearch-v3.1 BackBone
-
-To support the evolution of IntelliSearch-v3.1 into more personalized and flexible agent module designs, we implemented a version-level project refactoring and update (IntelliSearch-v3.1 BackBone). This aims to build a lightweight yet efficient layered agent module design, providing infrastructure support for upper-level applications.
-
-### Design Philosophy
+IntelliSearch (SJTU AI-Intelligent Search) originated as a specialized search agent powered by the Model Context Protocol. Today, it has evolved into a lightweight, decoupled, and highly extensible **Agentic Infrastructure**. By integrating advanced agent topologies, multi-dimensional memory systems, and dynamic tool scheduling, IntelliSearch provides a foundational ecosystem that balances developer-friendly ease of use with industrial-grade flexibility.
 
 > [!IMPORTANT]
-> To be refactored and rewritten in the future.
+> We are delighted to announce the second agent release of IntelliSearch agent series: **IntelliSearch-V3.1** is released and open-sourced!
+> See [Project Pages](https://sjtu-sai-geekcenter.github.io/IntelliSearch/) for more fancy demos and features!
 
-Adopts a **layered architecture** design that clearly separates system responsibilities into the following layers:
+## IntelliSearch V3.1
 
-- **Core Layer** (`core/`): Defines abstract base classes and data models
-  - `BaseAgent`: Abstract base class for all Agents
-  - `AgentFactory`: Agent factory pattern implementation
-  - `AgentRequest`/`AgentResponse`: Unified request/response models
+IntelliSearch V3.1 has achieved an all-round comprehensive upgrade, significantly expanding the boundaries of language models. New features including:
 
-- **Agent Layer** (`agents/`): Concrete Agent implementations
-  - `MCPBaseAgent`: Main Agent with integrated MCP tools
+- 🛠️ **IntelliSearch-Toolkit**: We introduce IntelliSearch-Toolkit, a high quality toolkit including multi-source multi-domain **SEARCH** tools and safe **OPERATE** tools with environment interactions. It also supports extensible MCP-based tools for customization and advanced workflows.
+  - **Search Tools**: Multi-source, multi-domain search engines
+    - Web Search (`Google Search`, `Zhipu AI Search`, `Web Content Parser`)
+    - GitHub Search - Repository, code, user, Issue, and PR search
+    - Academic Search (`Google Scholar`, `arXiv` latest papers)
+    - Geographic Information Search (Amap API - route planning, geocoding, POI search)
+    - Bilibili Video Search
+    - Douban Movie/Book/Review Search
+    - 12306 Train Information Query
+    - WeChat Official Account Article Search
+    - Local Semantic Search (RAG - supports PDF, TXT, MD, DOCX)
+    - SAI Memos Knowledge Base Search
+  - **Operation Tools:**: safety and interactions
+    - Browser Automation (Playwright - web navigation, interaction, content extraction)
+    - File System Operations (create, read, write, delete, supports CSV/PDF/JSON)
+    - Python Code Execution (IPython backend - state persistence, result capture)
+    - Terminal Command Execution (timeout control, output capture)
+    - Basic Tool Kit (date/time, UUID, random numbers, and other utilities)
 
-- **Memory Layer** (`memory/`): Conversation context management & external knowledge base component management
-  - `BaseMemory`: Memory abstraction interface
-  - `SequentialMemory`: Linear context management implementation
+- 🌏 **Agent Universe**: Provides a pluggable **agent architecture** supporting multiple agent structures for different tasks. Many more agents are on the way!
+- 🧠 **Long Horizon Memories**: Supports **pluggable long-term memory systems** for maintaining conversation context across sessions. Sequential memory architecture enables agents to remember and reason over extended interactions with persistent storage.
+- 💻 **Multi-Backend Services**: Offers both **Web** and **CLI** backend modes for flexible deployment. One-click setup with zero configuration for quick start, while supporting deep customization for open-source developers.
 
-- **Tools Layer** (`tools/`): Tool invocation interfaces based on MCP protocol communication & environment simulation interfaces
-  - `MCPBase`: MCP tool communication component
-  - `MultiServerManager`: MCP server lifecycle management
 
-- **UI Layer** (`ui/`): Unified CLI user interface components
+## DEV and Usage Guide
+
+- [DEV_SETUP](./docs/DEV_SETUP.md) for setup and usage for developers.
+- [DEV_ARCHITECTURE](./docs/DEV_ARCHITECTURE.md) for agentic system design and overall architecture for IntelliSearch.
+- For more demos and feature demonstrations, see [Project Pages](https://sjtu-sai-geekcenter.github.io/IntelliSearch/)!
