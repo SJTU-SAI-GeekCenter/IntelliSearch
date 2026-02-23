@@ -1,4 +1,5 @@
 import os
+import re
 import hmac
 import hashlib
 import webbrowser
@@ -484,9 +485,6 @@ def get_group_topic_detail(id: str) -> str:
 
         # Convert HTML to plain text (simple version)
         content = topic.get("content", "")
-        # Remove HTML tags (simple implementation)
-        import re
-
         content_plain = re.sub(r"<[^>]+>", "\n", content)
         content_plain = re.sub(r"\n+", "\n", content_plain).strip()
 

@@ -1,24 +1,139 @@
 {
   "tests": [
     {
-      "tool": "local_search",
+      "tool": "search_semantic",
+      "description": "Basic semantic search for AI academy information",
       "input_params": {
-        "query": "machine learning"
+        "query": "人工智能学院 本科生 综合测评"
       }
     },
     {
-      "tool": "local_search",
+      "tool": "search_semantic",
+      "description": "Search with custom limit",
       "input_params": {
-        "query": "artificial intelligence",
-        "limit": 5
+        "query": "入党申请书 撰写要求",
+        "limit": 3
       }
     },
     {
-      "tool": "local_search",
+      "tool": "search_semantic",
+      "description": "Search with high threshold for precise results",
       "input_params": {
-        "query": "neural networks",
-        "limit": 3,
-        "threshold": 0.8
+        "query": "新生报到须知",
+        "limit": 5,
+        "threshold": 0.75
+      }
+    },
+    {
+      "tool": "browse_file_tree",
+      "description": "Browse root directory of load_dir",
+      "input_params": {}
+    },
+    {
+      "tool": "browse_file_tree",
+      "description": "Browse AI academy news directory",
+      "input_params": {
+        "path": "人工智能学院 公众号新闻"
+      }
+    },
+    {
+      "tool": "browse_file_tree",
+      "description": "Browse undergraduate handbook directory",
+      "input_params": {
+        "depth": 2
+      }
+    },
+    {
+      "tool": "browse_file_tree",
+      "description": "Browse undergraduate handbook directory",
+      "input_params": {
+        "depth": "all"
+      }
+    },
+    {
+      "tool": "search_files_precise",
+      "description": "Search for files containing '入学手册' in filename",
+      "input_params": {
+        "query": "入学手册",
+        "search_content": true
+      }
+    },
+    {
+      "tool": "search_files_precise",
+      "description": "Search for files containing '综合测评' in content",
+      "input_params": {
+        "query": "综合测评",
+        "search_content": true
+      }
+    },
+    {
+      "tool": "search_files_precise",
+      "description": "Search for files about Party application",
+      "input_params": {
+        "query": "入党",
+        "search_filename": true
+      }
+    },
+    {
+      "tool": "search_files_precise",
+      "description": "Search for files with '迎新' keyword",
+      "input_params": {
+        "query": "迎新",
+        "search_content": true
+      }
+    },
+    {
+      "tool": "get_file_content",
+      "description": "Get full content of freshman handbook",
+      "input_params": {
+        "path": "上海交通大学 新生指南/上海交通大学2025年本科新生入学手册.md"
+      }
+    },
+    {
+      "tool": "get_file_content",
+      "description": "Get first 50 lines of Party application requirements",
+      "input_params": {
+        "path": "人工智能学院 相关条例/人工智能学院入党申请书撰写要求与规范.md",
+        "line_start": 1,
+        "line_end": 50
+      }
+    },
+    {
+      "tool": "get_file_content",
+      "description": "Get content from line 100 to end of file",
+      "input_params": {
+        "path": "上海交通大学 新生指南/上海交通大学本科生学习指南.md",
+        "line_start": 100
+      }
+    },
+    {
+      "tool": "get_file_content",
+      "description": "Get specific news article content",
+      "input_params": {
+        "path": "人工智能学院 公众号新闻/2025迎新季_请领取你的新手村通关指南.md",
+        "line_start": 1,
+        "line_end": 30
+      }
+    },
+    {
+      "tool": "get_markdown_structure",
+      "description": "Analyze structure of freshman handbook",
+      "input_params": {
+        "path": "上海交通大学 新生指南/上海交通大学2025年本科新生入学手册.md"
+      }
+    },
+    {
+      "tool": "get_markdown_structure",
+      "description": "Analyze structure of comprehensive evaluation regulations",
+      "input_params": {
+        "path": "人工智能学院 相关条例/2025-2026学年上海交通大学人工智能学院本科生综合测评条例.md"
+      }
+    },
+    {
+      "tool": "get_markdown_structure",
+      "description": "Analyze structure of study guide",
+      "input_params": {
+        "path": "上海交通大学 新生指南/上海交通大学本科生学习指南.md"
       }
     }
   ]

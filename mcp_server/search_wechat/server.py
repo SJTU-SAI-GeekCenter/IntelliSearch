@@ -5,10 +5,9 @@ This module provides tools for searching and retrieving content from
 WeChat Official Accounts via Sogou WeChat Search.
 """
 
+import requests
 from typing import Annotated, List, Dict, Optional
 from urllib.parse import quote
-
-import requests
 from lxml import html
 from mcp.server.fastmcp import FastMCP
 

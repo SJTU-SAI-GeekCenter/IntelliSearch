@@ -260,3 +260,6 @@ mcp_server/operate_file/permissions.json
 
 # operate_file server security config
 mcp_server/operate_file/permissions.json
+backend/tool_backend/sai_update
+
+prompts/sai.md

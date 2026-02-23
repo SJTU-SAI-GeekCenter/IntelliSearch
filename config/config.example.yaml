@@ -127,7 +127,7 @@ all_servers:
   search_local:
     command: python
     args: <YOUR_PWD>/mcp_server/search_local/server.py
-    description: Local semantic search using RAG (Retrieval-Augmented Generation) on indexed documents with support for PDF, TXT, MD, and DOCX formats via txtai embeddings and vector index (requires backend service on port 39257)
+    description: Local semantic search and precise file operations including RAG-based document search (PDF, TXT, MD, DOCX), file tree browsing, precise filename/content search, file content retrieval with line ranges, and markdown structure analysis.
 
   search_movie:
     command: python

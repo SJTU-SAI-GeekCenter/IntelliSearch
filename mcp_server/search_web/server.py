@@ -1,8 +1,8 @@
-from mcp.server.fastmcp import FastMCP
 import httpx
 import os
 import http.client
 import json
+from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("web-search")
 

@@ -18,6 +18,8 @@ Features:
 import os
 import aiohttp
 from typing import Dict, Any
+from tabulate import tabulate
+from datetime import datetime
 from bilibili_api import video, Credential, search
 from mcp.server.fastmcp import FastMCP
 from bcut_asr import get_audio_subtitle
@@ -110,8 +112,7 @@ async def search_video(keyword: str, page: int = 1, page_size: int = 20) -> str:
             return f"No results found for keyword: {keyword}"
 
         # Prepare table data
-        from tabulate import tabulate
-        from datetime import datetime
+        
 
         table_data = []
         headers = [
