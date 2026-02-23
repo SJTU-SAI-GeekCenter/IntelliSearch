@@ -5,12 +5,12 @@ This server provides comprehensive browser automation capabilities using Playwri
 allowing agents to interact with web pages through a standardized MCP interface.
 """
 
+import asyncio
+import json
 from mcp.server.fastmcp import FastMCP
 from typing import Optional, Dict, Any, List
 from playwright.async_api import async_playwright, Browser, Page, BrowserContext
 from pathlib import Path
-import asyncio
-import json
 
 mcp = FastMCP("Operate-Browser")
 

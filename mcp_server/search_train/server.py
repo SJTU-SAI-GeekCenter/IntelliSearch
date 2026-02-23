@@ -148,8 +148,6 @@ async def get_station_code_of_citys(citys: str) -> str:
         else:
             result[city] = _CITY_CODES[city]
 
-    import json
-
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 

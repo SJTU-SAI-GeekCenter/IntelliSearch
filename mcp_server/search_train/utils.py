@@ -4,6 +4,7 @@ Utility functions for 12306 train search.
 Provides constants, filters, and helper functions for ticket processing.
 """
 
+import re
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass
@@ -319,7 +320,6 @@ def extract_lishi(all_lishi: str) -> str:
     Returns:
         Duration in "HH:MM" format
     """
-    import re
 
     match = re.match(r"(?:(\d+)小时)?(\d+?)分钟", all_lishi)
     if not match:
