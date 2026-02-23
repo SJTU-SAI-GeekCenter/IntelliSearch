@@ -124,20 +124,15 @@ all_servers:
     args: <YOUR_PWD>/mcp_server/search_github/server.py
     description: GitHub Search tools for repositories, code, users, issues, and pull requests
 
-  search_local:
+  search_file:
     command: python
-    args: <YOUR_PWD>/mcp_server/search_local/server.py
+    args: <YOUR_PWD>/mcp_server/search_file/server.py
     description: Local semantic search and precise file operations including RAG-based document search (PDF, TXT, MD, DOCX), file tree browsing, precise filename/content search, file content retrieval with line ranges, and markdown structure analysis.
 
   search_movie:
     command: python
     args: <YOUR_PWD>/mcp_server/search_movie/server.py
     description: Search books, movies, music and reviews on Douban platform
-
-  search_sai:
-    command: python
-    args: <YOUR_PWD>/mcp_server/search_memos/server.py
-    description: SAI Memos-based knowledge and conversation memory search for retrieving historical context and stored information using Memos API with user-specific and conversation-aware queries
 
   search_scholar:
     command: python
@@ -170,7 +165,6 @@ server_choice:
   - search_github
   - search_local
   - search_movie
-  - search_sai
   - search_scholar
   - search_train 
   - search_web

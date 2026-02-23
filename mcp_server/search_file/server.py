@@ -8,7 +8,10 @@ semantic search capabilities using txtai embeddings.
 """
 
 import os
+import uuid
 import httpx
+import json
+import requests
 import seedir
 
 from typing import Optional
@@ -53,7 +56,7 @@ async def _rag_get_request(endpoint: str, params: dict = None) -> dict:
 
 # semantic search based on RAG
 @mcp.tool()
-async def search_semantic(
+async def search_semantic_local(
     query: str,
     limit: Optional[int] = None,
     threshold: Optional[float] = None,
@@ -136,6 +139,57 @@ async def search_semantic(
 
     return result
 
+@mcp.tool()
+def search_semantic_remote(query: str):
+    """
+    Search the SAI local knowledge base via MemOS API.
+
+    This function queries the MemOS intelligent memory system to retrieve relevant
+    information from the SAI local database. The database contains high-quality
+    content specifically curated for Shanghai Jiao Tong University AI Institute,
+    built through an automated pipeline processing millions of words.
+
+    Args:
+        query: The search query string to query the knowledge base.
+        conversation_id: Optional conversation ID for context tracking.
+                        If not provided, a new UUID will be generated.
+                        Useful for maintaining conversation context across
+                        multiple queries in the same session.
+
+    Returns:
+        str: The search results as a formatted JSON string with proper
+        Unicode encoding and indentation.
+
+    Usage Note:
+        This tool is particularly effective for questions related to
+        Shanghai Jiao Tong University AI Institute. Priority should be
+        given to this tool when users ask about SAI-related topics.
+
+    Example:
+        >>> search_sai("What are the admission requirements for SAI?")
+        >>> search_sai("Tell me about SAI research labs",
+        ...            conversation_id="conv_12345")
+    """
+    user_id = os.environ["MEMOS_USER_ID"]
+    conversation_id = str(uuid.uuid4())
+
+    # Build request payload
+    data = {
+        "query": query,
+        "user_id": user_id,
+        "conversation_id": conversation_id,
+    }
+
+    # Prepare authentication headers
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Token {os.environ['MEMOS_API_KEY']}",
+    }
+
+    url = f"{os.environ['MEMOS_BASE_URL']}/search/memory"
+    res = requests.post(url=url, headers=headers, data=json.dumps(data))
+    result = res.json()
+    return json.dumps(result, ensure_ascii=False, indent=2)
 
 # Precise search tools
 @mcp.tool()
