@@ -268,6 +268,22 @@
     align-items: flex-start;
 }
 
+.message-system {
+    justify-content: center;
+    margin: var(--spacing-sm) 0;
+}
+
+.message-system .message-content {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-align: center;
+    max-width: 100%;
+}
+
 .message-avatar-mobile {
     width: 28px;
     height: 28px;
@@ -451,6 +467,10 @@
 
 .input-row .send-btn:disabled {
     opacity: 0.5;
+}
+
+.input-row .send-btn.stop-btn {
+    background: var(--color-error, #ef4444);
 }
 
 /* ============================================================================
