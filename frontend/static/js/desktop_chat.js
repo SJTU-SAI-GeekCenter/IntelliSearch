@@ -8,6 +8,7 @@ let chatMessages, chatForm, messageInput, sendBtn, processIndicator, useToolsChe
 let sessionsList, refreshSessionsBtn, newChatBtn;
 let isStreaming = false;
 let currentSessionId = null;
+let currentAbortController = null;
 
 /**
  * Initialize desktop chat
@@ -649,9 +650,50 @@ function createErrorCard(errorMessage) {
 }
 
 /**
+ * Update send button state
+ */
+function updateSendButtonState() {
+    if (isStreaming) {
+        sendBtn.classList.add('stop-btn');
+        sendBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <rect x="6" y="6" width="12" height="12"/>
+            </svg>
+        `;
+    } else {
+        sendBtn.classList.remove('stop-btn');
+        sendBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+        `;
+    }
+}
+
+/**
+ * Stop current streaming request
+ */
+function stopStreaming() {
+    if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
+    }
+}
+
+/**
  * Handle form submission
  */
 function initFormSubmitHandler() {
+    // Handle send/stop button clicks
+    sendBtn.addEventListener('click', async function(e) {
+        if (isStreaming) {
+            e.preventDefault();
+            stopStreaming();
+            return;
+        }
+    });
+
     chatForm.addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -659,7 +701,8 @@ function initFormSubmitHandler() {
         if (!message || isStreaming) return;
 
         isStreaming = true;
-        sendBtn.disabled = true;
+        currentAbortController = new AbortController();
+        updateSendButtonState();
         messageInput.value = '';
         messageInput.style.height = 'auto';
 
@@ -683,7 +726,8 @@ function initFormSubmitHandler() {
                 body: JSON.stringify({
                     message: message,
                     use_tools: useToolsCheckbox.checked
-                })
+                }),
+                signal: currentAbortController.signal
             });
 
             const reader = response.body.getReader();
@@ -753,11 +797,22 @@ function initFormSubmitHandler() {
                 }
             }
         } catch (error) {
-            console.error('Stream error:', error);
-            createErrorCard('Connection error. Please try again.');
+            if (error.name === 'AbortError') {
+                console.log('Stream stopped by user');
+                // Show stopped message
+                const stoppedDiv = document.createElement('div');
+                stoppedDiv.className = 'message message-system';
+                stoppedDiv.innerHTML = '<div class="message-content"><em>Response stopped by user</em></div>';
+                chatMessages.appendChild(stoppedDiv);
+                scrollToBottom();
+            } else {
+                console.error('Stream error:', error);
+                createErrorCard('Connection error. Please try again.');
+            }
         } finally {
             isStreaming = false;
-            sendBtn.disabled = false;
+            currentAbortController = null;
+            updateSendButtonState();
             processIndicator.classList.remove('visible');
             messageInput.focus();
 
