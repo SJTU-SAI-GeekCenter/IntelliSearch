@@ -6,8 +6,9 @@ import shutil
 import psutil
 import socket
 import time
+from shutil import which
 from mcp.server.fastmcp import FastMCP
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 
 mcp = FastMCP("Operate-Terminals")
 
@@ -83,7 +84,7 @@ def check_command_exists(command_name: str) -> str:
     Args:
         command_name (str): The name of the command to check.
     """
-    from shutil import which
+    
 
     path = which(command_name)
     if path:

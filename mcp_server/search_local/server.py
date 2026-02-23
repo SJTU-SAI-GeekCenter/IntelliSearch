@@ -9,51 +9,51 @@ semantic search capabilities using txtai embeddings.
 
 import os
 import httpx
-from typing import Optional, List
+import seedir
 
+from typing import Optional
 from mcp.server.fastmcp import FastMCP
+from utils import get_rag_client
 
 # Initialize FastMCP server
 mcp = FastMCP("Local-RAG-Search")
-
-# RAG service configuration
 PORT = int(os.environ.get("TOOL_BACKEND_RAG_PORT", 39257))
 BASE_URL = f"http://127.0.0.1:{PORT}"
 
 
-def handle_response(data: dict, error_context: str) -> dict:
+async def _rag_get_request(endpoint: str, params: dict = None) -> dict:
     """
-    Handle RAG service response with proper error handling.
+    Helper function for making GET requests to RAG service.
 
     Args:
-        data: Response data from RAG service
-        error_context: Context description for error messages
+        endpoint: API endpoint path
+        params: Query parameters
 
     Returns:
-        Formatted response dictionary
+        Response data or error dictionary
     """
-    if data.get("status") == "success":
-        return {
-            "success": True,
-            "results": data.get("results", []),
-            "count": data.get("count", 0),
-        }
-    elif data.get("status") == "error":
-        return {
-            "success": False,
-            "error": data.get("error", "Unknown error"),
-            "context": error_context,
-        }
-    else:
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{BASE_URL}{endpoint}",
+                params=params or {},
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.ConnectError:
         return {
             "success": False,
-            "error": f"Unexpected response format: {data}",
-            "context": error_context,
+            "error": f"Cannot connect to RAG service on port {PORT}. "
+            f"Start it with: python backend/tool_backend/rag_service.py",
         }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
+# semantic search based on RAG
 @mcp.tool()
-async def local_search(
+async def search_semantic(
     query: str,
     limit: Optional[int] = None,
     threshold: Optional[float] = None,
@@ -124,470 +124,498 @@ async def local_search(
     Notes:
         - The RAG service must be running before using this tool
         - Documents must be indexed before they can be searched
-        - Use local_index_directory or local_index_file to add documents
+        - Use utils.local_index_directory or utils.local_index_file to add documents
     """
-    # Build request payload
-    payload = {"query": query}
-    if limit is not None:
-        payload["limit"] = limit
-    if threshold is not None:
-        payload["threshold"] = threshold
+    client = get_rag_client()
 
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{BASE_URL}/search",
-                json=payload,
-                timeout=30.0,
-            )
-            response.raise_for_status()
-            data = response.json()
+    # Enhance error message for search
+    result = await client.search(query, limit, threshold)
 
-            return handle_response(data, "Search operation")
+    if not result.get("success") and "Cannot connect" in result.get("error", ""):
+        result["error"] += f" Start it with: python backend/tool_backend/rag_service.py"
 
-    except httpx.ConnectError:
-        return {
-            "success": False,
-            "error": "Cannot connect to RAG service. Please ensure the service is running on port "
-            f"{PORT}. Start it with: python backend/tool_backend/rag_service.py",
-        }
-    except httpx.HTTPStatusError as e:
-        return {
-            "success": False,
-            "error": f"HTTP error {e.response.status_code}: {e.response.text}",
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Unexpected error during search: {str(e)}",
-        }
+    return result
 
 
+# Precise search tools
 @mcp.tool()
-async def local_index_file(file_path: str, save: bool = True):
-    """Index a single file into the RAG knowledge base.
+async def browse_file_tree(path: Optional[str] = None, depth: Optional[int | str] = 1):
+    """Browse the file tree structure of RAG load directory.
 
-    This tool adds a new document to the search index, making it
-    available for semantic search queries. The file content is
-    extracted, split into chunks, and vectorized.
-
-    Supported formats:
-        - PDF (.pdf): Academic papers, reports, ebooks
-        - Text (.txt): Plain text documents
-        - Markdown (.md): Documentation, notes
-        - Word (.docx): Microsoft Word documents
+    This tool allows you to explore the directory structure of the
+    configured RAG load directory, viewing both files and subdirectories
+    in a human-readable tree format using the seedir library.
 
     When to use:
-        - Adding a new document to the knowledge base
-        - Updating content after modifying a file
-        - Testing document extraction before bulk indexing
+        - Exploring the document collection structure
+        - Finding files before performing precise search
+        - Understanding how documents are organized
+        - Navigating to specific directories for further operations
 
     Args:
-        file_path (str): Absolute or relative path to the file.
-                        Examples:
-                          - "./documents/course_syllabus.pdf"
-                          - "/path/to/research_paper.pdf"
-                          - "notes/introduction_to_ml.md"
-        save (bool): Whether to save the index to disk after adding.
-                    True (recommended): Preserves the index (default)
-                    False: Keeps in memory only (lost on restart)
-
-    Returns:
-        dict: Indexing result with structure:
-            {
-                "success": bool,
-                "status": str,          # "success", "warning", "error"
-                "message": str,         # Detailed status message
-                "chunks_indexed": int,  # Number of chunks created
-                "file": str             # File path that was indexed
-            }
-
-    Examples:
-        >>> # Index a PDF file
-        >>> await local_index_file("./papers/attention_is_all_you_need.pdf")
-
-        >>> # Index without saving (for testing)
-        >>> await local_index_file("./test.txt", save=False)
-
-    Notes:
-        - Large files are split into multiple chunks automatically
-        - Each chunk is separately searchable
-        - Re-indexing the same file will create duplicate chunks
-        - Use local_delete_documents to remove old versions first
-    """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{BASE_URL}/index/file",
-                params={"file_path": file_path, "save": save},
-                timeout=300.0,  # Longer timeout for indexing
-            )
-            response.raise_for_status()
-            data = response.json()
-
-            if data.get("status") in ["success", "warning"]:
-                return {
-                    "success": True,
-                    **data,
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": data.get("message", "Unknown indexing error"),
-                }
-
-    except httpx.ConnectError:
-        return {
-            "success": False,
-            "error": "Cannot connect to RAG service. Please ensure the service is running on port "
-            f"{PORT}.",
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Failed to index file: {str(e)}",
-        }
-
-
-@mcp.tool()
-async def local_index_directory(
-    directory_path: str,
-    recursive: bool = True,
-    save: bool = True,
-):
-    """Index all supported documents in a directory.
-
-    This tool scans a directory and indexes all supported files
-    (PDF, TXT, MD, DOCX), making them searchable. It's the most
-    efficient way to build a knowledge base from multiple documents.
-
-    Supported formats:
-        - PDF (.pdf): Research papers, reports, books
-        - Text (.txt): Plain text documents, code files
-        - Markdown (.md): Documentation, notes
-        - Word (.docx): Word documents
-
-    When to use:
-        - Building a new knowledge base from document collections
-        - Adding folders of course materials or papers
-        - Bulk indexing documentation directories
-        - Setting up search for a project's documentation
-
-    Args:
-        directory_path (str): Path to the directory containing documents.
+        path (str, optional): Relative path within load directory.
+                             If None, returns the root directory tree.
                              Examples:
-                               - "./documents"
-                               - "/path/to/course_materials"
-                               - "./papers/deep_learning"
-        recursive (bool): If True, search subdirectories recursively.
-                         True (default): Indexes all files in subdirectories
-                         False: Only indexes files in the top-level directory
-        save (bool): Whether to save the index to disk after indexing.
-                    True (recommended): Persists the index (default)
-                    False: Keeps in memory only (lost on restart)
+                               - None: Browse root directory
+                               - "documents": Browse documents subdirectory
+                               - "papers/ml": Browse nested directory
+
+        depth (int | str, optional): Tree depth limit.
+                                    - Integer (1, 2, 3...): Show specific depth level
+                                    - "all": Show entire tree recursively (use with caution!)
+                                    - Default: 1 (immediate children only, non-recursive)
+                                    Examples:
+                                      - 1: Show only direct children
+                                      - 2: Show children + grandchildren
+                                      - "all": Show full recursive tree (can be large!)
 
     Returns:
-        dict: Indexing result with structure:
+        dict: Tree structure with format:
             {
                 "success": bool,
-                "status": str,          # "success", "warning", "error"
-                "message": str,         # Detailed status message
-                "chunks_indexed": int,  # Total number of chunks created
-                "directory": str        # Directory that was indexed
+                "path": str,              # Current path
+                "tree": str,              # Human-readable tree string
+                "item_count": int,        # Total number of items
+                "folder_count": int,      # Number of folders
+                "file_count": int         # Number of files
             }
 
     Examples:
-        >>> # Index all documents in a folder
-        >>> await local_index_directory("./documents")
+        >>> # Browse root directory (depth=1, non-recursive)
+        >>> await browse_file_tree()
 
-        >>> # Index only top-level files (no subdirectories)
-        >>> await local_index_directory("./papers", recursive=False)
+        >>> # Browse specific subdirectory with depth limit
+        >>> await browse_file_tree("上海交通大学 新生指南", depth=2)
 
-        >>> # Index without saving (for testing)
-        >>> await local_index_directory("./test_docs", save=False)
+        >>> # Browse entire tree recursively (use with caution!)
+        >>> await browse_file_tree("上海交通大学 新生指南", depth="all")
+
+    Performance Notes:
+        - depth=1 (default): Fast, recommended for initial exploration
+        - depth=2-3: Moderate speed, good for structured directories
+        - depth="all": Can be slow for large directories, use selectively
 
     Notes:
-        - Skips unsupported file formats automatically
-        - Logs progress for each file processed
-        - Large collections may take several minutes
-        - Index size depends on total document length
-        - Re-indexing creates duplicate chunks (delete old first)
+        - Uses seedir library for tree formatting
+        - Lines style (| and └──) for clear hierarchy visualization
+        - Paths are relative to load directory
+        - Cannot access files outside load directory
     """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{BASE_URL}/index/directory",
-                params={
-                    "directory_path": directory_path,
-                    "recursive": recursive,
-                    "save": save,
-                },
-                timeout=600.0,  # Extended timeout for large directories
-            )
-            response.raise_for_status()
-            data = response.json()
+    # First get the load_dir from RAG service
+    config_result = await _rag_get_request("/config/load_dir", {})
+    if not config_result.get("success"):
+        return config_result
 
-            if data.get("status") in ["success", "warning"]:
-                return {
-                    "success": True,
-                    **data,
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": data.get("message", "Unknown indexing error"),
-                }
+    load_dir = config_result.get("load_dir")
+    if not load_dir:
+        return {"success": False, "error": "No load directory configured"}
 
-    except httpx.ConnectError:
+    # Construct full path
+    if path:
+        full_path = os.path.join(load_dir, path)
+    else:
+        full_path = load_dir
+
+    # Security check: ensure path is within load_dir
+    full_path = os.path.abspath(full_path)
+    load_dir_abs = os.path.abspath(load_dir)
+    if not full_path.startswith(load_dir_abs):
         return {
             "success": False,
-            "error": "Cannot connect to RAG service. Please ensure the service is running on port "
-            f"{PORT}.",
+            "error": "Access denied: path outside load directory",
         }
+
+    # Check if path exists
+    if not os.path.exists(full_path):
+        return {"success": False, "error": f"Path not found: {path}"}
+
+    try:
+        if depth == "all":
+            tree_string = seedir.seedir(
+                full_path, style="lines", printout=False, indent=4
+            )
+        else:
+            tree_string = seedir.seedir(
+                full_path, style="lines", depthlimit=depth, printout=False, indent=4
+            )
+
+        # Count items
+        if os.path.isdir(full_path):
+            items = os.listdir(full_path)
+            folder_count = len(
+                [i for i in items if os.path.isdir(os.path.join(full_path, i))]
+            )
+            file_count = len(
+                [i for i in items if os.path.isfile(os.path.join(full_path, i))]
+            )
+            item_count = len(items)
+        else:
+            folder_count = 0
+            file_count = 1
+            item_count = 1
+
+        return {
+            "success": True,
+            "path": path or "/",
+            "tree": tree_string,
+            "item_count": item_count,
+            "folder_count": folder_count,
+            "file_count": file_count,
+        }
+
     except Exception as e:
         return {
             "success": False,
-            "error": f"Failed to index directory: {str(e)}",
+            "error": f"Failed to generate tree: {str(e)}",
         }
 
 
 @mcp.tool()
-async def local_delete_documents(document_ids: List[str], save: bool = True):
-    """Delete documents from the RAG knowledge base.
+async def search_files_precise(
+    query: str,
+    search_filename: bool = False,
+    search_content: bool = False,
+):
+    """Search for files by filename or content within RAG load directory.
 
-    This tool removes documents from the search index. Use it to
-    clean up outdated content or remove duplicates before re-indexing.
+    This tool performs precise text-based search for files, either
+    matching filenames or searching within file contents. Unlike
+    semantic search, this finds exact text matches.
 
     When to use:
-        - Removing outdated documents from the index
-        - Cleaning up duplicates before re-indexing
-        - Managing knowledge base lifecycle
-        - Freeing space by removing unused documents
+        - Finding files with specific names or patterns
+        - Searching for exact text within documents
+        - Locating files containing specific keywords
+        - Complementing semantic search with precise matching
 
     Args:
-        document_ids (list): List of document IDs to delete.
-                            Use base document IDs (without chunk suffix).
-                            Examples:
-                              - ["document1", "document2"]
-                              - ["course_syllabus", "lecture_notes"]
-                            Note: Deleting a document removes all its chunks.
-        save (bool): Whether to save the index after deletion.
-                    True (recommended): Persists changes (default)
-                    False: Keeps in memory only (reverted on restart)
+        query (str): Search query string for exact matching.
+                    Examples:
+                      - "README": Find files with "README" in name
+                      - "import numpy": Find code with this import
+        search_filename (bool): If True, search in filenames.
+                               If False, skip filename search.
+                               False (default): Don't search filenames
+        search_content (bool): If True, search within file contents.
+                              If False, skip content search.
+                              False (default): Don't search file contents
 
     Returns:
-        dict: Deletion result with structure:
+        dict: Optimized search results:
             {
                 "success": bool,
-                "status": str,           # "success", "warning", "error"
-                "message": str,          # Detailed status message
-                "chunks_deleted": int,   # Number of chunks removed
-            }
-
-    Examples:
-        >>> # Delete a single document
-        >>> await local_delete_documents(["old_paper.pdf"])
-
-        >>> # Delete multiple documents
-        >>> await local_delete_documents([
-        ...     "outdated_syllabus.pdf",
-        ...     "old_notes.txt"
-        ... ])
-
-    Notes:
-        - Document IDs are typically the filename without path/extension
-        - All chunks associated with the document are removed
-        - Deleted documents cannot be recovered unless re-indexed
-        - Use local_search to identify documents before deletion
-    """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.delete(
-                f"{BASE_URL}/documents",
-                params={"document_ids": document_ids, "save": save},
-                timeout=60.0,
-            )
-            response.raise_for_status()
-            data = response.json()
-
-            if data.get("status") in ["success", "warning"]:
-                return {
-                    "success": True,
-                    **data,
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": data.get("message", "Unknown deletion error"),
-                }
-
-    except httpx.ConnectError:
-        return {
-            "success": False,
-            "error": "Cannot connect to RAG service. Please ensure the service is running on port "
-            f"{PORT}.",
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Failed to delete documents: {str(e)}",
-        }
-
-
-@mcp.tool()
-async def local_get_status():
-    """Get RAG service status and statistics.
-
-    This tool provides information about the RAG service, including
-    whether the index exists, where it's stored, and what formats
-    are supported.
-
-    When to use:
-        - Checking if the service is running properly
-        - Verifying that documents have been indexed
-        - Troubleshooting search issues
-        - Getting system information for debugging
-
-    Returns:
-        dict: Service status with structure:
-            {
-                "success": bool,
-                "status": str,              # "success" or "error"
-                "index_exists": bool,       # True if index is loaded
-                "index_path": str,          # Path to index file
-                "supported_formats": [      # List of supported file types
-                    "pdf",
-                    "txt",
-                    "md",
-                    "docx"
+                "query": str,
+                "match_count": int,          # Total number of matches
+                "results": [
+                    {
+                        "type": "filename_match" | "content_match",
+                        "location": str,        # "path/to/file.txt (line 123)"
+                        "preview": str          # Context preview around match
+                    },
+                    ...
                 ]
             }
 
     Examples:
-        >>> # Check service status
-        >>> await local_get_status()
+        >>> # Search for README files (by filename)
+        >>> await search_files_precise("README", search_filename=True)
+
+        >>> # Search for files containing "API endpoint"
+        >>> await search_files_precise("API endpoint", search_content=True)
+
+        >>> # Search both filename and content
+        >>> await search_files_precise("config", search_filename=True, search_content=True)
+
+    Preview Format:
+        - For filename matches: Shows the filename path
+        - For content matches: Shows 300 chars before + 300 chars after the keyword
+
+    Validation:
+        - At least one of search_filename or search_content must be True
+        - Returns error if both are False
 
     Notes:
-        - Use this tool to diagnose issues before searching
-        - index_exists=False means no documents are indexed yet
-        - Use local_index_directory to create an initial index
+        - Content search only works with text-based files (.txt, .md, .py, etc.)
+        - Case-insensitive matching
+        - Returns first match per file for content search
+        - Only searches within load directory
+        - Preview provides context around the matched keyword
     """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{BASE_URL}/status", timeout=10.0)
-            response.raise_for_status()
-            data = response.json()
+    # Validate at least one search option is enabled
+    if not search_filename and not search_content:
+        return {
+            "success": False,
+            "error": "At least one search option must be enabled. Please set search_filename=True or search_content=True (or both).",
+        }
 
-            return {
-                "success": True,
-                **data,
+    # Make request with both flags
+    result = await _rag_get_request(
+        "/files/search",
+        {
+            "query": query,
+            "search_filename": search_filename,
+            "search_content": search_content,
+        },
+    )
+
+    if not result.get("success"):
+        return result
+
+    # Extract and optimize results
+    raw_results = result.get("results", [])
+    optimized_results = []
+
+    for item in raw_results:
+        match_type = item.get("type", "unknown")
+        path = item.get("path", "")
+        name = item.get("name", "")
+        line_number = item.get("line_number")
+        preview = item.get("preview", "")
+
+        # Build formatted location string
+        if match_type == "content_match" and line_number is not None:
+            location = f"{path} (line {line_number})"
+        else:
+            location = path
+
+        # For content matches, enhance preview with context
+        if match_type == "content_match" and preview:
+            pass
+        elif match_type == "filename_match":
+            # For filename matches, preview is just the filename
+            preview = f"Filename match: {name}"
+
+        optimized_results.append(
+            {
+                "type": match_type,
+                "location": location,
+                "preview": preview,
             }
+        )
 
-    except httpx.ConnectError:
-        return {
-            "success": False,
-            "error": "Cannot connect to RAG service. Please ensure the service is running on port "
-            f"{PORT}.",
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Failed to get status: {str(e)}",
-        }
+    return {
+        "success": True,
+        "query": query,
+        "match_count": len(optimized_results),
+        "results": optimized_results,
+    }
 
 
 @mcp.tool()
-async def local_save_index():
-    """Manually save the RAG index to disk.
+async def get_file_content(
+    path: str, line_start: Optional[int] = None, line_end: Optional[int] = None
+):
+    """Get content of a specific file with optional line range.
 
-    This tool persists the current in-memory index to disk.
-    The index is automatically saved after most operations, but
-    this tool can be used to ensure changes are persisted.
+    This tool retrieves the actual content of a file from the RAG
+    load directory, with support for reading specific line ranges
+    and intelligent validation.
 
     When to use:
-        - Ensuring changes are saved after multiple operations
-        - Backing up the index before major changes
-        - Manual persistence after disabling auto-save
+        - Reading the full content of a document
+        - Extracting specific sections by line numbers
+        - Reviewing code or configuration files
+        - Getting precise content after browsing/searching
+
+    Args:
+        path (str): Relative path to file within load directory.
+                   Examples:
+                     - "README.md"
+                     - "documents/course_syllabus.pdf"
+                     - "config/settings.yaml"
+        line_start (int, optional): Start line number (1-indexed).
+                                   If None, starts from line 1.
+                                   Must be >= 1.
+        line_end (int, optional): End line number (1-indexed).
+                                 If None, reads to end of file.
+                                 Must be >= line_start if specified.
+                                 Auto-adjusted if exceeds total lines.
 
     Returns:
-        dict: Save operation result:
+        dict: Optimized file content structure:
             {
                 "success": bool,
-                "status": str,      # "success" or "error"
-                "message": str      # Status message
+                "path": str,
+                "total_line_index": str,     # Format: "1-max_line"
+                "selected_line_index": str,  # Format: "start-end"
+                "content": str,              # File content
             }
 
     Examples:
-        >>> await local_save_index()
+        >>> # Read entire file
+        >>> await get_file_content("README.md")
+        # Returns: {"total_line_index": "1-150", "selected_line_index": "1-150", ...}
+
+        >>> # Read lines 10-20
+        >>> await get_file_content("main.py", line_start=10, line_end=20)
+        # Returns: {"total_line_index": "1-100", "selected_line_index": "10-20", ...}
+
+        >>> # Read from line 50 to end (file has 120 lines)
+        >>> await get_file_content("logs.txt", line_start=50)
+        # Returns: {"selected_line_index": "50-120", "note": "Reading from line 50 to end...", ...}
+
+        >>> # Request beyond file length (auto-adjusted)
+        >>> await get_file_content("doc.md", line_start=100, line_end=200)  # file has 150 lines
+        # Returns: {"selected_line_index": "100-150", "note": "Requested line_end (200) exceeded...", ...}
+
+    Validation Rules:
+        - line_start must be >= 1 (returns error if invalid)
+        - line_end must be >= line_start (returns error if invalid)
+        - If line_end > total_lines: auto-adjusted to total_lines (no error)
+        - If line_start > total_lines: returns error from backend
 
     Notes:
-        - Most operations save automatically by default
-        - Use this if auto-save was disabled
-        - Saved indexes persist across service restarts
+        - Line numbers are 1-indexed (first line is 1, not 0)
+        - Auto-adjustment is silent but noted in response
+        - Use get_markdown_structure to find line numbers before reading
     """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{BASE_URL}/index/save", timeout=60.0)
-            response.raise_for_status()
-            data = response.json()
-
-            return {
-                "success": True,
-                **data,
-            }
-
-    except Exception as e:
+    # Validate line_start (must be positive integer)
+    if line_start is not None and line_start < 1:
         return {
             "success": False,
-            "error": f"Failed to save index: {str(e)}",
+            "error": f"Invalid line_start: {line_start}. Must be >= 1 (line numbers are 1-indexed).",
         }
+
+    # Validate line_end (must be >= line_start if both specified)
+    if line_end is not None and line_start is not None and line_end < line_start:
+        return {
+            "success": False,
+            "error": f"Invalid line_end: {line_end}. Must be >= line_start ({line_start}).",
+        }
+
+    # First, get file total lines by fetching the full file
+    initial_params = {"path": path}
+    initial_result = await _rag_get_request("/files/content", initial_params)
+
+    if not initial_result.get("success"):
+        return initial_result
+
+    total_lines = initial_result.get("total_lines", 0)
+    full_content = initial_result.get("content", "")
+    original_line_end = line_end
+
+    # Pre-adjust line_end if it exceeds total lines
+    if line_end is not None and line_end > total_lines:
+        line_end = total_lines  # Auto-adjust to max line
+
+    # Determine actual line range
+    actual_start = line_start if line_start is not None else 1
+    actual_end = line_end if line_end is not None else total_lines
+
+    # If requesting full file (no line range specified), use cached result
+    if line_start is None and line_end is None:
+        content = full_content
+    else:
+        # Otherwise, make a second request with the specific range
+        params = {"path": path, "line_start": actual_start, "line_end": actual_end}
+        result = await _rag_get_request("/files/content", params)
+
+        if not result.get("success"):
+            return result
+
+        content = result.get("content", "")
+
+    # Build line index strings (1-indexed format)
+    total_line_index = f"1-{total_lines}"
+    selected_line_index = f"{actual_start}-{actual_end}"
+
+    # Build note if any adjustment was made
+    note = None
+    if original_line_end is not None and line_end != original_line_end:
+        note = f" (Requested line_end {original_line_end} exceeded file length. Auto-adjusted to {line_end})."
+    elif line_end is None and line_start is not None:
+        note = f" (Reading from line {line_start} to end of file: line {total_lines})."
+
+    return {
+        "success": True,
+        "path": path,
+        "total_line_index": total_line_index,
+        "selected_line_index": selected_line_index + (note if note else ""),
+        "content": content,
+    }
 
 
 @mcp.tool()
-async def local_load_index():
-    """Manually load the RAG index from disk.
+async def get_markdown_structure(path: str):
+    """Analyze markdown file structure (headings hierarchy and statistics).
 
-    This tool loads a previously saved index from disk into memory.
-    The index is automatically loaded on service startup, but this
-    tool can reload it if needed.
+    This tool parses a markdown file and extracts its structural
+    information, including all headings with their levels and
+    line numbers, along with file statistics.
 
     When to use:
-        - Reloading the index after service restart
-        - Restoring a previously saved index
-        - Troubleshooting index loading issues
+        - Understanding document structure before reading
+        - Navigating to specific sections
+        - Getting an overview of markdown content
+        - Building table of contents for documentation
 
-    Returns:
-        dict: Load operation result:
-            {
-                "success": bool,
-                "status": str,      # "success" or "warning"
-                "message": str      # Status message
-            }
-
-    Examples:
-        >>> await local_load_index()
-
+    Args:
+        path (str): Relative path to markdown file within load directory.
+                   Examples:
+                     - "README.md"
+                     - "docs/api_reference.md"
+                     - "notes/lecture_01.md"
     Notes:
-        - Index is automatically loaded on service startup
-        - Returns "warning" if no saved index exists
-        - Use local_index_directory to create an initial index
+        - Only works with .md files
+        - Headings in code blocks are excluded
+        - Headings are ordered by appearance in file
+        - Use get_file_content to read specific sections
     """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{BASE_URL}/index/load", timeout=60.0)
-            response.raise_for_status()
-            data = response.json()
+    result = await _rag_get_request("/files/markdown/structure", {"path": path})
 
-            return {
-                "success": data.get("status") == "success",
-                **data,
-            }
+    if not result.get("success"):
+        return result
 
-    except Exception as e:
+    headings = result.get("headings", [])
+    if not headings:
         return {
-            "success": False,
-            "error": f"Failed to load index: {str(e)}",
+            "success": True,
+            "path": path,
+            "structure": "No headings found in this markdown file.",
+            "total_lines": result.get("total_lines", 0),
+            "heading_count": 0,
+            "code_block_count": result.get("code_block_count", 0),
+            "statistics": f"Total lines: {result.get('total_lines', 0)}, Code blocks: {result.get('code_block_count', 0)}",
         }
+
+    # Format headings into human-readable structure
+    structure_lines = []
+
+    for heading in headings:
+        level = heading.get("level", 1)
+        text = heading.get("text", "")
+        line_number = heading.get("line_number", 0)
+
+        # Calculate indentation based on heading level (H1=0, H2=2, H3=4, ...)
+        indent = "  " * (level - 1)
+
+        # Format heading with line number
+        heading_marker = "#" * level
+        formatted_line = f'{indent}{heading_marker} {text} (line {line_number})'
+        structure_lines.append(formatted_line)
+
+    structure_string = "\n".join(structure_lines)
+
+    # Build statistics summary
+    total_lines = result.get("total_lines", 0)
+    heading_count = len(headings)
+    code_block_count = result.get("code_block_count", 0)
+
+    stats_summary = (
+        f"Total lines: {total_lines}\n"
+        f"Headings: {heading_count}\n"
+        f"Code blocks: {code_block_count}"
+    )
+
+    return {
+        "success": True,
+        "path": path,
+        "structure": structure_string,
+        "total_lines": total_lines,
+        "heading_count": heading_count,
+        "code_block_count": code_block_count,
+        "statistics": stats_summary,
+    }
 
 
 if __name__ == "__main__":
