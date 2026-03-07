@@ -8,6 +8,7 @@ to enhance search and retrieval capabilities with multi-step reasoning.
 import os
 import asyncio
 import nest_asyncio
+import time
 from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime
 from openai import OpenAI
@@ -148,6 +149,7 @@ class MCPBaseAgent(BaseAgent):
         max_iterations = request.metadata.get("max_iterations", self.max_tool_call)
 
         try:
+            t_total_start = time.time()
             try:
                 loop = asyncio.get_running_loop()
                 nest_asyncio.apply()
@@ -165,6 +167,9 @@ class MCPBaseAgent(BaseAgent):
                         max_iterations=max_iterations,
                     )
                 )
+
+            t_total = time.time() - t_total_start
+            self.logger.info(f"[BASE] Total time: {t_total:.2f}s")
 
             # Build response metadata
             response_metadata = {
@@ -248,9 +253,12 @@ class MCPBaseAgent(BaseAgent):
                 messages = self.memory.get_view("chat_messages")
 
                 # Get LLM response
+                t_llm_start = time.time()
                 completion = self.client.chat.completions.create(
                     model=self.model_name, messages=messages, tools=available_tools
                 )
+                t_llm = time.time() - t_llm_start
+                self.logger.info(f"[BASE] LLM call: {t_llm:.2f}s")
 
                 tool_call_lists = completion.choices[0].message.tool_calls
                 has_tool_calls = (
@@ -264,9 +272,12 @@ class MCPBaseAgent(BaseAgent):
 
                     # Execute tool calls using MCPBase component
                     try:
+                        t_tool_start = time.time()
                         tool_results = await self.mcp_base.execute_tool_calls(
                             tool_call_lists, tools
                         )
+                        t_tool = time.time() - t_tool_start
+                        self.logger.info(f"[BASE] Tool execution: {t_tool:.2f}s")
                     except Exception as tool_exc:
                         # If permission was denied, rollback the last assistant tool-call message
                         error_text = str(tool_exc)
