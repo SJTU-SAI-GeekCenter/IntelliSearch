@@ -7,6 +7,7 @@ delivering real-time tool call updates and content generation.
 
 import os
 import asyncio
+import time
 from typing import List, Dict, Any, Optional, AsyncGenerator
 from datetime import datetime
 from openai import OpenAI
@@ -130,6 +131,8 @@ class MCPAsyncAgent(BaseAgent):
         Returns:
             AgentResponse with complete answer and metadata
         """
+        t_total_start = time.time()
+
         # Try to get running event loop, or create new one
         try:
             loop = asyncio.get_event_loop()
@@ -143,6 +146,9 @@ class MCPAsyncAgent(BaseAgent):
             # Collect all events
             events = []
             loop.run_until_complete(self._collect_events(request, events))
+
+            t_total = time.time() - t_total_start
+            self.logger.info(f"[ASYNC] Total time: {t_total:.2f}s")
 
             # Build response from events
             return self._build_response_from_events(events, request)
@@ -242,6 +248,7 @@ class MCPAsyncAgent(BaseAgent):
                 llm_timeout = config.get("mcp.connection.llm_timeout", 90)
 
                 # LLM completion with timeout
+                t_llm_start = time.time()
                 completion = await asyncio.wait_for(
                     asyncio.to_thread(
                         self.client.chat.completions.create,
@@ -251,6 +258,8 @@ class MCPAsyncAgent(BaseAgent):
                     ),
                     timeout=llm_timeout
                 )
+                t_llm = time.time() - t_llm_start
+                self.logger.info(f"[ASYNC] LLM call: {t_llm:.2f}s")
 
                 # Check for tool calls
                 tool_call_lists = completion.choices[0].message.tool_calls
@@ -264,9 +273,12 @@ class MCPAsyncAgent(BaseAgent):
 
                     # Execute tool calls
                     try:
+                        t_tool_start = time.time()
                         tool_results = await self.mcp_base.execute_tool_calls(
                             tool_call_lists, self.available_tools
                         )
+                        t_tool = time.time() - t_tool_start
+                        self.logger.info(f"[ASYNC] Tool execution: {t_tool:.2f}s")
 
                         # Yield tool call events in real-time
                         for tool_detail in tool_results.get("tools_detailed", []):
