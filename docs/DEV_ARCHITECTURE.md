@@ -238,6 +238,14 @@ config.load_config(override=True)
 
 ### Web Backends
 
+### Code Backend (OpenAI-Compatible API)
+
+Code Backend 提供兼容 OpenAI SDK 的标准化 API 接口，由以下核心组件构成：
+
+- **core/openai_schema.py**: Pydantic 数据模型定义 OpenAI 标准 API 契约（ChatCompletionRequest/Response, ModelsResponse）
+- **backend/code_backend.py**: FastAPI 应用层，实现路由注册、Bearer Token 认证、CORS 中间件配置
+- **services/code_service.py**: 无状态服务层，负责上下文组装、基于 tiktoken 的精确 token 估算、使用 nest_asyncio 调度底层同步 agent 推理以避免事件循环阻塞
+
 ## Agents
 
 ### MCP Base Agent

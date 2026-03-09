@@ -48,7 +48,7 @@ IntelliSearch V3.1 has achieved an all-round comprehensive upgrade, significantl
 
 - 🌏 **Agent Universe**: Provides a pluggable **agent architecture** supporting multiple agent structures for different tasks. Many more agents are on the way!
 - 🧠 **Long Horizon Memories**: Supports **pluggable long-term memory systems** for maintaining conversation context across sessions. Sequential memory architecture enables agents to remember and reason over extended interactions with persistent storage.
-- 💻 **Multi-Backend Services**: Offers both **Web** and **CLI** backend modes for flexible deployment. One-click setup with zero configuration for quick start, while supporting deep customization for open-source developers.
+- 💻 **Multi-Backend Services**: Offers **Web**, **CLI**, and **Code API** backend modes for flexible deployment. OpenAI-compatible API for seamless integration with IDEs and AI CLI tools.
 
 
 ## DEV and Usage Guide
