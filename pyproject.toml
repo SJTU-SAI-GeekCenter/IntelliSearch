@@ -47,6 +47,7 @@ dependencies = [
     "pytest-html>=4.2.0",
     "seedir>=0.5.1",
     "nest-asyncio>=1.6.0",
+    "tiktoken>=0.8.0",
 ]
 
 [[tool.uv.index]]
