@@ -25,9 +25,10 @@ from pathlib import Path
 from services.cli_service import CLIService
 from core.schema import AgentRequest, AgentResponse
 from core.logger import get_logger
-from ui.theme import ThemeColors
-from ui.status_manager import get_status_manager
-from ui.tool_ui import ToolUIManager
+from core.UI.theme import ThemeColors
+from core.UI.tool_ui import ToolUIManager
+from core.UI.status_manager import get_status_manager
+from core.UI.live import live
 
 
 class CLIBackend:
@@ -67,7 +68,6 @@ class CLIBackend:
             console: Optional Rich console (defaults to new Console())
         """
         self.logger = get_logger(__name__, "cli_backend")
-        self.console = console or Console()
         self.running = False
         self.cancel_requested = False  # ESC 取消标志
 
@@ -75,8 +75,9 @@ class CLIBackend:
         self.service = CLIService(agent_type, agent_config)
 
         # Setup UI components
-        ToolUIManager.set_console(self.console)
-        self.status_manager = get_status_manager(self.console)
+        ToolUIManager.set_console(live.console)
+        # Initialize StatusManager for loading states
+        self.status_manager = get_status_manager()
 
         # Register status callback to bridge service -> UI
         self.service.register_status_callback(self._handle_status_update)
@@ -136,23 +137,24 @@ class CLIBackend:
         Handle status updates from the service layer.
 
         This callback bridges service-level status changes to Rich UI updates.
+        Uses StatusManager for loading states (creates Live on demand, destroys on clear).
 
         Args:
             status_type: Type of status ("processing", "summarizing", "clear", etc.)
             message: Status message
         """
         if status_type == "processing":
-            if self.status_manager:
-                self.status_manager.set_processing(message)
-        elif status_type == "summarizing":
-            if self.status_manager:
-                self.status_manager.set_summarizing(message)
-        elif status_type == "warning":
-            # Display warning in a styled panel
-            if self.status_manager:
-                self.status_manager.clear()
-            warning_text = Text(message, style=Style(color=ThemeColors.FG))
+            # Display loading panel
+            self.status_manager.set_processing(message)
 
+        elif status_type == "summarizing":
+            # Update loading panel message
+            self.status_manager.set_summarizing(message)
+
+        elif status_type == "warning":
+            # Hide loading and display warning panel
+            self.status_manager.clear()
+            warning_text = Text(message, style=Style(color=ThemeColors.FG))
             warning_panel = Panel(
                 warning_text,
                 title="[bold]Warning[/bold]",
@@ -160,23 +162,49 @@ class CLIBackend:
                 border_style=Style(color=ThemeColors.WARNING),
                 padding=(0, 1),
             )
-            self.console.print(warning_panel)
+            live.console.print(warning_panel)
+
         elif status_type == "clear":
-            if self.status_manager:
-                self.status_manager.clear()
+            # Remove loading panel
+            self.status_manager.clear()
+
         elif status_type == "error":
-            if self.status_manager:
-                self.status_manager.clear()
-            self.console.print(
-                Text(f"Error: {message}", style=Style(color=ThemeColors.ERROR))
+            # Hide loading and display error panel
+            self.status_manager.clear()
+            error_text = Text(message, style=Style(color=ThemeColors.ERROR))
+            error_panel = Panel(
+                error_text,
+                title="[bold]ERROR[/bold]",
+                title_align="left",
+                border_style=Style(color=ThemeColors.ERROR),
+                padding=(0, 1),
             )
+            live.console.print(error_panel)
+
         elif status_type == "info":
-            self.console.print(
-                Text(f"Info: {message}", style=Style(color=ThemeColors.INFO))
+            # Display info panel
+            info_text = Text(message, style=Style(color=ThemeColors.FG))
+            info_panel = Panel(
+                info_text,
+                title="[bold]Info[/bold]",
+                title_align="left",
+                border_style=Style(color=ThemeColors.INFO),
+                padding=(0, 1),
             )
+            live.console.print(info_panel)
+
         elif status_type == "failed":
-            if self.status_manager:
-                self.status_manager.clear()
+            # Hide loading and display error panel
+            self.status_manager.clear()
+            error_text = Text(message, style=Style(color=ThemeColors.ERROR))
+            error_panel = Panel(
+                error_text,
+                title="[bold]ERROR[/bold]",
+                title_align="left",
+                border_style=Style(color=ThemeColors.ERROR),
+                padding=(0, 1),
+            )
+            live.console.print(error_panel)
 
     def print_banner(self):
         """Display welcome banner."""
@@ -201,7 +229,7 @@ class CLIBackend:
             padding=(1, 2),
         )
 
-        self.console.print(banner)
+        live.console.print(banner)
 
         agent_info = self.service.get_agent_info()
         info_text = Text()
@@ -211,13 +239,13 @@ class CLIBackend:
             style=Style(color=ThemeColors.ACCENT),
         )
 
-        self.console.print(info_text)
-        self.console.print(
+        live.console.print(info_text)
+        live.console.print(
             Text(
                 "Type /help for a list of commands", style=Style(color=ThemeColors.DIM)
             )
         )
-        self.console.print()
+        live.console.print()
 
     def print_help(self):
         """Display help information."""
@@ -245,7 +273,7 @@ class CLIBackend:
         for cmd, desc in commands_info:
             help_table.add_row(cmd, desc)
 
-        self.console.print(help_table)
+        live.console.print(help_table)
 
     def parse_structured_response(
         self, response_text: str
@@ -304,7 +332,7 @@ class CLIBackend:
                 border_style=Style(color=ThemeColors.SECONDARY),
                 padding=(0, 1),
             )
-            self.console.print(final_response_panel)
+            live.console.print(final_response_panel)
 
             # Display tool tracing
             tool_tracing_md = Markdown(tool_tracing, style=Style(color=ThemeColors.FG))
@@ -315,8 +343,8 @@ class CLIBackend:
                 border_style=Style(color=ThemeColors.PRIMARY),
                 padding=(0, 1),
             )
-            self.console.print(tool_tracing_panel)
-            self.console.print()
+            live.console.print(tool_tracing_panel)
+            live.console.print()
         else:
             # Parse failed - fallback to original strategy
             # Create response panel with markdown
@@ -330,8 +358,8 @@ class CLIBackend:
                 padding=(0, 1),
             )
 
-            self.console.print(response_panel)
-            self.console.print()
+            live.console.print(response_panel)
+            live.console.print()
 
     def get_user_input(self) -> Optional[str]:
         """
@@ -345,18 +373,14 @@ class CLIBackend:
             ("class:input", " › "),
         ]
 
-        try:
-            user_input: str = self.prompt_session.prompt(
-                prompt_text,
-                completer=(
-                    self.command_completer if self._detect_command_start() else None
-                ),
-            )
+        user_input: str = self.prompt_session.prompt(
+            prompt_text,
+            completer=(
+                self.command_completer if self._detect_command_start() else None
+            ),
+        )
 
-            return user_input.strip()
-
-        except KeyboardInterrupt:
-            raise
+        return user_input.strip()
 
     def _detect_command_start(self) -> bool:
         """Detect if user is typing a command (starts with /)."""
@@ -376,7 +400,7 @@ class CLIBackend:
         cmd = cmd_parts[0].lower() if cmd_parts else ""
 
         if cmd in ["quit", "exit"]:
-            self.console.print(
+            live.console.print(
                 Text(
                     "\nExiting IntelliSearch CLI. Goodbye!\n",
                     style=Style(color=ThemeColors.ACCENT),
@@ -390,31 +414,31 @@ class CLIBackend:
 
         elif cmd == "clear":
             self.service.clear_agent_history()
-            self.console.print(
+            live.console.print(
                 Text(
                     "Conversation history cleared.",
                     style=Style(color=ThemeColors.SUCCESS),
                 )
             )
-            self.console.print()
+            live.console.print()
             return True
 
         elif cmd == "export":
             output_path = cmd_parts[1] if len(cmd_parts) > 1 else None
             try:
                 result_path = self.service.export_conversation(output_path)
-                self.console.print(
+                live.console.print(
                     Text(
                         f"Conversation exported to: {result_path}",
                         style=Style(color=ThemeColors.SUCCESS),
                     )
                 )
-                self.console.print()
+                live.console.print()
             except Exception as e:
-                self.console.print(
+                live.console.print(
                     Text(f"Export failed: {e}", style=Style(color=ThemeColors.ERROR))
                 )
-                self.console.print()
+                live.console.print()
             return True
 
         elif cmd == "config":
@@ -423,7 +447,7 @@ class CLIBackend:
 
         elif cmd == "model":
             if len(cmd_parts) < 2:
-                self.console.print(
+                live.console.print(
                     Text(
                         f"Current model: {self.service.agent.model_name}",
                         style=Style(color=ThemeColors.INFO),
@@ -433,18 +457,18 @@ class CLIBackend:
 
             new_model = cmd_parts[1]
             self.service.update_agent_config(model_name=new_model)
-            self.console.print(
+            live.console.print(
                 Text(
                     f"Model changed to: {new_model}",
                     style=Style(color=ThemeColors.SUCCESS),
                 )
             )
-            self.console.print()
+            live.console.print()
             return True
 
         elif cmd == "max_tools":
             if len(cmd_parts) < 2 or not cmd_parts[1].isdigit():
-                self.console.print(
+                live.console.print(
                     Text(
                         f"Current max tools: {self.service.agent.max_tool_call}",
                         style=Style(color=ThemeColors.INFO),
@@ -454,26 +478,26 @@ class CLIBackend:
 
             new_max = int(cmd_parts[1])
             self.service.update_agent_config(max_tool_call=new_max)
-            self.console.print(
+            live.console.print(
                 Text(
                     f"Max tools changed to: {new_max}",
                     style=Style(color=ThemeColors.SUCCESS),
                 )
             )
-            self.console.print()
+            live.console.print()
             return True
 
         else:
-            self.console.print(
+            live.console.print(
                 Text(f"Unknown command: /{cmd}", style=Style(color=ThemeColors.ERROR))
             )
-            self.console.print(
+            live.console.print(
                 Text(
                     "Type /help for available commands",
                     style=Style(color=ThemeColors.DIM),
                 )
             )
-            self.console.print()
+            live.console.print()
             return True
 
     def _show_config(self):
@@ -498,8 +522,8 @@ class CLIBackend:
         if hasattr(self.service.agent, "max_tool_call"):
             config_table.add_row("Max Tools", str(self.service.agent.max_tool_call))
 
-        self.console.print(config_table)
-        self.console.print()
+        live.console.print(config_table)
+        live.console.print()
 
     def run(self):
         """
@@ -519,10 +543,10 @@ class CLIBackend:
                 user_input = self.get_user_input()
                 # Handle ESC key (returns None)
                 if user_input is None or user_input == "^[":
-                    self.console.print(
+                    live.console.print(
                         Text("[Cancelled]", style=Style(color=ThemeColors.DIM))
                     )
-                    self.console.print()
+                    live.console.print()
                     continue
 
                 # Handle empty input
@@ -542,7 +566,8 @@ class CLIBackend:
                     border_style=Style(color=ThemeColors.PRIMARY),
                     padding=(0, 1),
                 )
-                self.console.print(user_panel)
+                live.start()
+                live.console.print(user_panel)
 
                 # Process request - allow interruption via Ctrl+C
                 try:
@@ -551,49 +576,43 @@ class CLIBackend:
                     self.display_response(response)
 
                 except KeyboardInterrupt:
-                    try:
-                        if self.status_manager:
-                            self.status_manager.clear()
-                    except:
-                        pass
+                    # Hide loading on interrupt
+                    self.status_manager.clear()
 
-                    self.console.print()
-                    self.console.print(
+                    live.console.print()
+                    live.console.print(
                         Text(
                             "Operation cancelled.",
                             style=Style(color=ThemeColors.WARNING),
                         )
                     )
-                    self.console.print()
+                    live.console.print()
                     continue
 
                 except Exception as e:
-                    try:
-                        if self.status_manager:
-                            self.status_manager.clear()
-                    except:
-                        pass
+                    # Hide loading on error
+                    self.status_manager.clear()
 
-                    self.console.print()
-                    self.console.print(
+                    live.console.print()
+                    live.console.print(
                         Text(f"Error: {e}", style=Style(color=ThemeColors.ERROR))
                     )
                     self.logger.error(f"Request error: {e}", exc_info=True)
 
             except KeyboardInterrupt:
-                self.console.print("\n\n")
-                self.console.print(
+                live.console.print("\n\n")
+                live.console.print(
                     Text(
                         "Exiting IntelliSearch CLI. Goodbye!",
                         style=Style(color=ThemeColors.ACCENT),
                     )
                 )
-                self.console.print()
+                live.console.print()
                 self.running = False
                 break
 
             except Exception as e:
-                self.console.print(
+                live.console.print(
                     Text(
                         f"\nUnexpected error: {e}", style=Style(color=ThemeColors.ERROR)
                     )

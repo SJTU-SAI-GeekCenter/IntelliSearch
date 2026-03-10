@@ -11,9 +11,8 @@ from typing import Optional
 from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
-from rich.live import Live
 from rich.style import Style
-
+from core.UI.live import live
 from .theme import ThemeColors
 
 
@@ -28,7 +27,7 @@ class StatusManager:
     _instance: Optional["StatusManager"] = None
     _lock = object()
 
-    def __new__(cls, console: Optional[Console] = None):
+    def __new__(cls):
         """Implement singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -75,7 +74,9 @@ class StatusManager:
         if self._status_type == "processing":
             # Green theme for processing
             title = Text()
-            title.append(spinner + " ", style=Style(color=ThemeColors.ACCENT, bold=True))
+            title.append(
+                spinner + " ", style=Style(color=ThemeColors.ACCENT, bold=True)
+            )
             title.append("PROCESSING", style=Style(color=ThemeColors.ACCENT, bold=True))
 
             content = Text()
@@ -93,8 +94,12 @@ class StatusManager:
         elif self._status_type == "executing":
             # Cyan theme for tool execution
             title = Text()
-            title.append(spinner + " ", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
-            title.append("EXECUTING TOOL", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
+            title.append(
+                spinner + " ", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True)
+            )
+            title.append(
+                "EXECUTING TOOL", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True)
+            )
 
             content = Text()
             content.append(self._current_status, style=Style(color=ThemeColors.FG))
@@ -147,8 +152,12 @@ class StatusManager:
         elif self._status_type == "summarizing":
             # Pink-orange theme for final response generation
             title = Text()
-            title.append(spinner + " ", style=Style(color=ThemeColors.SUMMARY_ACCENT, bold=True))
-            title.append("SUMMARIZING", style=Style(color=ThemeColors.SUMMARY_ACCENT, bold=True))
+            title.append(
+                spinner + " ", style=Style(color=ThemeColors.SUMMARY_ACCENT, bold=True)
+            )
+            title.append(
+                "SUMMARIZING", style=Style(color=ThemeColors.SUMMARY_ACCENT, bold=True)
+            )
 
             content = Text()
             content.append(self._current_status, style=Style(color=ThemeColors.FG))
@@ -180,14 +189,11 @@ class StatusManager:
         self._current_status = message
         self._status_type = "processing"
         self._current_spinner = self._spinner_dots
+        self._spinner_frame = 0  # Reset frame index when changing spinner
 
         if not self._active:
             self._active = True
-            self._live = Live(
-                self._get_status_panel(),
-                console=self.console,
-                refresh_per_second=10,
-            )
+            self._live = live
             self._live.start()
 
             # Start animation in background thread
@@ -204,14 +210,11 @@ class StatusManager:
         self._current_status = message
         self._status_type = "executing"
         self._current_spinner = self._spinner_arrows
+        self._spinner_frame = 0  # Reset frame index when changing spinner
 
         if not self._active:
             self._active = True
-            self._live = Live(
-                self._get_status_panel(),
-                console=self.console,
-                refresh_per_second=10,
-            )
+            self._live = live
             self._live.start()
 
             # Start animation in background thread
@@ -228,14 +231,11 @@ class StatusManager:
         self._current_status = message
         self._status_type = "summarizing"
         self._current_spinner = self._spinner_stars
+        self._spinner_frame = 0  # Reset frame index when changing spinner
 
         if not self._active:
             self._active = True
-            self._live = Live(
-                self._get_status_panel(),
-                console=self.console,
-                refresh_per_second=10,
-            )
+            self._live = live
             self._live.start()
 
             # Start animation in background thread
@@ -303,14 +303,10 @@ _global_status: Optional[StatusManager] = None
 def get_status_manager(console: Optional[Console] = None) -> StatusManager:
     """
     Get the global StatusManager instance.
-
-    Args:
-        console: Optional console to initialize with
-
     Returns:
         StatusManager instance
     """
     global _global_status
     if _global_status is None:
-        _global_status = StatusManager(console)
+        _global_status = StatusManager()
     return _global_status

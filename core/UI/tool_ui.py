@@ -1,29 +1,73 @@
+"""
+Tool UI Manager for displaying MCP tool calls with styled output.
+
+This module provides a singleton manager for displaying tool execution
+information with a consistent visual style across the application.
+"""
+
 import json
-from typing import Dict, Any
+import time
+from typing import Optional, Dict, Any
 from rich.console import Console
-from rich.panel import Panel
 from rich.text import Text
+from rich.panel import Panel
 from rich.table import Table
 from rich.style import Style
-from ui.theme import ThemeColors
+from core.UI.live import live
+from .theme import ThemeColors
+from .status_manager import get_status_manager
 
 
-class ToolCallUI:
+class ToolUIManager:
     """
-    Helper class for displaying MCP tool calls with styled UI.
+    Singleton manager for displaying tool calls with styled UI.
 
-    This class provides methods to display tool execution information
-    in a visually appealing way using cyan/blue color scheme.
+    This class provides a centralized way to display tool execution
+    information throughout the application.
     """
 
-    def __init__(self, console: Console):
+    _instance: Optional["ToolUIManager"] = None
+    _console: Optional[Console] = None
+    _enabled: bool = True
+
+    def __new__(cls):
+        """Implement singleton pattern."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._console = Console()
+        return cls._instance
+
+    @classmethod
+    def get_instance(cls) -> "ToolUIManager":
         """
-        Initialize the ToolCallUI.
+        Get the singleton instance of ToolUIManager.
+
+        Returns:
+            ToolUIManager instance
+        """
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    @classmethod
+    def set_console(cls, console: Console) -> None:
+        """
+        Set the console instance for output.
 
         Args:
-            console: Rich console instance for output
+            console: Rich console instance
         """
-        self.console = console
+        cls._console = live.console
+
+    @classmethod
+    def enable(cls) -> None:
+        """Enable tool UI output."""
+        cls._enabled = True
+
+    @classmethod
+    def disable(cls) -> None:
+        """Disable tool UI output."""
+        cls._enabled = False
 
     def display_tool_call(self, tool_name: str) -> None:
         """
@@ -32,12 +76,17 @@ class ToolCallUI:
         Args:
             tool_name: Name of the tool being called
         """
+        if not self._enabled or not self._console:
+            return
+        live.start()
+        live.console.print()  # Add newline for spacing
+
         header = Text()
         header.append("", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
         header.append("Tool Call: ", style=Style(color=ThemeColors.TOOL_SECONDARY))
         header.append(tool_name, style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
 
-        self.console.print(
+        live.console.print(
             Panel(
                 header,
                 border_style=Style(color=ThemeColors.TOOL_BORDER),
@@ -53,9 +102,12 @@ class ToolCallUI:
             tool_name: Full tool name
             arguments: Tool arguments dictionary
         """
+        if not self._enabled or not self._console:
+            return
+        live.start()
         # Create title
         title = Text()
-        title.append("📥 ", style=Style(color=ThemeColors.TOOL_ACCENT))
+        title.append("", style=Style(color=ThemeColors.TOOL_ACCENT))
         title.append("Tool Input", style=Style(color=ThemeColors.TOOL_SECONDARY))
 
         # Create content table
@@ -64,12 +116,10 @@ class ToolCallUI:
         table.add_column("Value", style=Style(color=ThemeColors.FG))
 
         table.add_row("Tool", tool_name)
-
-        # Format arguments
         args_str = json.dumps(arguments, indent=2, ensure_ascii=False)
         table.add_row("Arguments", Text(args_str, style=Style(color=ThemeColors.DIM)))
 
-        self.console.print(
+        live.console.print(
             Panel(
                 table,
                 title=title,
@@ -78,28 +128,31 @@ class ToolCallUI:
                 padding=(0, 1),
             )
         )
+        live.console.print()
 
-    def display_execution_status(self, status: str = "executing") -> None:
+    def display_execution_status(
+        self, status: str = "executing", message: str = ""
+    ) -> None:
         """
-        Display tool execution status.
+        Display tool execution status using unified status manager.
 
         Args:
             status: Either 'executing' or 'completed'
+            message: Optional status message
         """
-        if status == "executing":
-            status_text = Text()
-            status_text.append("⟳ ", style=Style(color=ThemeColors.TOOL_ACCENT))
-            status_text.append(
-                "Executing...", style=Style(color=ThemeColors.TOOL_SECONDARY)
-            )
-        else:
-            status_text = Text()
-            status_text.append("✓ ", style=Style(color=ThemeColors.SUCCESS))
-            status_text.append(
-                "Completed", style=Style(color=ThemeColors.TOOL_SECONDARY)
-            )
+        if not self._enabled:
+            return
 
-        self.console.print(status_text)
+        status_mgr = get_status_manager()
+
+        if status == "executing":
+            msg = message or "Executing tool..."
+            status_mgr.set_executing(msg)
+        elif status == "completed":
+            msg = message or "Tool completed"
+            status_mgr.set_success(msg)
+            time.sleep(0.3)
+            status_mgr.clear()
 
     def display_tool_result(self, result: str, max_length: int = 500) -> None:
         """
@@ -109,9 +162,13 @@ class ToolCallUI:
             result: Result text from tool execution
             max_length: Maximum length to display before truncating
         """
+        if not self._enabled or not self._console:
+            return
+        live.console.print()  # Add newline for spacing
+        live.start()
         # Create title
         title = Text()
-        title.append("📤 ", style=Style(color=ThemeColors.TOOL_ACCENT))
+        title.append("", style=Style(color=ThemeColors.TOOL_ACCENT))
         title.append("Result", style=Style(color=ThemeColors.TOOL_SECONDARY))
 
         # Truncate if too long
@@ -124,7 +181,7 @@ class ToolCallUI:
         else:
             result_text = Text(result, style=Style(color=ThemeColors.FG))
 
-        self.console.print(
+        live.console.print(
             Panel(
                 result_text,
                 title=title,
@@ -133,7 +190,7 @@ class ToolCallUI:
                 padding=(0, 1),
             )
         )
-        self.console.print()
+        live.console.print()
 
     def display_tool_error(self, error_msg: str) -> None:
         """
@@ -142,15 +199,23 @@ class ToolCallUI:
         Args:
             error_msg: Error message to display
         """
+        if not self._enabled or not self._console:
+            return
+        live.console.print()  # Add newline for spacing
+        live.start()
         error_text = Text()
         error_text.append("✗ ", style=Style(color=ThemeColors.ERROR))
         error_text.append(error_msg, style=Style(color=ThemeColors.ERROR))
 
-        self.console.print(
+        live.console.print(
             Panel(
                 error_text,
                 border_style=Style(color=ThemeColors.ERROR),
                 padding=(0, 1),
             )
         )
-        self.console.print()
+        live.console.print()
+
+
+# Global instance
+tool_ui = ToolUIManager()

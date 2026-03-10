@@ -1,14 +1,14 @@
 """
-IntelliSearch 异常类体系（简化版）
+IntelliSearch Exception System
 
-提供统一的错误处理机制，基于严重级别进行错误分类。
-通过错误码前缀区分不同领域（如 MCP_###, SEC_###, AGT_### 等）。
+Provides a unified error handling mechanism with error classification based on severity levels.
+Distinguishes different domains through error code prefixes (e.g., MCP_###, SEC_###, AGT_###, etc.).
 
-设计原则：
-- 简洁：只有6个严重级别的异常类
-- 灵活：通过错误码区分领域
-- 可扩展：新增错误类型只需定义错误码即可
-- 易用：ErrorCode 对象自动映射错误码到严重级别
+Design Principles:
+- Simple: Only 6 exception classes for severity levels
+- Flexible: Distinguish domains through error codes
+- Extensible: New error types only require defining error codes
+- Easy to use: ErrorCode objects automatically map error codes to severity levels
 """
 
 from enum import Enum
@@ -17,26 +17,26 @@ import re
 
 
 class ErrorSeverity(Enum):
-    """错误严重级别"""
+    """Error severity level"""
 
-    FATAL = "FATAL"  # 致命错误：立即终止程序
-    CRITICAL = "CRITICAL"  # 严重错误：阻断当前操作，需要用户干预
-    ERROR = "ERROR"  # 错误：记录错误，返回给调用方
-    WARNING = "WARNING"  # 警告：UI警告但不阻止流程
-    NOTICE = "NOTICE"  # 通知：需要用户注意但允许执行
-    INFO = "INFO"  # 信息：仅记录日志
+    FATAL = "FATAL"  # Fatal error: immediate program termination
+    CRITICAL = "CRITICAL"  # Critical error: blocks current operation, requires user intervention
+    ERROR = "ERROR"  # Error: log error, return to caller
+    WARNING = "WARNING"  # Warning: UI warning but does not block flow
+    NOTICE = "NOTICE"  # Notice: requires user attention but allows execution
+    INFO = "INFO"  # Info: log only
 
 
 class IntelliSearchError(Exception):
-    """IntelliSearch 异常基类"""
+    """IntelliSearch exception base class"""
 
-    # 默认错误码（子类可覆盖）
+    # Default error code (can be overridden by subclasses)
     error_code: str = "UNKNOWN"
 
-    # 默认用户友好的错误消息
+    # Default user-friendly error message
     default_message: str = "An unknown error occurred in IntelliSearch"
 
-    # 严重级别（子类必须定义）
+    # Severity level (must be defined by subclasses)
     severity: ErrorSeverity = ErrorSeverity.ERROR
 
     def __init__(
@@ -48,16 +48,16 @@ class IntelliSearchError(Exception):
         recovery_suggestion: Optional[str] = None,
     ) -> None:
         """
-        初始化异常
+        Initialize exception
 
         Args:
-            error_code: 错误码（格式：XXX_###，如 MCP_001）
-            message: 错误消息（覆盖默认消息）
-            context: 上下文信息字典
-            cause: 原始异常（用于异常链）
-            recovery_suggestion: 恢复建议（可选）
+            error_code: Error code (format: DOMAIN_TYPE_SPECIFIC, e.g., MCP_CONNECTION_ERROR)
+            message: Error message (overrides default message)
+            context: Context information dictionary
+            cause: Original exception (for exception chaining)
+            recovery_suggestion: Recovery suggestion (optional)
         """
-        # 使用传入的错误码或类定义的默认值
+        # Use provided error code or class-defined default value
         self.error_code = error_code or self.error_code or "UNKNOWN"
         self.message = message or self.default_message
         self.context = context or {}
@@ -66,25 +66,25 @@ class IntelliSearchError(Exception):
         super().__init__(self.message)
 
     def __init_subclass__(cls, **kwargs):
-        """在子类创建时验证严重级别"""
+        """Validate severity level when subclass is created"""
         super().__init_subclass__(**kwargs)
 
         if cls is IntelliSearchError:
-            return  # 跳过基类本身
+            return  # Skip base class itself
 
-        # 验证子类是否定义了 severity
+        # Validate that subclass has defined severity
         if not hasattr(cls, "severity") or not isinstance(cls.severity, ErrorSeverity):
             raise TypeError(
-                f"{cls.__name__} 必须定义 severity 属性（ErrorSeverity 类型）"
+                f"{cls.__name__} must define severity attribute (of type ErrorSeverity)"
             )
 
     def add_context(self, key: str, value: Any) -> "IntelliSearchError":
-        """添加上下文信息"""
+        """Add context information"""
         self.context[key] = value
         return self
 
     def to_dict(self) -> Dict[str, Any]:
-        """序列化为字典（用于日志和API响应）"""
+        """Serialize to dictionary (for logging and API responses)"""
         return {
             "error_code": self.error_code,
             "message": self.message,
@@ -95,17 +95,17 @@ class IntelliSearchError(Exception):
         }
 
     def format_user_message(self) -> str:
-        """生成用户友好的格式化消息"""
+        """Generate user-friendly formatted message"""
         msg = f"[{self.error_code}] {self.message}"
         if self.context and self.severity == ErrorSeverity.ERROR:
             details = ", ".join(f"{k}={v}" for k, v in self.context.items())
-            msg += f"\n详情: {details}"
+            msg += f"\nDetails: {details}"
         if self.recovery_suggestion:
-            msg += f"\n💡 建议: {self.recovery_suggestion}"
+            msg += f"\n💡 Suggestion: {self.recovery_suggestion}"
         return msg
 
     def format_debug_message(self) -> str:
-        """生成包含技术细节的调试消息"""
+        """Generate debug message with technical details"""
         msg = f"{self.__class__.__name__} [{self.error_code}]: {self.message}"
         if self.context:
             msg += f"\nContext: {self.context}"
@@ -114,19 +114,19 @@ class IntelliSearchError(Exception):
         return msg
 
 
-# ============ 6个严重级别的异常类 ============
+# ============ 6 Exception Classes for Severity Levels ============
 
 
 class FatalError(IntelliSearchError):
     """
-    致命错误：立即终止程序
+    Fatal error: immediate program termination
 
-    适用场景：
-    - 配置文件损坏或缺失
-    - 系统初始化失败
-    - 无法恢复的系统错误
+    Use cases:
+    - Corrupted or missing configuration files
+    - System initialization failure
+    - Unrecoverable system errors
 
-    错误码示例：CFG_001, SYS_001
+    Error code examples: CFG_LOAD_ERROR, SYS_INIT_ERROR
     """
 
     severity = ErrorSeverity.FATAL
@@ -135,14 +135,14 @@ class FatalError(IntelliSearchError):
 
 class CriticalError(IntelliSearchError):
     """
-    严重错误：阻断当前操作，需要用户干预
+    Critical error: blocks current operation, requires user intervention
 
-    适用场景：
-    - MCP 连接失败
-    - Agent 执行失败
-    - 安全验证失败
+    Use cases:
+    - MCP connection failure
+    - Agent execution failure
+    - Security validation failure
 
-    错误码示例：MCP_001, AGT_002, SEC_005
+    Error code examples: MCP_CONNECTION_ERROR, AGT_EXECUTION_ERROR, SEC_VALIDATION_FAILED
     """
 
     severity = ErrorSeverity.CRITICAL
@@ -151,15 +151,15 @@ class CriticalError(IntelliSearchError):
 
 class Error(IntelliSearchError):
     """
-    普通错误：记录错误，返回给调用方
+    Normal error: log error, return to caller
 
-    适用场景：
-    - 工具参数错误
-    - 工具执行失败
-    - 配置验证失败
-    - 超时错误
+    Use cases:
+    - Tool argument error
+    - Tool execution failure
+    - Configuration validation failure
+    - Timeout error
 
-    错误码示例：TOL_002, TOL_003, CFG_002, AGT_003
+    Error code examples: TOL_ARGUMENT_ERROR, TOL_EXECUTION_ERROR, CFG_VALIDATION_ERROR, AGT_TIMEOUT
     """
 
     severity = ErrorSeverity.ERROR
@@ -168,14 +168,14 @@ class Error(IntelliSearchError):
 
 class Warning(IntelliSearchError):
     """
-    警告：UI警告但不阻止流程
+    Warning: UI warning but does not block flow
 
-    适用场景：
-    - 权限不足
-    - 敏感数据泄露风险
-    - 工具不可用
+    Use cases:
+    - Insufficient permissions
+    - Sensitive data disclosure risk
+    - Tool not available
 
-    错误码示例：SEC_001, SEC_004, TOL_001, MCP_002
+    Error code examples: SEC_PERMISSION_DENIED, SEC_SENSITIVE_DATA_RISK, TOL_NOT_AVAILABLE, MCP_TOOL_NOT_FOUND
     """
 
     severity = ErrorSeverity.WARNING
@@ -184,13 +184,13 @@ class Warning(IntelliSearchError):
 
 class Notice(IntelliSearchError):
     """
-    通知：需要用户注意但允许执行
+    Notice: requires user attention but allows execution
 
-    适用场景：
-    - 智能体配置问题
-    - 必需配置缺失
+    Use cases:
+    - Agent configuration issue
+    - Required configuration missing
 
-    错误码示例：AGT_004, CFG_003
+    Error code examples: AGT_CONFIGURATION_ISSUE, CFG_MISSING_REQUIRED
     """
 
     severity = ErrorSeverity.NOTICE
@@ -199,59 +199,59 @@ class Notice(IntelliSearchError):
 
 class Info(IntelliSearchError):
     """
-    信息：仅记录日志
+    Info: log only
 
-    适用场景：
-    - 一般性通知
-    - 调试信息
+    Use cases:
+    - General notification
+    - Debug information
 
-    错误码示例：INF_001, INF_002
+    Error code examples: INF_GENERAL_INFO, INF_DEBUG_INFO
     """
 
     severity = ErrorSeverity.INFO
     default_message = "Informational message"
 
 
-# ============ 其他异常 ============
+# ============ Other Exceptions ============
 
 
 class OtherError(Error):
     """
-    其他异常（用于包装非 IntelliSearchError 的原生异常）
+    Other exception (for wrapping non-IntelliSearchError native exceptions)
 
-    当捕获到非 IntelliSearchError 的原生异常时，会自动包装为 OtherError
+    Non-IntelliSearchError native exceptions are automatically wrapped as OtherError
     """
 
-    error_code = "OTH_001"
+    error_code = "OTH_UNEXPECTED_ERROR"
     default_message = "An unexpected error occurred"
 
     @classmethod
     def from_exception(cls, exc: Exception) -> "OtherError":
         """
-        从原始异常创建 OtherError
+        Create OtherError from original exception
 
         Args:
-            exc: 原始异常
+            exc: Original exception
 
         Returns:
-            OtherError 实例，包含原始异常信息
+            OtherError instance containing original exception information
         """
         import traceback
 
-        # 提取异常信息
+        # Extract exception information
         exc_type = type(exc).__name__
         exc_msg = str(exc)
 
-        # 自动推断 domain
+        # Automatically infer domain
         domain = cls._infer_domain_from_exception(exc)
 
-        # 生成唯一的错误码（运行时）
+        # Generate unique error code (runtime)
         error_code = cls._generate_runtime_error_code()
 
-        # 构建友好的错误消息
+        # Build friendly error message
         message = f"{exc_type}: {exc_msg}"
 
-        # 构建上下文信息
+        # Build context information
         context = {
             "original_type": exc_type,
             "original_message": exc_msg,
@@ -261,11 +261,11 @@ class OtherError(Error):
             ),
         }
 
-        # 如果是标准库异常，添加更多信息
+        # Add more information for standard library exceptions
         if hasattr(exc, "__module__"):
             context["module"] = exc.__module__
 
-        # 创建 OtherError 实例并设置错误码
+        # Create OtherError instance and set error code
         instance = cls(
             error_code=error_code, message=message, context=context, cause=exc
         )
@@ -274,21 +274,21 @@ class OtherError(Error):
     @staticmethod
     def _infer_domain_from_exception(exc: Exception) -> str:
         """
-        从异常堆栈推断 domain
+        Infer domain from exception stack
 
         Args:
-            exc: 原始异常
+            exc: Original exception
 
         Returns:
-            推断的 domain 字符串
+            Inferred domain string
         """
         import traceback
 
-        # 分析堆栈信息
+        # Analyze stack information
         tb_str = traceback.format_exception(type(exc), exc, exc.__traceback__)
         tb_text = "".join(tb_str).lower()
 
-        # 根据堆栈中的关键词推断 domain
+        # Infer domain based on keywords in stack
         if "agent" in tb_text:
             return "AGENT"
         elif "tool" in tb_text:
@@ -307,18 +307,18 @@ class OtherError(Error):
     @staticmethod
     def _generate_runtime_error_code() -> str:
         """
-        生成运行时唯一的错误码
+        Generate runtime unique error code
 
         Returns:
-            格式为 OTH_XXX 的错误码
+            Error code in format OTH_RUNTIME_XXX
         """
         import time
 
         timestamp = int(time.time() * 1000) % 1000
-        return f"OTH_{timestamp:03d}"
+        return f"OTH_RUNTIME_{timestamp:03d}"
 
 
-# ============ 便捷工厂函数（可选）============
+# ============ Convenience Factory Functions (Optional) ============
 
 
 def create_error(
@@ -329,17 +329,17 @@ def create_error(
     cause: Optional[Exception] = None,
 ) -> IntelliSearchError:
     """
-    根据严重级别创建异常的便捷函数
+    Convenience function to create exceptions based on severity level
 
     Args:
-        severity: 严重级别
-        error_code: 错误码（格式：XXX_###）
-        message: 错误消息
-        context: 上下文信息
-        cause: 原始异常
+        severity: Severity level
+        error_code: Error code (format: DOMAIN_TYPE_SPECIFIC)
+        message: Error message
+        context: Context information
+        cause: Original exception
 
     Returns:
-        对应严重级别的异常实例
+        Exception instance corresponding to the severity level
     """
     error_classes = {
         ErrorSeverity.FATAL: FatalError,
@@ -359,20 +359,20 @@ def create_error(
     )
 
 
-# ============ 错误码对象（推荐使用）============
+# ============ Error Code Objects (Recommended) ============
 
 
 class ErrorCode:
     """
-    错误码对象，包含错误码、严重级别、默认消息和恢复建议
+    Error code object containing error code, severity level, default message, and recovery suggestions
 
-    这是推荐的方式，提供了最优雅的错误抛出接口。
-    使用示例：
-        ErrorCodes.MCP_CONNECTION.raise_error("无法连接")
-        ErrorCodes.SEC_PERMISSION_DENIED.raise_error("权限不足")
+    This is the recommended approach, providing the most elegant error throwing interface.
+    Usage examples:
+        ErrorCodes.MCP_CONNECTION_ERROR.raise_error("Unable to connect")
+        ErrorCodes.SEC_PERMISSION_DENIED.raise_error("Permission denied")
     """
 
-    # 用于检测重复错误码的类变量
+    # Class variable for detecting duplicate error codes
     _registered_codes: ClassVar[Set[str]] = set()
 
     def __init__(
@@ -383,28 +383,28 @@ class ErrorCode:
         recovery_suggestion: Optional[str] = None,
     ):
         """
-        初始化错误码对象
+        Initialize error code object
 
         Args:
-            code: 错误码（格式：XXX_###）
-            severity: 严重级别
-            default_message: 默认错误消息
-            recovery_suggestion: 恢复建议（可选）
+            code: Error code (format: DOMAIN_TYPE_SPECIFIC)
+            severity: Severity level
+            default_message: Default error message
+            recovery_suggestion: Recovery suggestion (optional)
 
         Raises:
-            ValueError: 如果错误码格式不正确或重复
+            ValueError: If error code format is incorrect or duplicate
         """
-        # 验证错误码格式：XXX_###（3个字母 + 下划线 + 3个数字）
-        if not re.match(r"^[A-Z]{3}_\d{3}$", code):
+        # Validate error code format: DOMAIN_TYPE_SPECIFIC (uppercase letters and underscores)
+        if not re.match(r"^[A-Z]+_[A-Z_]+$", code):
             raise ValueError(
-                f"错误码格式错误：{code}。正确格式应为 XXX_###（如 MCP_001）"
+                f"Error code format error: {code}. Correct format should be DOMAIN_TYPE_SPECIFIC (e.g., MCP_CONNECTION_ERROR)"
             )
 
-        # 检查错误码是否重复
+        # Check if error code is duplicate
         if code in self._registered_codes:
-            raise ValueError(f"错误码重复：{code} 已被注册")
+            raise ValueError(f"Error code duplicate: {code} already registered")
 
-        # 注册错误码
+        # Register error code
         self._registered_codes.add(code)
 
         self.code = code
@@ -420,16 +420,16 @@ class ErrorCode:
         recovery_suggestion: Optional[str] = None,
     ) -> None:
         """
-        抛出异常，自动使用正确的严重级别
+        Raise exception, automatically using correct severity level
 
         Args:
-            message: 错误消息（可选，使用默认消息）
-            context: 上下文信息
-            cause: 原始异常
-            recovery_suggestion: 恢复建议（可选，默认使用 ErrorCode 的恢复建议）
+            message: Error message (optional, uses default message)
+            context: Context information
+            cause: Original exception
+            recovery_suggestion: Recovery suggestion (optional, defaults to ErrorCode's recovery suggestion)
 
         Raises:
-            对应严重级别的 IntelliSearchError
+            IntelliSearchError corresponding to the severity level
         """
         error = create_error(
             self.severity,
@@ -438,7 +438,7 @@ class ErrorCode:
             context,
             cause,
         )
-        # 设置恢复建议（优先使用传入的，否则使用默认的）
+        # Set recovery suggestion (prioritize provided value, otherwise use default)
         error.recovery_suggestion = recovery_suggestion or self.recovery_suggestion
         raise error
 
@@ -450,16 +450,16 @@ class ErrorCode:
         recovery_suggestion: Optional[str] = None,
     ) -> IntelliSearchError:
         """
-        创建异常对象（不抛出）
+        Create exception object (without raising)
 
         Args:
-            message: 错误消息（可选，使用默认消息）
-            context: 上下文信息
-            cause: 原始异常
-            recovery_suggestion: 恢复建议（可选，默认使用 ErrorCode 的恢复建议）
+            message: Error message (optional, uses default message)
+            context: Context information
+            cause: Original exception
+            recovery_suggestion: Recovery suggestion (optional, defaults to ErrorCode's recovery suggestion)
 
         Returns:
-            对应严重级别的 IntelliSearchError 对象
+            IntelliSearchError object corresponding to the severity level
         """
         error = create_error(
             self.severity,
@@ -468,209 +468,245 @@ class ErrorCode:
             context,
             cause,
         )
-        # 设置恢复建议（优先使用传入的，否则使用默认的）
+        # Set recovery suggestion (prioritize provided value, otherwise use default)
         error.recovery_suggestion = recovery_suggestion or self.recovery_suggestion
         return error
 
     def __str__(self) -> str:
-        """返回错误码字符串"""
+        """Return error code string"""
         return self.code
 
     def __repr__(self) -> str:
-        """返回详细表示"""
+        """Return detailed representation"""
         return f"ErrorCode(code={self.code}, severity={self.severity.value}, message={self.default_message})"
 
 
 class ErrorCodes:
     """
-    错误码常量定义
+    Error code constant definitions
 
-    使用 ErrorCode 对象封装了错误码、严重级别和默认消息。
+    Uses ErrorCode objects to encapsulate error codes, severity levels, and default messages.
 
-    域名前缀：
-    - MCP: MCP 相关错误
-    - SEC: 安全相关错误
-    - AGT: Agent 相关错误
-    - CFG: 配置相关错误
-    - TOL: 工具相关错误
-    - UIR: UI 相关错误
-    - SYS: 系统相关错误
-    - OTH: 其他错误
+    Domain prefixes:
+    - MCP: MCP related errors
+    - SEC: Security related errors
+    - AGT: Agent related errors
+    - CFG: Configuration related errors
+    - TOL: Tool related errors
+    - UIR: UI related errors
+    - SYS: System related errors
+    - OTH: Other errors
 
-    使用示例：
-        # 方式1：最简单，使用默认消息
-        ErrorCodes.MCP_CONNECTION.raise_error()
+    Usage examples:
+        # Method 1: Simplest, using default message
+        ErrorCodes.MCP_CONNECTION_ERROR.raise_error()
 
-        # 方式2：自定义消息
-        ErrorCodes.MCP_CONNECTION.raise_error("无法连接到服务器")
+        # Method 2: Custom message
+        ErrorCodes.MCP_CONNECTION_ERROR.raise_error("Unable to connect to server")
 
-        # 方式3：添加上下文
+        # Method 3: Add context
         ErrorCodes.SEC_PERMISSION_DENIED.raise_error(
-            "权限不足",
+            "Permission denied",
             context={"file": "/etc/passwd"}
         )
 
-        # 方式4：创建异常对象（不抛出）
-        error = ErrorCodes.MCP_CONNECTION.create_error("连接失败")
+        # Method 4: Create exception object (without raising)
+        error = ErrorCodes.MCP_CONNECTION_ERROR.create_error("Connection failed")
     """
 
-    # MCP 相关
-    MCP_CONNECTION = ErrorCode(
-        "MCP_001",
+    # MCP related
+    MCP_CONNECTION_ERROR = ErrorCode(
+        "MCP_CONNECTION_ERROR",
         ErrorSeverity.CRITICAL,
-        "MCP 连接失败",
-        "请检查 MCP 服务器是否正常运行，确认配置中的服务器地址和端口正确",
+        "MCP connection failed",
+        "Please check if MCP server is running normally, confirm server address and port in configuration are correct",
     )
     MCP_TOOL_NOT_FOUND = ErrorCode(
-        "MCP_002",
+        "MCP_TOOL_NOT_FOUND",
         ErrorSeverity.WARNING,
-        "MCP 工具未找到",
-        "请确认工具名称拼写正确，或检查 MCP 服务器是否已注册该工具",
+        "MCP tool not found",
+        "Please confirm tool name spelling is correct, or check if MCP server has registered this tool",
     )
-    MCP_EXECUTION = ErrorCode(
-        "MCP_003",
+    MCP_EXECUTION_ERROR = ErrorCode(
+        "MCP_EXECUTION_ERROR",
         ErrorSeverity.ERROR,
-        "MCP 工具执行失败",
-        "请检查工具参数是否正确，或查看详细错误信息了解失败原因",
+        "MCP tool execution failed",
+        "Please check if tool parameters are correct, or view detailed error information to understand failure reason",
     )
     MCP_TIMEOUT = ErrorCode(
-        "MCP_004",
+        "MCP_TIMEOUT",
         ErrorSeverity.ERROR,
-        "MCP 执行超时",
-        "请稍后重试，或考虑增加超时时间配置",
+        "MCP execution timeout",
+        "Please try again later, or consider increasing timeout configuration",
     )
     MCP_INVALID_RESPONSE = ErrorCode(
-        "MCP_005",
+        "MCP_INVALID_RESPONSE",
         ErrorSeverity.ERROR,
-        "MCP 响应格式错误",
-        "这可能是 MCP 服务器版本不兼容导致的，请检查服务器版本",
+        "MCP response format error",
+        "This may be caused by MCP server version incompatibility, please check server version",
     )
 
-    # 安全相关
+    # Security related
     SEC_PERMISSION_DENIED = ErrorCode(
-        "SEC_001",
+        "SEC_PERMISSION_DENIED",
         ErrorSeverity.WARNING,
-        "权限不足",
-        "请检查您的权限配置，或联系管理员获取所需权限",
+        "Permission denied",
+        "Please check your permission configuration, or contact administrator to obtain required permissions",
     )
     SEC_INVALID_PATH = ErrorCode(
-        "SEC_002",
+        "SEC_INVALID_PATH",
         ErrorSeverity.ERROR,
-        "无效路径",
-        "请确保路径格式正确，且不包含非法字符或相对路径",
+        "Invalid path",
+        "Please ensure path format is correct and does not contain illegal characters or relative paths",
     )
     SEC_DANGEROUS_OPERATION = ErrorCode(
-        "SEC_003",
+        "SEC_DANGEROUS_OPERATION",
         ErrorSeverity.CRITICAL,
-        "危险操作被阻止",
-        "该操作可能对系统造成破坏，请确认操作的安全性或联系管理员",
+        "Dangerous operation blocked",
+        "This operation may cause damage to the system, please confirm operation safety or contact administrator",
     )
-    SEC_SENSITIVE_DATA = ErrorCode(
-        "SEC_004",
+    SEC_SENSITIVE_DATA_RISK = ErrorCode(
+        "SEC_SENSITIVE_DATA_RISK",
         ErrorSeverity.WARNING,
-        "敏感数据泄露风险",
-        "请注意不要在日志或输出中包含敏感信息（如密码、密钥等）",
+        "Sensitive data disclosure risk",
+        "Please be careful not to include sensitive information (such as passwords, keys, etc.) in logs or output",
     )
     SEC_VALIDATION_FAILED = ErrorCode(
-        "SEC_005",
+        "SEC_VALIDATION_FAILED",
         ErrorSeverity.ERROR,
-        "安全验证失败",
-        "请检查您的操作是否符合安全规则，或联系管理员了解详情",
+        "Security validation failed",
+        "Please check if your operation complies with security rules, or contact administrator for details",
     )
 
-    # Agent 相关
-    AGT_INITIALIZATION = ErrorCode(
-        "AGT_001",
+    # Agent related
+    AGT_INITIALIZATION_ERROR = ErrorCode(
+        "AGT_INITIALIZATION_ERROR",
         ErrorSeverity.ERROR,
-        "Agent 初始化失败",
-        "请检查 Agent 配置是否正确，确认必需的配置项都已设置",
+        "Agent initialization failed",
+        "Please check if Agent configuration is correct, confirm all required configuration items are set",
     )
-    AGT_EXECUTION = ErrorCode(
-        "AGT_002",
+    AGT_EXECUTION_ERROR = ErrorCode(
+        "AGT_EXECUTION_ERROR",
         ErrorSeverity.CRITICAL,
-        "Agent 执行失败",
-        "请查看详细错误信息，或尝试重新初始化 Agent",
+        "Agent execution failed",
+        "Please view detailed error information, or try reinitializing Agent",
     )
     AGT_TIMEOUT = ErrorCode(
-        "AGT_003",
+        "AGT_TIMEOUT",
         ErrorSeverity.ERROR,
-        "Agent 响应超时",
-        "请稍后重试，或考虑增加超时时间配置",
+        "Agent response timeout",
+        "Please try again later, or consider increasing timeout configuration",
     )
-    AGT_CONFIGURATION = ErrorCode(
-        "AGT_004",
+    AGT_CONFIGURATION_ISSUE = ErrorCode(
+        "AGT_CONFIGURATION_ISSUE",
         ErrorSeverity.NOTICE,
-        "Agent 配置问题",
-        "建议检查配置文件，确保所有必需的配置项都已正确设置",
+        "Agent configuration issue",
+        "Suggest checking configuration file, ensure all required configuration items are set correctly",
     )
 
-    # 配置相关
-    CFG_LOAD = ErrorCode(
-        "CFG_001",
+    # Configuration related
+    CFG_LOAD_ERROR = ErrorCode(
+        "CFG_LOAD_ERROR",
         ErrorSeverity.FATAL,
-        "配置文件加载失败",
-        "请检查配置文件是否存在、格式是否正确、是否可读",
+        "Configuration file load failed",
+        "Please check if configuration file exists, format is correct, and is readable",
     )
-    CFG_VALIDATION = ErrorCode(
-        "CFG_002",
+    CFG_VALIDATION_ERROR = ErrorCode(
+        "CFG_VALIDATION_ERROR",
         ErrorSeverity.ERROR,
-        "配置验证失败",
-        "请检查配置文件内容是否符合要求，参考配置示例文件",
+        "Configuration validation failed",
+        "Please check if configuration file content meets requirements, refer to configuration example file",
     )
-    CFG_MISSING = ErrorCode(
-        "CFG_003",
+    CFG_MISSING_REQUIRED = ErrorCode(
+        "CFG_MISSING_REQUIRED",
         ErrorSeverity.NOTICE,
-        "必需配置缺失",
-        "请检查配置文件，确保所有必需的配置项都已设置",
+        "Required configuration missing",
+        "Please check configuration file, ensure all required configuration items are set",
     )
 
-    # 工具相关
+    # Tool related
     TOL_NOT_AVAILABLE = ErrorCode(
-        "TOL_001",
+        "TOL_NOT_AVAILABLE",
         ErrorSeverity.WARNING,
-        "工具不可用",
-        "该工具当前不可用，请稍后重试或使用替代工具",
+        "Tool not available",
+        "This tool is currently unavailable, please try again later or use alternative tool",
     )
-    TOL_ARGUMENT = ErrorCode(
-        "TOL_002",
+    TOL_ARGUMENT_ERROR = ErrorCode(
+        "TOL_ARGUMENT_ERROR",
         ErrorSeverity.ERROR,
-        "工具参数错误",
-        "请检查工具参数是否符合要求，参考工具文档",
+        "Tool argument error",
+        "Please check if tool parameters meet requirements, refer to tool documentation",
     )
-    TOL_EXECUTION = ErrorCode(
-        "TOL_003",
+    TOL_EXECUTION_ERROR = ErrorCode(
+        "TOL_EXECUTION_ERROR",
         ErrorSeverity.ERROR,
-        "工具执行失败",
-        "请查看详细错误信息，或尝试使用不同的参数",
+        "Tool execution failed",
+        "Please view detailed error information, or try using different parameters",
     )
 
-    # UI 相关
-    UIR_RENDERING = ErrorCode(
-        "UIR_001", ErrorSeverity.ERROR, "UI 渲染失败", "请尝试刷新页面或重新启动应用"
-    )
-    UIR_USER_INTERACTION = ErrorCode(
-        "UIR_002", ErrorSeverity.ERROR, "用户交互错误", "请重试操作，或联系技术支持"
-    )
-    UIR_EVENT_PIPELINE = ErrorCode(
-        "UIR_003",
+    # UI related
+    UIR_RENDERING_ERROR = ErrorCode(
+        "UIR_RENDERING_ERROR",
         ErrorSeverity.ERROR,
-        "事件管线错误",
-        "请检查事件配置，或重新初始化事件管线",
+        "UI rendering failed",
+        "Please try refreshing page or restarting application",
+    )
+    UIR_USER_INTERACTION_ERROR = ErrorCode(
+        "UIR_USER_INTERACTION_ERROR",
+        ErrorSeverity.ERROR,
+        "User interaction error",
+        "Please retry operation, or contact technical support",
+    )
+    UIR_EVENT_PIPELINE_ERROR = ErrorCode(
+        "UIR_EVENT_PIPELINE_ERROR",
+        ErrorSeverity.ERROR,
+        "Event pipeline error",
+        "Please check event configuration, or reinitialize event pipeline",
     )
 
-    # 系统相关
-    SYS_INIT = ErrorCode(
-        "SYS_001",
+    # System related
+    SYS_INIT_ERROR = ErrorCode(
+        "SYS_INIT_ERROR",
         ErrorSeverity.FATAL,
-        "系统初始化失败",
-        "这可能是严重的系统错误，请检查系统日志或联系技术支持",
+        "System initialization failed",
+        "This may be a serious system error, please check system logs or contact technical support",
     )
-    SYS_IO = ErrorCode(
-        "SYS_002",
+    SYS_IO_ERROR = ErrorCode(
+        "SYS_IO_ERROR",
         ErrorSeverity.ERROR,
-        "IO 错误",
-        "请检查文件或目录是否存在，以及是否有读写权限",
+        "IO error",
+        "Please check if file or directory exists, and if read/write permissions are available",
     )
-    SYS_NETWORK = ErrorCode(
-        "SYS_003", ErrorSeverity.ERROR, "网络错误", "请检查网络连接是否正常，或稍后重试"
+    SYS_NETWORK_ERROR = ErrorCode(
+        "SYS_NETWORK_ERROR",
+        ErrorSeverity.ERROR,
+        "Network error",
+        "Please check if network connection is normal, or try again later",
     )
+
+
+# Automatically register all error codes to error_center
+def _register_all_error_codes():
+    """Automatically register all error codes defined in ErrorCodes class to error_center"""
+    try:
+        from core.error_center import register_error_code
+
+        for attr_name in dir(ErrorCodes):
+            if attr_name.startswith("_"):
+                continue
+            attr = getattr(ErrorCodes, attr_name)
+            if isinstance(attr, ErrorCode):
+                try:
+                    register_error_code(
+                        code=attr.code,
+                        severity=attr.severity,
+                        description=attr.default_message,
+                        suggestions=attr.recovery_suggestion,
+                    )
+                except ValueError:
+                    pass
+    except ImportError:
+        pass
+
+
+_register_all_error_codes()

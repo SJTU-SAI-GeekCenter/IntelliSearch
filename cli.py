@@ -12,37 +12,12 @@ import yaml
 from pathlib import Path
 from rich.console import Console
 from rich.text import Text
-from rich.panel import Panel
 from rich.style import Style
 
-from ui.theme import ThemeColors
+from core.UI import UIEngine
 from backend.cli_backend import CLIBackend
 from config.config_loader import Config
-
-
-def print_logo(console: Console):
-    """Display beautiful SAI-IntelliSearch logo with ASCII art."""
-    logo_art = """
-██╗███╗   ██╗████████╗███████╗██╗     ██╗     ██╗███████╗███████╗ █████╗ ██████╗  ██████╗██╗  ██╗
-██║████╗  ██║╚══██╔══╝██╔════╝██║     ██║     ██║██╔════╝██╔════╝██╔══██╗██╔══██╗██╔════╝██║  ██║
-██║██╔██╗ ██║   ██║   █████╗  ██║     ██║     ██║███████╗█████╗  ███████║██████╔╝██║     ███████║
-██║██║╚██╗██║   ██║   ██╔══╝  ██║     ██║     ██║╚════██║██╔══╝  ██╔══██║██╔══██╗██║     ██╔══██║
-██║██║ ╚████║   ██║   ███████╗███████╗███████╗██║███████║███████╗██║  ██║██║  ██║╚██████╗██║  ██║
-╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝╚══════╝╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
-"""
-
-    logo_text = Text()
-    logo_text.append(logo_art, style=Style(color=ThemeColors.ACCENT, bold=True))
-
-    logo_panel = Panel(
-        logo_text,
-        border_style=Style(color=ThemeColors.PRIMARY),
-        padding=(1, 2),
-        title="[bold]SJTU-SAI Geek Center[/bold]",
-        title_align="right",
-    )
-
-    console.print(logo_panel)
+from core.exceptions import IntelliSearchError
 
 
 def load_agent_config(config_path: str) -> tuple:
@@ -99,7 +74,9 @@ def load_agent_config(config_path: str) -> tuple:
     agent_type = agent_config.get("type", "mcp_base_agent")
     # * cli is not async, thus mcp_async_agent is forbidden
     if agent_type == "mcp_async_agent":
-        print("Warning: mcp_async_agent is not suitable for cli_frontend, use `mcp_base_agent` instead.")
+        print(
+            "Warning: mcp_async_agent is not suitable for cli_frontend, use `mcp_base_agent` instead."
+        )
         agent_type = "mcp_base_agent"
 
     return agent_type, final_config
@@ -131,8 +108,9 @@ def main():
         # Load configuration
         agent_type, agent_config = load_agent_config(config_path)
 
-        # Print logo
-        print_logo(console)
+        # Display welcome message using WelcomeUI component
+        welcome_ui = UIEngine.get_welcome_ui()
+        welcome_ui.display_full_welcome()
 
         # Create and run CLI backend
         backend = CLIBackend(
@@ -148,11 +126,17 @@ def main():
         console.print(Text(f"\nError: {e}", style=Style(color="red")))
         sys.exit(1)
 
-    except ValueError as e:
-        console.print(Text(f"\nConfiguration Error: {e}", style=Style(color="red")))
-        sys.exit(1)
+    except IntelliSearchError as e:
+        # Handle IntelliSearch errors with UI display
+        UIEngine.display_exception(e)
+        # Exit based on error severity
+        if e.severity.value in ["FATAL", "CRITICAL"]:
+            sys.exit(1)
+        else:
+            sys.exit(0)
 
     except Exception as e:
+        # Handle unknown errors
         console.print(Text(f"\nFatal error: {e}", style=Style(color="red")))
         traceback.print_exc()
         sys.exit(1)
