@@ -7,7 +7,7 @@ delivering real-time tool call updates and content generation.
 
 import os
 import asyncio
-from typing import List, Dict, Any, Optional, AsyncGenerator
+from typing import List, Dict, Any, Optional, AsyncGenerator, Callable
 from datetime import datetime
 from openai import OpenAI
 from core.base import BaseAgent
@@ -19,7 +19,7 @@ from config.config_loader import Config
 
 
 # Type alias for status callback function
-StatusCallback = Optional[callable]
+StatusCallback = Optional[Callable[[str, str], None]]
 
 
 class MCPAsyncAgent(BaseAgent):
@@ -220,7 +220,9 @@ class MCPAsyncAgent(BaseAgent):
 
             # Store for later use
             self.available_tools = available_tools_dict
-            self.logger.info(f"Available tools nums: {len(list(available_tools_dict.keys()))}")
+            self.logger.info(
+                f"Available tools nums: {len(list(available_tools_dict.keys()))}"
+            )
             self.logger.info(f"Available tools: {list(available_tools_dict.keys())}")
 
             tools = self._format_tools_for_llm(available_tools_dict)
@@ -247,9 +249,9 @@ class MCPAsyncAgent(BaseAgent):
                         self.client.chat.completions.create,
                         model=self.model_name,
                         messages=messages,
-                        tools=tools
+                        tools=tools,
                     ),
-                    timeout=llm_timeout
+                    timeout=llm_timeout,
                 )
 
                 # Check for tool calls
@@ -263,49 +265,31 @@ class MCPAsyncAgent(BaseAgent):
                     self.memory.add(completion.choices[0].message.model_dump())
 
                     # Execute tool calls
-                    try:
-                        tool_results = await self.mcp_base.execute_tool_calls(
-                            tool_call_lists, self.available_tools
+
+                    tool_results = await self.mcp_base.execute_tool_calls(
+                        tool_call_lists, self.available_tools
+                    )
+                    # Yield tool call events in real-time
+                    for tool_detail in tool_results.get("tools_detailed", []):
+                        # Tool call start event
+                        yield {"type": "tool_call_start", "data": tool_detail}
+                        self._notify_status(
+                            "tool", f"Tool completed: {tool_detail['name']}"
                         )
 
-                        # Yield tool call events in real-time
-                        for tool_detail in tool_results.get("tools_detailed", []):
-                            # Tool call start event
-                            yield {"type": "tool_call_start", "data": tool_detail}
+                        # Tool result event
+                        yield {"type": "tool_result", "data": tool_detail}
 
-                            self._notify_status(
-                                "tool", f"Tool completed: {tool_detail['name']}"
-                            )
+                    tools_used.extend(tool_results["tools_used"])
 
-                            # Tool result event
-                            yield {"type": "tool_result", "data": tool_detail}
+                    # Store detailed tool information for web UI
+                    if "tools_detailed" in tool_results:
+                        if not hasattr(self, "_tools_detailed"):
+                            self._tools_detailed = []
+                        self._tools_detailed.extend(tool_results["tools_detailed"])
 
-                        tools_used.extend(tool_results["tools_used"])
-
-                        # Store detailed tool information for web UI
-                        if "tools_detailed" in tool_results:
-                            if not hasattr(self, "_tools_detailed"):
-                                self._tools_detailed = []
-                            self._tools_detailed.extend(tool_results["tools_detailed"])
-
-                        self.memory.add_many(tool_results["history"])
-                        continue
-
-                    except Exception as tool_exc:
-                        error_text = str(tool_exc)
-                        if (
-                            "Access Denied" in error_text
-                            or "denied" in error_text.lower()
-                        ):
-                            # Rollback on permission denied
-                            if (
-                                hasattr(self.memory, "entries")
-                                and self.memory.entries
-                                and self.memory.entries[-1].get("role") == "assistant"
-                            ):
-                                self.memory.entries.pop()
-                        raise
-
+                    self.memory.add_many(tool_results["history"])
+                    continue
                 else:
                     # No tool calls, generate final response
                     self._notify_status("summarizing", "Generating final response...")
@@ -344,9 +328,6 @@ class MCPAsyncAgent(BaseAgent):
 
         except Exception as e:
             error_text = str(e)
-            if "Access Denied" not in error_text and "denied" not in error_text.lower():
-                self.logger.error(f"Inference error: {e}", exc_info=True)
-
             yield {"type": "error", "data": error_text}
 
     def _format_tools_for_llm(self, tools: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -377,9 +358,9 @@ class MCPAsyncAgent(BaseAgent):
             asyncio.to_thread(
                 self.client.chat.completions.create,
                 model=self.model_name,
-                messages=messages
+                messages=messages,
             ),
-            timeout=llm_timeout
+            timeout=llm_timeout,
         )
 
         final_answer = completion.choices[0].message.content

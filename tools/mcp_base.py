@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional
 
 from tools.server_manager import MultiServerManager
 from mcp.types import CallToolResult
-from ui.tool_ui import tool_ui
+from core.UI.tool_ui import tool_ui
 from tools.tool_hash import fix_tool_args
 from core.logger import get_logger
 
@@ -195,8 +195,8 @@ class MCPBase:
                     self.logger.info(f"Tool arguments: {tool_args}")
 
                     # Display tool input with styled UI
-                    tool_ui.display_tool_input(tool_name_long, tool_args)
                     tool_ui.display_execution_status("executing")
+                    tool_ui.display_tool_input(tool_name_long, tool_args)
 
                     # Fix tool arguments if needed
                     tool_args = fix_tool_args(
@@ -223,13 +223,6 @@ class MCPBase:
                             else "Unknown Tool Error"
                         )
 
-                        # 如果包含权限拒绝信息，主动抛出异常以触发 UI 交互
-                        if (
-                            "Access Denied" in full_error_msg
-                            or "denied" in full_error_msg.lower()
-                        ):
-                            raise Exception(full_error_msg)
-
                     # Safe result extraction
                     result_text = ""
                     try:
@@ -253,37 +246,16 @@ class MCPBase:
 
                     except Exception as extract_err:
                         error_msg = str(extract_err)
-                        if (
-                            "Access Denied" in error_msg
-                            or "denied" in error_msg.lower()
-                        ):
-                            raise extract_err
-
                         self.logger.error(
                             f"Error extracting tool result: {extract_err} | Result type: {type(result)} | Result: {result}"
                         )
                         result_text = f"Error processing tool output: {extract_err}"
-
-                    # Double Check: 即使 isError=False，内容里如果包含 Access Denied 也要拦截
-                    if (
-                        "Access Denied" in result_text
-                        or "denied" in result_text.lower()
-                    ):
-                        # 注意：这里需要谨慎，防止误杀包含 "access denied" 的普通文本内容
-                        # 但对于 filesystem 操作来说，通常是可以接受的
-                        if tool_name_long and "filesystem" in tool_name_long:
-                            raise Exception(result_text)
-
                     # Display result with styled UI
                     tool_ui.display_execution_status("completed")
                     tool_ui.display_tool_result(result_text, max_length=500)
 
                 except Exception as e:
-                    # 重新抛出 SecurityError 相关的权限异常，以便 cli.py 捕获并处理 UI 交互
                     error_msg = str(e)
-                    if "Access Denied" in error_msg or "denied" in error_msg.lower():
-                        raise e
-
                     error_msg = f"Tool execution failed: {e}"
                     tool_ui.display_tool_error(error_msg)
                     result_text = error_msg
@@ -292,12 +264,14 @@ class MCPBase:
                 tools_used.append(tool_name_long or tool_name)
 
                 # Store detailed tool call information for frontend
-                tools_detailed.append({
-                    "name": tool_name_long or tool_name,
-                    "arguments": tool_args,
-                    "result": result_text,
-                    "success": not result_text.startswith("Error")
-                })
+                tools_detailed.append(
+                    {
+                        "name": tool_name_long or tool_name,
+                        "arguments": tool_args,
+                        "result": result_text,
+                        "success": not result_text.startswith("Error"),
+                    }
+                )
 
             # Add result to history
             tool_results_for_history.append(
@@ -311,7 +285,7 @@ class MCPBase:
         return {
             "tools_used": tools_used,
             "history": tool_results_for_history,
-            "tools_detailed": tools_detailed
+            "tools_detailed": tools_detailed,
         }
 
     async def get_tool_response(

@@ -8,18 +8,11 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-try:
-    # Try direct imports first (for script execution)
-    from list_ops import list_directory_impl, list_tree_impl
-    from read_ops import read_file_impl, search_files_impl
-    from write_ops import write_file_impl, append_file_impl
-    from manage_ops import mkdir_impl, rm_impl, mv_impl, copy_impl
-except ImportError:
-    # Fallback to relative imports (for module execution)
-    from .list_ops import list_directory_impl, list_tree_impl
-    from .read_ops import read_file_impl, search_files_impl
-    from .write_ops import write_file_impl, append_file_impl
-    from .manage_ops import mkdir_impl, rm_impl, mv_impl, copy_impl
+# Direct imports - let any ImportError propagate to be caught by server_manager
+from list_ops import list_directory_impl, list_tree_impl
+from read_ops import read_file_impl, search_files_impl
+from write_ops import write_file_impl, append_file_impl
+from manage_ops import mkdir_impl, rm_impl, mv_impl, copy_impl
 
 # Initialize FastMCP Server
 mcp = FastMCP("operate_file")

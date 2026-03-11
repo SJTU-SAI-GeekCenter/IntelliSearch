@@ -11,6 +11,8 @@ import yaml
 import os
 from typing import Dict, Any, Optional, List
 from pathlib import Path
+from core.exceptions import ErrorCodes
+from core.UI import UIEngine
 
 
 class Config:
@@ -18,7 +20,7 @@ class Config:
     Global configuration manager for IntelliSearch.
 
     This class loads configuration from a YAML file and applies environment variables.
-    It should be initialized once at application startup with the config file path.
+    It should be initialized once at application startup with config file path.
 
     Example:
         >>> from config.config_loader import Config
@@ -87,7 +89,7 @@ class Config:
 
     def load_config(self, override: bool = True) -> None:
         """
-        Load configuration from YAML file and apply environment variables.
+        Load the configuration from the YAML file and apply environment variables.
 
         This method:
         1. Loads the YAML configuration file
@@ -97,17 +99,26 @@ class Config:
         Args:
             override: If True, config env vars override existing os.environ.
                      If False, only set vars that don't exist in os.environ.
+
+        Raises:
+            FatalError: If config file is not found (FATAL level)
+            FatalError: If config file cannot be loaded or parsed (FATAL level)
         """
         config_path = Path(self.config_file_path)
 
         if not config_path.exists():
-            raise FileNotFoundError(f"Config file not found: {config_path}")
+            UIEngine.display_exception("CFG_LOAD_ERROR")
+            raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 Config._config = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            UIEngine.display_exception("CFG_LOAD_ERROR")
+            raise
         except Exception as e:
-            raise RuntimeError(f"Failed to load config file {config_path}: {e}")
+            UIEngine.display_exception("CFG_LOAD_ERROR")
+            raise
 
         # Apply environment variables from config to os.environ
         self._apply_env_variables(override)
@@ -132,7 +143,7 @@ class Config:
 
     def get(self, key_path: str, default: Any = None) -> Any:
         """
-        Get configuration value through dot-separated path.
+        Get the configuration value through dot-separated path.
 
         Args:
             key_path: Dot-separated configuration path, e.g. 'agent.model_name'
@@ -148,9 +159,7 @@ class Config:
             60
         """
         if Config._config is None:
-            raise RuntimeError(
-                "Config not loaded. Call load_config() first."
-            )
+            raise RuntimeError("Config not loaded. Call load_config() first.")
 
         keys = key_path.split(".")
         value = Config._config
@@ -167,7 +176,7 @@ class Config:
         self, key_path: str, default: Any = None, env_prefix: str = "TOOL_BACKEND"
     ) -> Any:
         """
-        Get configuration value with environment variable override support.
+        Get the configuration value with environment variable override support.
 
         This method checks for environment variables first before falling back to
         the configuration file. Environment variables should be named in format:
@@ -190,14 +199,14 @@ class Config:
             39256
         """
         if Config._config is None:
-            raise RuntimeError(
-                "Config not loaded. Call load_config() first."
-            )
+            raise RuntimeError("Config not loaded. Call load_config() first.")
 
         # *Generate environment variable name, for tool backends
         # Convert: "tool_backend.ipython_backend_port" -> "TOOL_BACKEND_IPYTHON_BACKEND_PORT"
         env_var_name = "_".join(key_path.split(".")).upper()
-        full_env_var_name = f"{env_prefix}_{env_var_name}" if env_prefix else env_var_name
+        full_env_var_name = (
+            f"{env_prefix}_{env_var_name}" if env_prefix else env_var_name
+        )
 
         # Check environment variable first
         if full_env_var_name in os.environ:
@@ -225,14 +234,12 @@ class Config:
             The complete configuration dictionary
         """
         if Config._config is None:
-            raise RuntimeError(
-                "Config not loaded. Call load_config() first."
-            )
+            raise RuntimeError("Config not loaded. Call load_config() first.")
         return Config._config
 
     def reload(self, override: bool = True) -> None:
         """
-        Reload configuration from file.
+        Reload the configuration from file.
 
         Args:
             override: If True, config env vars override existing os.environ.
@@ -242,7 +249,7 @@ class Config:
 
 # Convenience functions for backward compatibility and easy access
 def get_mcp_timeout() -> int:
-    """Get MCP HTTP timeout.
+    """Get the MCP HTTP timeout.
 
     Returns:
         HTTP timeout in seconds
@@ -252,7 +259,7 @@ def get_mcp_timeout() -> int:
 
 
 def is_cache_enabled() -> bool:
-    """Check if tool cache is enabled.
+    """Check if the tool cache is enabled.
 
     Returns:
         True if cache is enabled
@@ -262,7 +269,7 @@ def is_cache_enabled() -> bool:
 
 
 def get_cache_dir() -> str:
-    """Get cache directory path.
+    """Get the cache directory path.
 
     Returns:
         Path to cache directory
@@ -272,7 +279,7 @@ def get_cache_dir() -> str:
 
 
 def get_cache_ttl() -> int:
-    """Get cache TTL in hours.
+    """Get the cache TTL in hours.
 
     Returns:
         Cache TTL in hours (0 for permanent)
@@ -282,7 +289,7 @@ def get_cache_ttl() -> int:
 
 
 def get_cache_server_whitelist() -> List[str]:
-    """Get list of servers whose tools should be cached.
+    """Get the list of servers whose tools should be cached.
 
     Returns:
         List of server names to cache (empty list means cache all)
