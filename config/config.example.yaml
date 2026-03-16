@@ -220,3 +220,23 @@ rag:
   
   initialization:
     load_dir: <YOUR_PWD>/data/RAG
+
+# Code Backend Configuration (OpenAI-compatible API)
+code_backend:
+  # Server host and port
+  host: "0.0.0.0"
+  port: 8002
+
+  # Agent configuration for Code Backend
+  agent:
+    type: mcp_base_agent
+    model_name: intellisearch
+    name: CodeBackendAgent
+    max_tool_call: 20
+    server_config_path: config/config.yaml
+    system_prompt_path: prompts/sys_zh.md
+
+  # API authentication
+  require_api_key: true
+  api_keys:
+    - your-api-key
