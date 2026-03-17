@@ -775,7 +775,9 @@ class CLIBackend:
                     response = self.service.process_request_sync(request)
 
                     if response.status == "cancelled":
-                        console.print(Text("Cancelled.", style=Style(color=ThemeColors.WARNING)))
+                        console.print(
+                            Text("Cancelled.", style=Style(color=ThemeColors.WARNING))
+                        )
                         console.print()
                         continue
 
