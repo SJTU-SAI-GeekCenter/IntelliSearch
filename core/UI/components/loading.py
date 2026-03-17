@@ -14,7 +14,7 @@ from typing import Optional, Any
 from dataclasses import dataclass
 from core.UI.theme import ThemeColors
 from core.UI.console import console
-from core.UI.live import live
+from core.UI.live import live, start_live, stop_live
 
 
 @dataclass
@@ -48,19 +48,14 @@ class LoadingPanel:
         >>> panel.success("Data processed successfully!")
     """
 
-    def __init__(self, console=None):
+    def __init__(self):
         """
         Initialize LoadingPanel.
-
-        Args:
-            console: Rich console instance (optional)
         """
-        console = console
         self._active = False
         self._current_state: Optional[LoadingState] = None
         self._spinner_frame = 0
         self._animation_thread: Optional[threading.Thread] = None
-        self._live: Optional[object] = None  # Standalone Live instance
         self._stop_event = threading.Event()  # Event to signal animation to stop
 
         # Spinner characters for different styles
@@ -145,9 +140,9 @@ class LoadingPanel:
         """Animation loop for live display."""
         while self._active and not self._stop_event.is_set():
             panel = self._get_panel()
-            if panel and self._live:
+            if panel and live:
                 try:
-                    self._live.update(panel)
+                    live.update(panel)
                 except Exception:
                     pass
             time.sleep(0.1)  # 100ms per frame
@@ -187,9 +182,7 @@ class LoadingPanel:
         # Create and start Live instance
         panel = self._get_panel()
         if panel:
-            self._live = live
-            self._live.start()
-            time.sleep(2)
+            start_live()
             # Start animation thread
             self._animation_thread = threading.Thread(
                 target=self._animate_loop, daemon=True
@@ -212,12 +205,11 @@ class LoadingPanel:
         self._stop_event.set()
 
         # Stop Live instance
-        if self._live:
+        if live:
             try:
-                self._live.stop()
+                stop_live()
             except Exception:
                 pass
-            self._live = None
 
         # Wait for animation thread to finish
         if self._animation_thread:
@@ -268,13 +260,9 @@ class LoadingPanel:
         panel = self._get_panel()
         if panel:
             try:
-                from rich.live import Live
-
-                self._live = live
-                self._live.start()
+                start_live()
             except Exception:
-                if console:
-                    console.print(panel)
+                console.print(panel)
 
         # Auto-clear if requested
         if auto_clear:
@@ -306,13 +294,9 @@ class LoadingPanel:
         panel = self._get_panel()
         if panel:
             try:
-                from rich.live import Live
-
-                self._live = live
-                self._live.start()
+                start_live()
             except Exception:
-                if console:
-                    console.print(panel)
+                console.print(panel)
 
         # Auto-clear if requested
         if auto_clear:
@@ -378,12 +362,7 @@ class LoadingPanel:
             )
 
         # Print to console
-        if console:
-            console.print(panel)
-        else:
-            from rich.console import Console
-
-            Console().print(panel)
+        console.print(panel)
 
     def clear(self):
         """
@@ -399,12 +378,9 @@ class LoadingPanel:
 # ============ 工厂函数 ============
 
 
-def create_loading_panel(console=None) -> LoadingPanel:
+def create_loading_panel() -> LoadingPanel:
     """
     创建 LoadingPanel 实例的工厂函数。
-
-    Args:
-        console: Rich console instance (optional)
 
     Returns:
         LoadingPanel 实例
@@ -419,4 +395,4 @@ def create_loading_panel(console=None) -> LoadingPanel:
         >>> panel = LoadingPanel()
         >>> panel.start_loading("Loading...")
     """
-    return LoadingPanel(console=console)
+    return LoadingPanel()

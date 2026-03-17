@@ -11,6 +11,7 @@ import random
 import socket
 import subprocess
 import aiohttp
+import traceback
 import config.config_loader as config_loader
 from typing import List, Dict, Any, Optional
 from mcp import ClientSession, StdioServerParameters
@@ -216,7 +217,6 @@ class MCPConnector:
                 self.logger.error(
                     f"ERROR in attempt {attempt + 1} for {self.server_name}: {e}"
                 )
-                import traceback
 
                 self.logger.error(f"Full traceback: {traceback.format_exc()}")
                 if attempt < max_port_attempts - 1:
@@ -376,7 +376,6 @@ class MCPConnector:
                 TOOL_CALL_ERROR,
                 f"ERROR in discovering tools from HTTP server {self.server_name}: {e}",
             )
-            import traceback
 
             self.logger.log(
                 TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
@@ -503,7 +502,6 @@ class MCPConnector:
                 TOOL_CALL_ERROR,
                 f"ERROR in discovering tools from SSE server {self.server_name}: {e}",
             )
-            import traceback
 
             self.logger.log(
                 TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
@@ -668,7 +666,6 @@ class MCPConnector:
                 TOOL_CALL_ERROR,
                 f"ERROR in discovering tools from URL server {self.server_name}: {e}",
             )
-            import traceback
 
             self.logger.log(
                 TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
@@ -728,7 +725,6 @@ class MCPConnector:
                 self.logger.error(
                     f"ERROR in stopping HTTP server for {self.server_name}: {e}"
                 )
-                import traceback
 
                 self.logger.error(f"Full traceback: {traceback.format_exc()}")
             finally:
@@ -799,7 +795,6 @@ class MCPConnector:
             self.logger.error(
                 f"ERROR in stopping SSE server for {self.server_name}: {e}"
             )
-            import traceback
 
             self.logger.error(f"Full traceback: {traceback.format_exc()}")
             raise
@@ -945,7 +940,6 @@ class MCPConnector:
             self.logger.log(
                 TOOL_CALL_ERROR, f"ERROR in calling SSE tool '{tool_name}': {e}"
             )
-            import traceback
 
             self.logger.log(
                 TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
@@ -1050,7 +1044,6 @@ class MCPConnector:
             self.logger.log(
                 TOOL_CALL_ERROR, f"ERROR in calling URL tool '{tool_name}': {e}"
             )
-            import traceback
 
             self.logger.log(
                 TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
@@ -1074,7 +1067,6 @@ class MCPConnector:
             self.logger.error(
                 f"ERROR in stopping URL server for {self.server_name}: {e}"
             )
-            import traceback
 
             self.logger.error(f"Full traceback: {traceback.format_exc()}")
             raise

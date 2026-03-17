@@ -143,7 +143,7 @@ class MultiServerManager:
             # Display error via UI
             UIEngine.display_exception(
                 ErrorCodes.MCP_CONNECTION_ERROR.create_error(
-                    message=f"无法连接到 MCP 服务器 {server_name}",
+                    message=f"Unable to connect to MCP server {server_name}",
                     context={"server_name": server_name, "transport": "stdio"},
                 )
             )
@@ -170,7 +170,7 @@ class MultiServerManager:
             # Display error via UI
             UIEngine.display_exception(
                 ErrorCodes.MCP_CONNECTION_ERROR.create_error(
-                    message=f"无法连接到 MCP 服务器 {server_name}",
+                    message=f"Unable to connect to MCP server {server_name}",
                     context={"server_name": server_name, "transport": "http"},
                 )
             )
@@ -197,7 +197,7 @@ class MultiServerManager:
             # Display error via UI
             UIEngine.display_exception(
                 ErrorCodes.MCP_CONNECTION_ERROR.create_error(
-                    message=f"无法连接到 MCP 服务器 {server_name}",
+                    message=f"Unable to connect to MCP server {server_name}",
                     context={"server_name": server_name, "transport": "sse"},
                 )
             )
@@ -221,7 +221,7 @@ class MultiServerManager:
             # Display error via UI
             UIEngine.display_exception(
                 ErrorCodes.MCP_CONNECTION_ERROR.create_error(
-                    message=f"无法连接到 MCP 服务器 {server_name}",
+                    message=f"Unable to connect to MCP server {server_name}",
                     context={
                         "server_name": server_name,
                         "transport": connector.transport_type,

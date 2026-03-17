@@ -113,6 +113,83 @@ class IntelliSearchError(Exception):
             msg += f"\nCaused by: {type(self.cause).__name__}: {self.cause}"
         return msg
 
+    def display_exception(self, show_traceback: bool = False) -> None:
+        """
+        Display exception in UI using DisplayControl
+
+        Args:
+            show_traceback: Whether to show detailed traceback information (for debugging)
+        """
+        try:
+            from core.UI.components.display import (
+                create_error_display,
+                create_fatal_display,
+                create_critical_display,
+                create_warning_display,
+                create_notice_display,
+            )
+            from core.UI.console import console
+
+            # Map severity to display style
+            severity_style_map = {
+                ErrorSeverity.FATAL: create_fatal_display,
+                ErrorSeverity.CRITICAL: create_critical_display,
+                ErrorSeverity.ERROR: create_error_display,
+                ErrorSeverity.WARNING: create_warning_display,
+                ErrorSeverity.NOTICE: create_notice_display,
+                ErrorSeverity.INFO: create_error_display,  # Use error style for info
+            }
+
+            # Get appropriate display creator
+            display_creator = severity_style_map.get(
+                self.severity, create_error_display
+            )
+
+            # Build display text
+            display_text = f"[{self.error_code}] {self.message}"
+
+            # Add context if available
+            if self.context:
+                context_str = ", ".join(f"{k}={v}" for k, v in self.context.items())
+                display_text += f"\n\nContext: {context_str}"
+
+            # Add recovery suggestion if available
+            if self.recovery_suggestion:
+                display_text += f"\n\n💡 Suggestion: {self.recovery_suggestion}"
+
+            # Add cause if available
+            if self.cause:
+                display_text += (
+                    f"\n\nCaused by: {type(self.cause).__name__}: {self.cause}"
+                )
+
+            # Add traceback if requested
+            if show_traceback and self.cause and hasattr(self.cause, "__traceback__"):
+                import traceback
+
+                tb_text = "".join(
+                    traceback.format_exception(
+                        type(self.cause), self.cause, self.cause.__traceback__
+                    )
+                )
+                display_text += f"\n\nTraceback:\n{tb_text}"
+
+            # Create and display
+            display = display_creator(text=display_text)
+            console.print(display)
+
+        except ImportError:
+            # Fallback to simple print if UI components are not available
+            print(f"[{self.severity.value}] {self.error_code}: {self.message}")
+            if self.recovery_suggestion:
+                print(f"💡 Suggestion: {self.recovery_suggestion}")
+            if self.cause:
+                print(f"Caused by: {type(self.cause).__name__}: {self.cause}")
+            if show_traceback and self.cause and hasattr(self.cause, "__traceback__"):
+                import traceback
+
+                traceback.print_exc()
+
 
 # ============ 6 Exception Classes for Severity Levels ============
 
@@ -226,12 +303,21 @@ class OtherError(Error):
     default_message = "An unexpected error occurred"
 
     @classmethod
-    def from_exception(cls, exc: Exception) -> "OtherError":
+    def from_exception(
+        cls,
+        exc: Exception,
+        error_code: Optional[str] = None,
+        severity: Optional[ErrorSeverity] = None,
+    ) -> "OtherError":
         """
         Create OtherError from original exception
 
         Args:
             exc: Original exception
+            error_code: Custom error code (optional, format: DOMAIN_TYPE_SPECIFIC, e.g., OTH_CUSTOM_ERROR).
+                       If not provided, a runtime error code will be generated automatically.
+            severity: Custom severity level (optional). If not provided, defaults to ERROR level.
+                      Must be one of: FATAL, CRITICAL, ERROR, WARNING, NOTICE, INFO
 
         Returns:
             OtherError instance containing original exception information
@@ -245,8 +331,20 @@ class OtherError(Error):
         # Automatically infer domain
         domain = cls._infer_domain_from_exception(exc)
 
-        # Generate unique error code (runtime)
-        error_code = cls._generate_runtime_error_code()
+        # Use provided error code or generate runtime error code
+        if error_code:
+            # Validate custom error code format: uppercase letters, numbers, and underscores
+            # Format: DOMAIN_SPECIFIC (e.g., OTH_CUSTOM_ERROR_1)
+            if not re.match(r"^[A-Z][A-Z0-9]*(_[A-Z0-9_]+)*$", error_code):
+                raise ValueError(
+                    f"Custom error code format error: {error_code}. Correct format should be DOMAIN_SPECIFIC (e.g., OTH_CUSTOM_ERROR or OTH_CUSTOM_ERROR_1)"
+                )
+            # Ensure error code starts with OTH_ prefix for OtherError
+            if not error_code.startswith("OTH_"):
+                error_code = f"OTH_{error_code}"
+        else:
+            # Generate unique error code (runtime)
+            error_code = cls._generate_runtime_error_code()
 
         # Build friendly error message
         message = f"{exc_type}: {exc_msg}"
@@ -265,10 +363,20 @@ class OtherError(Error):
         if hasattr(exc, "__module__"):
             context["module"] = exc.__module__
 
-        # Create OtherError instance and set error code
+        # Create OtherError instance
+        # Note: We need to create the instance first, then override severity if provided
         instance = cls(
             error_code=error_code, message=message, context=context, cause=exc
         )
+
+        # Override severity if custom severity is provided
+        if severity is not None:
+            if not isinstance(severity, ErrorSeverity):
+                raise ValueError(
+                    f"Severity must be an ErrorSeverity enum value, got {type(severity)}"
+                )
+            instance.severity = severity
+
         return instance
 
     @staticmethod

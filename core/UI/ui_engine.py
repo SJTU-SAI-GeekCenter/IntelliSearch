@@ -45,12 +45,8 @@ class UIEngine:
         >>> UIEngine.update_component_region("main", new_content)
     """
 
-    # Console instance
-    _console = None
-
     # Layout and Live instances for TUI (legacy, kept for compatibility)
     _layout = None
-    _live = None
 
     # Auto-detected renderer
     _renderer = None
@@ -88,14 +84,14 @@ class UIEngine:
     @classmethod
     def get_console(cls) -> Console:
         """
-        Get or create the Rich Console instance.
+        Get the global Rich Console instance.
 
         Returns:
-            Console instance
+            Console instance from core.UI.console
         """
-        if cls._console is None:
-            cls._console = Console(theme=ThemeColors.get_rich_theme())
-        return cls._console
+        from core.UI.console import console
+
+        return console
 
     @classmethod
     def get_vertical_layout(cls) -> Any:
@@ -124,28 +120,6 @@ class UIEngine:
         )
 
         return layout
-
-    @classmethod
-    def start_live(cls, layout: Layout, refresh_per_second: int = 4):
-        """
-        Start a Live display for given layout.
-
-        Args:
-            layout: Layout instance to display
-            refresh_per_second: Refresh rate
-        """
-        if cls._live is None:
-            cls._live = Live(
-                layout, console=cls.get_console(), refresh_per_second=refresh_per_second
-            )
-            cls._live.start()
-
-    @classmethod
-    def stop_live(cls):
-        """Stop Live display."""
-        if cls._live is not None:
-            cls._live.stop()
-            cls._live = None
 
     @classmethod
     def update_region(cls, region_name: str, content):
@@ -319,9 +293,8 @@ class UIEngine:
             WelcomeUI instance appropriate for the current renderer
         """
         from core.UI.components import WelcomeUI
-        from core.UI.console import console
 
-        return WelcomeUI(console)
+        return WelcomeUI()
 
     @classmethod
     def get_tool_call_ui(cls):
@@ -332,9 +305,8 @@ class UIEngine:
             ToolCallUI instance appropriate for the current renderer
         """
         from core.UI.components import ToolCallUI
-        from core.UI.console import console
 
-        return ToolCallUI(console)
+        return ToolCallUI()
 
     @classmethod
     def register_component_region(

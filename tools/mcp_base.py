@@ -8,6 +8,7 @@ including tool discovery, execution, and response handling.
 import yaml
 import json
 import os
+import asyncio
 from typing import List, Dict, Any, Optional
 
 from tools.server_manager import MultiServerManager
@@ -253,6 +254,13 @@ class MCPBase:
                     # Display result with styled UI
                     tool_ui.display_execution_status("completed")
                     tool_ui.display_tool_result(result_text, max_length=500)
+
+                except (KeyboardInterrupt, asyncio.CancelledError) as cancel_e:
+                    # Tool execution was cancelled - propagate this to trigger cleanup
+                    self.logger.info(
+                        f"Tool execution cancelled: {type(cancel_e).__name__}"
+                    )
+                    raise cancel_e
 
                 except Exception as e:
                     error_msg = str(e)
