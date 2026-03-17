@@ -147,9 +147,12 @@ class MCPBaseAgent(BaseAgent):
         # Extract configuration from metadata
         max_iterations = request.metadata.get("max_iterations", self.max_tool_call)
 
+        # Handle event loop properly - use nest_asyncio if loop is running
         try:
+            # Check if there's a running event loop
             try:
                 loop = asyncio.get_running_loop()
+                # Use nest_asyncio to allow nested event loops
                 nest_asyncio.apply()
                 result = loop.run_until_complete(
                     self._process_query_async(
@@ -174,6 +177,17 @@ class MCPBaseAgent(BaseAgent):
                 "tokens_used": result.get("tokens", {}),
             }
 
+            # Check if the operation was cancelled
+            if result.get("cancelled", False):
+                return AgentResponse(
+                    status="cancelled",
+                    answer="Operation cancelled by user",
+                    metadata={
+                        "error": "User cancelled",
+                        "error_type": "CancelledError",
+                    },
+                )
+
             # Add detailed tool call information for web UI
             if hasattr(self, "_tools_detailed"):
                 response_metadata["tool_calls"] = self._tools_detailed
@@ -185,6 +199,49 @@ class MCPBaseAgent(BaseAgent):
                 answer=result.get("answer", ""),
                 metadata=response_metadata,
             )
+
+        except KeyboardInterrupt:
+            # Handle KeyboardInterrupt - ensure cleanup
+            self.logger.info("KeyboardInterrupt caught in inference")
+            # Memory cleanup is already done in _process_query_async
+
+            # Cancel all pending tasks in the event loop
+            try:
+                loop = asyncio.get_event_loop()
+                pending = asyncio.all_tasks(loop)
+                for task in pending:
+                    task.cancel()
+            except:
+                pass  # Ignore errors during cleanup
+
+            return AgentResponse(
+                status="cancelled",
+                answer="Operation cancelled by user",
+                metadata={
+                    "error": "KeyboardInterrupt",
+                    "error_type": "KeyboardInterrupt",
+                },
+            )
+
+        except RuntimeError as e:
+            # Handle cancellation and other runtime errors
+            error_text = str(e)
+
+            # Check if this is a user cancellation
+            if "cancelled by user" in error_text.lower():
+                self.logger.info(f"User cancelled: {error_text}")
+                return AgentResponse(
+                    status="cancelled",
+                    answer="Operation cancelled by user",
+                    metadata={"error": error_text, "error_type": type(e).__name__},
+                )
+            else:
+                self.logger.error(f"Inference failed: {e}", exc_info=True)
+                return AgentResponse(
+                    status="failed",
+                    answer=f"Error during inference: {error_text}",
+                    metadata={"error": error_text, "error_type": type(e).__name__},
+                )
 
         except Exception as e:
             error_text = str(e)
@@ -209,6 +266,14 @@ class MCPBaseAgent(BaseAgent):
         Returns:
             Dictionary containing answer and metadata
         """
+        # Ensure memory is clean at start of each request
+        # This handles cases where previous requests were cancelled
+        if len(self.memory) > 1:  # More than just system prompt
+            self.logger.info(
+                f"Cleaning memory before new request (had {len(self.memory)} entries)"
+            )
+            self.memory.reset()
+
         # Discover available tools using MCPBase component
         tools = await self.mcp_base.list_tools()
         self.logger.info(f"Available tools nums: {len(list(tools.keys()))}")
@@ -228,13 +293,12 @@ class MCPBaseAgent(BaseAgent):
             for tool in list(tools.values())
         ]
 
-        # Add user message to memory
-        self.memory.add({"role": "user", "content": user_message})
-
         tools_called = []
         final_answer = ""
 
         try:
+            # Add user message to memory inside try block to ensure cleanup on cancellation
+            self.memory.add({"role": "user", "content": user_message})
             for round_count in range(max_iterations):
                 self.logger.info(f"Processing round {round_count + 1}/{max_iterations}")
 
@@ -302,6 +366,27 @@ class MCPBaseAgent(BaseAgent):
                 "iterations": max_iterations,
                 "tools_called": tools_called,
                 "tokens": {},
+            }
+
+        except (KeyboardInterrupt, asyncio.CancelledError) as cancel_e:
+            # User cancelled the operation - clean up state
+            self.logger.info(
+                f"Query processing was cancelled by user: {type(cancel_e).__name__}"
+            )
+            # Force reset memory to clear any partial state
+            self.memory.reset()
+            self.logger.debug("Memory has been reset after cancellation")
+            # Clear any partial tool results
+            if hasattr(self, "_tools_detailed"):
+                delattr(self, "_tools_detailed")
+                self.logger.debug("Cleared partial tool results")
+            # Return cancelled status instead of raising - this prevents exception from propagating to event loop
+            return {
+                "answer": "Operation cancelled by user",
+                "iterations": 0,
+                "tools_called": [],
+                "tokens": {},
+                "cancelled": True,
             }
 
         except Exception as e:

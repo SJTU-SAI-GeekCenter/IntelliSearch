@@ -8,12 +8,12 @@ information with a consistent visual style across the application.
 import json
 import time
 from typing import Optional, Dict, Any
-from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
 from rich.table import Table
 from rich.style import Style
-from core.UI.live import live
+from core.UI.live import live, start_live
+from core.UI.console import console
 from .theme import ThemeColors
 from .status_manager import get_status_manager
 
@@ -27,14 +27,12 @@ class ToolUIManager:
     """
 
     _instance: Optional["ToolUIManager"] = None
-    _console: Optional[Console] = None
     _enabled: bool = True
 
     def __new__(cls):
         """Implement singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._console = Console()
         return cls._instance
 
     @classmethod
@@ -48,16 +46,6 @@ class ToolUIManager:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
-
-    @classmethod
-    def set_console(cls, console: Console) -> None:
-        """
-        Set the console instance for output.
-
-        Args:
-            console: Rich console instance
-        """
-        cls._console = live.console
 
     @classmethod
     def enable(cls) -> None:
@@ -76,17 +64,17 @@ class ToolUIManager:
         Args:
             tool_name: Name of the tool being called
         """
-        if not self._enabled or not self._console:
+        if not self._enabled:
             return
-        live.start()
-        live.console.print()  # Add newline for spacing
+        start_live()
+        console.print()  # Add newline for spacing
 
         header = Text()
         header.append("", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
         header.append("Tool Call: ", style=Style(color=ThemeColors.TOOL_SECONDARY))
         header.append(tool_name, style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
 
-        live.console.print(
+        console.print(
             Panel(
                 header,
                 border_style=Style(color=ThemeColors.TOOL_BORDER),
@@ -102,9 +90,9 @@ class ToolUIManager:
             tool_name: Full tool name
             arguments: Tool arguments dictionary
         """
-        if not self._enabled or not self._console:
+        if not self._enabled:
             return
-        live.start()
+        start_live()
         # Create title
         title = Text()
         title.append("", style=Style(color=ThemeColors.TOOL_ACCENT))
@@ -119,7 +107,7 @@ class ToolUIManager:
         args_str = json.dumps(arguments, indent=2, ensure_ascii=False)
         table.add_row("Arguments", Text(args_str, style=Style(color=ThemeColors.DIM)))
 
-        live.console.print(
+        console.print(
             Panel(
                 table,
                 title=title,
@@ -128,7 +116,7 @@ class ToolUIManager:
                 padding=(0, 1),
             )
         )
-        live.console.print()
+        console.print()
 
     def display_execution_status(
         self, status: str = "executing", message: str = ""
@@ -162,10 +150,10 @@ class ToolUIManager:
             result: Result text from tool execution
             max_length: Maximum length to display before truncating
         """
-        if not self._enabled or not self._console:
+        if not self._enabled:
             return
-        live.console.print()  # Add newline for spacing
-        live.start()
+        console.print()  # Add newline for spacing
+        start_live()
         # Create title
         title = Text()
         title.append("", style=Style(color=ThemeColors.TOOL_ACCENT))
@@ -181,7 +169,7 @@ class ToolUIManager:
         else:
             result_text = Text(result, style=Style(color=ThemeColors.FG))
 
-        live.console.print(
+        console.print(
             Panel(
                 result_text,
                 title=title,
@@ -190,7 +178,7 @@ class ToolUIManager:
                 padding=(0, 1),
             )
         )
-        live.console.print()
+        console.print()
 
     def display_tool_error(self, error_msg: str) -> None:
         """
@@ -199,22 +187,22 @@ class ToolUIManager:
         Args:
             error_msg: Error message to display
         """
-        if not self._enabled or not self._console:
+        if not self._enabled:
             return
-        live.console.print()  # Add newline for spacing
-        live.start()
+        console.print()  # Add newline for spacing
+        start_live()
         error_text = Text()
         error_text.append("✗ ", style=Style(color=ThemeColors.ERROR))
         error_text.append(error_msg, style=Style(color=ThemeColors.ERROR))
 
-        live.console.print(
+        console.print(
             Panel(
                 error_text,
                 border_style=Style(color=ThemeColors.ERROR),
                 padding=(0, 1),
             )
         )
-        live.console.print()
+        console.print()
 
 
 # Global instance

@@ -232,8 +232,8 @@ class DisplayComponent(BaseUIComponent):
 
         # Handle no-border mode
         if not data.show_border:
-            renderer.Console().print(Text(data.text, style=Style(color=fg_color)))
-            renderer.Console().print()
+            console.print(Text(data.text, style=Style(color=fg_color)))
+            console.print()
             return None
 
         content = Text()
@@ -250,8 +250,8 @@ class DisplayComponent(BaseUIComponent):
 
         panel = Panel(content, **panel_kwargs)
 
-        renderer.Console().print(panel)
-        renderer.Console().print()
+        console.print(panel)
+        console.print()
 
         return panel
 
@@ -285,8 +285,8 @@ class DisplaySuccessComponent(BaseUIComponent):
             padding=(0, 1),
         )
 
-        renderer.Console().print(panel)
-        renderer.Console().print()
+        console.print(panel)
+        console.print()
 
         return panel
 
@@ -320,8 +320,8 @@ class DisplayWarningComponent(BaseUIComponent):
             padding=(0, 1),
         )
 
-        renderer.Console().print(panel)
-        renderer.Console().print()
+        console.print(panel)
+        console.print()
 
         return panel
 
@@ -355,8 +355,8 @@ class DisplayErrorComponent(BaseUIComponent):
             padding=(0, 1),
         )
 
-        renderer.Console().print(panel)
-        renderer.Console().print()
+        console.print(panel)
+        console.print()
 
         return panel
 
@@ -374,6 +374,7 @@ class DisplayFatalComponent(BaseUIComponent):
         from rich.text import Text
         from rich.style import Style
         from core.UI.theme import ThemeColors
+        from rich.box import DOUBLE
 
         title = Text()
         title.append("💀 ", style=Style(color=ThemeColors.FATAL))
@@ -383,7 +384,6 @@ class DisplayFatalComponent(BaseUIComponent):
         content.append(data.text, style=Style(color=ThemeColors.FATAL, bold=True))
 
         panel_kwargs = {
-            "content": content,
             "title": title,
             "title_align": "left",
             "border_style": Style(color=ThemeColors.FATAL),
@@ -392,11 +392,11 @@ class DisplayFatalComponent(BaseUIComponent):
 
         # Use thicker border for fatal errors
         if data.border_style is None:
-            panel_kwargs["box"] = "double"
+            panel_kwargs["box"] = DOUBLE
 
-        panel = Panel(**panel_kwargs)
-        renderer.Console().print(panel)
-        renderer.Console().print()
+        panel = Panel(content, **panel_kwargs)
+        console.print(panel)
+        console.print()
 
         return panel
 
@@ -429,7 +429,7 @@ class DisplayCriticalComponent(BaseUIComponent):
             border_style=Style(color=ThemeColors.CRITICAL),
             padding=(0, 1),
         )
-        # renderer.Console().print(panel)
+        # console.print(panel)
         console.print(panel)
 
         return panel
@@ -464,8 +464,8 @@ class DisplayNoticeComponent(BaseUIComponent):
             padding=(0, 1),
         )
 
-        renderer.Console().print(panel)
-        renderer.Console().print()
+        console.print(panel)
+        console.print()
 
         return panel
 

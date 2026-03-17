@@ -6,6 +6,7 @@ logo in a visually appealing way using rich formatting.
 """
 
 from core.UI.theme import ThemeColors
+from core.UI.console import console
 
 
 class WelcomeUI:
@@ -25,14 +26,14 @@ class WelcomeUI:
 ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝╚══════╝╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
 """
 
-    def __init__(self, console):
+    def __init__(self):
         """
         Initialize WelcomeUI.
 
         Args:
             console: Rich console instance for output
         """
-        self.console = console
+        return
 
     def display_logo(
         self,
@@ -63,14 +64,14 @@ class WelcomeUI:
             title_align="right",
         )
 
-        self.console.print(logo_panel)
+        console.print(logo_panel)
 
         if subtitle:
             subtitle_text = Text()
             subtitle_text.append(subtitle, style=Style(color=ThemeColors.SECONDARY))
-            self.console.print(subtitle_text)
+            console.print(subtitle_text)
 
-        self.console.print()
+        console.print()
 
     def display_welcome_message(
         self,
@@ -89,8 +90,8 @@ class WelcomeUI:
 
         welcome_text = Text()
         welcome_text.append(message, style=Style(color=style))
-        self.console.print(welcome_text)
-        self.console.print()
+        console.print(welcome_text)
+        console.print()
 
     def display_full_welcome(
         self,

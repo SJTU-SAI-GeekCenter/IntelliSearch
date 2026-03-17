@@ -27,19 +27,17 @@ class CLIRenderer(BaseRenderer):
 
     def __init__(self):
         try:
-            from rich.console import Console
+            from core.UI.console import console
+            from core.UI.live import live
             from rich.panel import Panel
             from rich.text import Text
             from rich.prompt import Prompt, Confirm
-            from rich.live import Live
             from rich.box import DOUBLE
 
-            self.Console = Console
             self.Panel = Panel
             self.Text = Text
             self.Prompt = Prompt
             self.Confirm = Confirm
-            self.Live = Live
             self.DOUBLE_BOX = DOUBLE
             self._available = True
         except ImportError:
@@ -111,7 +109,7 @@ class CLIRenderer(BaseRenderer):
             return result.confirmed
         return control.default_choice
 
-    def _render_text_with_formatting(self, text_parts) -> "self.Text":
+    def _render_text_with_formatting(self, text_parts):
         """
         Render text parts with Rich formatting support.
 
@@ -152,8 +150,8 @@ class CLIRenderer(BaseRenderer):
             style="normal",
             title=title,
         )
-        self.Console().print(display_control)
-        self.Console().print()
+        console.print(display_control)
+        console.print()
 
     def display_fatal(self, *args, title: Optional[str] = None, **kwargs):
         """
@@ -181,8 +179,8 @@ class CLIRenderer(BaseRenderer):
             style="fatal",
             title=title,
         )
-        self.Console().print(display_control)
-        self.Console().print()
+        console.print(display_control)
+        console.print()
 
     def display_critical(self, *args, title: Optional[str] = None, **kwargs):
         """
@@ -210,7 +208,7 @@ class CLIRenderer(BaseRenderer):
             style="critical",
             title=title,
         )
-        live.console.print(display_control)
+        console.print(display_control)
 
     def display_notice(self, *args, title: Optional[str] = None, **kwargs):
         """
@@ -238,8 +236,8 @@ class CLIRenderer(BaseRenderer):
             style="notice",
             title=title,
         )
-        self.Console().print(display_control)
-        self.Console().print()
+        console.print(display_control)
+        console.print()
 
     def display_success(self, *args, title: Optional[str] = None, **kwargs):
         """
@@ -267,8 +265,8 @@ class CLIRenderer(BaseRenderer):
             style="success",
             title=title,
         )
-        self.Console().print(display_control)
-        self.Console().print()
+        console.print(display_control)
+        console.print()
 
     def display_warning(self, *args, title: Optional[str] = None, **kwargs):
         """
@@ -296,8 +294,8 @@ class CLIRenderer(BaseRenderer):
             style="warning",
             title=title,
         )
-        self.Console().print(display_control)
-        self.Console().print()
+        console.print(display_control)
+        console.print()
 
     def display_error(self, *args, title: Optional[str] = None, **kwargs):
         """
@@ -325,5 +323,5 @@ class CLIRenderer(BaseRenderer):
             style="error",
             title=title,
         )
-        self.Console().print(display_control)
-        self.Console().print()
+        console.print(display_control)
+        console.print()

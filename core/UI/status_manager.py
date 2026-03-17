@@ -12,7 +12,8 @@ from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
 from rich.style import Style
-from core.UI.live import live
+from core.UI.live import live, stop_live
+from core.UI.console import console
 from .theme import ThemeColors
 
 
@@ -34,21 +35,16 @@ class StatusManager:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self):
         """
         Initialize the StatusManager.
 
-        Args:
-            console: Rich console instance
         """
         if self._initialized:
             return
-
-        self.console = console or Console()
         self._current_status = None
         self._status_type = "idle"
         self._spinner_frame = 0
-        self._live = None
         self._active = False
         self._initialized = True
 
@@ -57,6 +53,10 @@ class StatusManager:
         self._spinner_arrows = ["←", "↖", "↑", "↗", "→", "↘", "↓", "↙"]
         self._spinner_stars = ["✶", "✷", "✸", "✹", "✺", "✴", "✳", "✲"]
         self._current_spinner = self._spinner_dots
+
+        # Animation thread management
+        self._animation_thread = None
+        self._stop_event = threading.Event()  # Signal to stop animation
 
     def _get_spinner_char(self) -> str:
         """Get current spinner character."""
@@ -175,9 +175,32 @@ class StatusManager:
 
     def _animate(self) -> None:
         """Animation loop for live display."""
-        while self._active and self._live:
-            self._live.update(self._get_status_panel())
-            time.sleep(0.1)  # 100ms per frame for smooth animation
+        while self._active and not self._stop_event.is_set() and live:
+            panel = self._get_status_panel()
+            live.update(panel)
+            live.refresh()  # Manual refresh since auto_refresh is disabled
+            # Use shorter sleep to be responsive to stop event
+            if self._stop_event.wait(timeout=0.1):
+                break
+
+    def _start_animation(self) -> None:
+        """Start animation if not already running."""
+        if not self._active:
+            self._active = True
+            self._stop_event.clear()
+
+            live.start()
+
+            # Stop any existing animation thread
+            if self._animation_thread and self._animation_thread.is_alive():
+                self._stop_event.set()
+                # Wait a bit for thread to exit
+                self._animation_thread.join(timeout=0.2)
+                self._stop_event.clear()
+
+            # Start animation in background thread
+            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
+            self._animation_thread.start()
 
     def set_processing(self, message: str = "Processing your request...") -> None:
         """
@@ -191,14 +214,7 @@ class StatusManager:
         self._current_spinner = self._spinner_dots
         self._spinner_frame = 0  # Reset frame index when changing spinner
 
-        if not self._active:
-            self._active = True
-            self._live = live
-            self._live.start()
-
-            # Start animation in background thread
-            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
-            self._animation_thread.start()
+        self._start_animation()
 
     def set_executing(self, message: str = "Executing tool...") -> None:
         """
@@ -212,14 +228,7 @@ class StatusManager:
         self._current_spinner = self._spinner_arrows
         self._spinner_frame = 0  # Reset frame index when changing spinner
 
-        if not self._active:
-            self._active = True
-            self._live = live
-            self._live.start()
-
-            # Start animation in background thread
-            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
-            self._animation_thread.start()
+        self._start_animation()
 
     def set_summarizing(self, message: str = "Generating final response...") -> None:
         """
@@ -233,14 +242,7 @@ class StatusManager:
         self._current_spinner = self._spinner_stars
         self._spinner_frame = 0  # Reset frame index when changing spinner
 
-        if not self._active:
-            self._active = True
-            self._live = live
-            self._live.start()
-
-            # Start animation in background thread
-            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
-            self._animation_thread.start()
+        self._start_animation()
 
     def set_error(self, message: str = "Error occurred") -> None:
         """
@@ -252,8 +254,8 @@ class StatusManager:
         self._current_status = message
         self._status_type = "error"
 
-        if self._active and self._live:
-            self._live.update(self._get_status_panel())
+        if self._active and live:
+            live.update(self._get_status_panel())
 
     def set_success(self, message: str = "Operation completed") -> None:
         """
@@ -265,20 +267,33 @@ class StatusManager:
         self._current_status = message
         self._status_type = "success"
 
-        if self._active and self._live:
-            self._live.update(self._get_status_panel())
+        if self._active and live:
+            live.update(self._get_status_panel())
             time.sleep(0.5)  # Show success briefly
 
     def clear(self) -> None:
-        """Clear the status display."""
+        """Clear the status display and stop animation thread."""
         if self._active:
             self._active = False
-            if self._live:
-                self._live.stop()
-                self._live = None
+
+            # Signal animation thread to stop
+            if self._stop_event:
+                self._stop_event.set()
+
+            # Wait for animation thread to exit
+            if self._animation_thread and self._animation_thread.is_alive():
+                self._animation_thread.join(timeout=0.5)
+
+            # Stop Live display
+            stop_live()
+
+            # Reset state
             self._current_status = None
             self._status_type = "idle"
             self._spinner_frame = 0
+
+            # Clear stop event for next use
+            self._stop_event.clear()
 
     def print_and_clear(self, content: str = "") -> None:
         """
@@ -289,7 +304,7 @@ class StatusManager:
         """
         self.clear()
         if content:
-            self.console.print(content)
+            console.print(content)
 
     def finish(self) -> None:
         """Finish current status and clear display."""

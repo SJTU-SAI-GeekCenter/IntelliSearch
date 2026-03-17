@@ -14,6 +14,8 @@ from rich.panel import Panel
 from rich.style import Style
 from .base_component import BaseUIComponent
 from core.UI.theme import ThemeColors
+from core.UI.console import console
+from core.UI.live import live
 
 if TYPE_CHECKING:
     from core.UI.cli_renderer import CLIRenderer
@@ -151,8 +153,6 @@ class ConfirmComponent(BaseUIComponent):
         self, data: ConfirmControl, renderer: "CLIRenderer"
     ) -> ConfirmResult:
         """Render in TUI mode."""
-        console = renderer.Console()
-
         console.print(f"[bold]1. {data.title}:[/bold]")
         console.print(f"[dim]{data.message}[/dim]")
         console.print()
@@ -179,27 +179,21 @@ class ConfirmComponent(BaseUIComponent):
                     lines.append(f"   {opt}")
             return "\n".join(lines)
 
-        with renderer.Live(
-            make_confirm_menu(), transient=True, auto_refresh=False
-        ) as live:
-            try:
-                while True:
-                    key = self._get_key()
-                    if key is None:
-                        continue
-
-                    if key == "up":
-                        curr_idx = (curr_idx - 1) % len(confirm_options)
-                    elif key == "down":
-                        curr_idx = (curr_idx + 1) % len(confirm_options)
-                    elif key == "enter":
-                        break
-
-                    live.update(make_confirm_menu(), refresh=True)
-
-            except KeyboardInterrupt:
-                if data.cancel_allowed:
-                    return ConfirmResult(success=False, error="Interrupted by user")
+        try:
+            while True:
+                key = self._get_key()
+                if key is None:
+                    continue
+                if key == "up":
+                    curr_idx = (curr_idx - 1) % len(confirm_options)
+                elif key == "down":
+                    curr_idx = (curr_idx + 1) % len(confirm_options)
+                elif key == "enter":
+                    break
+                live.update(make_confirm_menu(), refresh=True)
+        except KeyboardInterrupt:
+            if data.cancel_allowed:
+                return ConfirmResult(success=False, error="Interrupted by user")
 
         confirmed = curr_idx == 1
         console.print()

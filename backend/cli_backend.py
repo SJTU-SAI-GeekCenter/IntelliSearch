@@ -6,6 +6,8 @@ the CLIService to Rich console output.
 """
 
 import re
+import time
+import signal
 from typing import Optional, Tuple
 from rich.console import Console
 from rich.markdown import Markdown
@@ -28,7 +30,8 @@ from core.logger import get_logger
 from core.UI.theme import ThemeColors
 from core.UI.tool_ui import ToolUIManager
 from core.UI.status_manager import get_status_manager
-from core.UI.live import live
+from core.UI.live import live, start_live
+from core.UI.console import console
 
 
 class CLIBackend:
@@ -56,26 +59,29 @@ class CLIBackend:
         >>> backend.run()
     """
 
-    def __init__(
-        self, agent_type: str, agent_config: dict, console: Optional[Console] = None
-    ):
+    def __init__(self, agent_type: str, agent_config: dict):
         """
         Initialize the CLI backend.
 
         Args:
             agent_type: Type of agent to create
             agent_config: Configuration for agent creation
-            console: Optional Rich console (defaults to new Console())
         """
         self.logger = get_logger(__name__, "cli_backend")
         self.running = False
         self.cancel_requested = False  # ESC 取消标志
+        self._last_interrupt_time = 0  # 上次中断时间
+        self._original_sigint_handler = None  # 保存原始信号处理器
+        self._custom_sigint_installed = False
+        self._double_press_threshold = 0.5  # seconds
 
         # Initialize service
         self.service = CLIService(agent_type, agent_config)
 
+        # Setup signal handler for Ctrl+C
+        self._setup_signal_handler()
+
         # Setup UI components
-        ToolUIManager.set_console(live.console)
         # Initialize StatusManager for loading states
         self.status_manager = get_status_manager()
 
@@ -103,6 +109,47 @@ class CLIBackend:
 
         self.logger.info("CLI backend initialized")
 
+    def _setup_signal_handler(self):
+        """
+        Setup custom SIGINT handler to stop Live display and allow Ctrl+C to work.
+
+        This ensures Ctrl+C works even when Rich Live is active in the background.
+        """
+
+        if self._custom_sigint_installed:
+            return
+
+        if self._original_sigint_handler is None:
+            self._original_sigint_handler = signal.getsignal(signal.SIGINT)
+
+        def signal_handler(signum, frame):
+            """
+            Handle SIGINT (Ctrl+C) by stopping Live and raising KeyboardInterrupt.
+            """
+            # Stop Live display to clean up
+            from core.UI.live import live, stop_live
+
+            try:
+                stop_live()
+            except:
+                pass
+
+            # Don't restore original handler here - keep using our custom handler
+            # This ensures Ctrl+C always works consistently
+
+            # Re-raise the signal to be handled by the main loop
+            raise KeyboardInterrupt()
+
+        # Install custom handler
+        signal.signal(signal.SIGINT, signal_handler)
+        self._custom_sigint_installed = True
+
+    def _restore_original_signal_handler(self):
+        """Restore the original SIGINT handler when shutting down."""
+        if self._custom_sigint_installed and self._original_sigint_handler is not None:
+            signal.signal(signal.SIGINT, self._original_sigint_handler)
+            self._custom_sigint_installed = False
+
     def _setup_prompt_session(self):
         """Setup prompt_toolkit session with history and auto-suggestion."""
 
@@ -116,6 +163,11 @@ class CLIBackend:
             """Handle ESC key to cancel current input."""
             # 使用预先定义的特殊标记来表示取消
             event.app.exit(result="\x03")  # 使用 ETX (End of Text) 字符作为取消标记
+
+        @kb.add("c-c")
+        def _(event):
+            """Handle Ctrl+C in prompt without bubbling event loop errors."""
+            event.app.exit(result="__CTRL+C__")
 
         style = PromptStyle.from_dict(
             {
@@ -131,6 +183,9 @@ class CLIBackend:
             enable_history_search=True,
             key_bindings=kb,
         )
+
+        # Store history path for recreation
+        self._history_path = history_path
 
     def _handle_status_update(self, status_type: str, message: str):
         """
@@ -162,7 +217,7 @@ class CLIBackend:
                 border_style=Style(color=ThemeColors.WARNING),
                 padding=(0, 1),
             )
-            live.console.print(warning_panel)
+            console.print(warning_panel)
 
         elif status_type == "clear":
             # Remove loading panel
@@ -179,7 +234,7 @@ class CLIBackend:
                 border_style=Style(color=ThemeColors.ERROR),
                 padding=(0, 1),
             )
-            live.console.print(error_panel)
+            console.print(error_panel)
 
         elif status_type == "info":
             # Display info panel
@@ -191,7 +246,7 @@ class CLIBackend:
                 border_style=Style(color=ThemeColors.INFO),
                 padding=(0, 1),
             )
-            live.console.print(info_panel)
+            console.print(info_panel)
 
         elif status_type == "failed":
             # Hide loading and display error panel
@@ -204,7 +259,12 @@ class CLIBackend:
                 border_style=Style(color=ThemeColors.ERROR),
                 padding=(0, 1),
             )
-            live.console.print(error_panel)
+            console.print(error_panel)
+
+        elif status_type == "cancelled":
+            # User cancellation: only clear status here.
+            # The main loop prints a single concise cancellation message.
+            self.status_manager.clear()
 
     def print_banner(self):
         """Display welcome banner."""
@@ -229,7 +289,7 @@ class CLIBackend:
             padding=(1, 2),
         )
 
-        live.console.print(banner)
+        console.print(banner)
 
         agent_info = self.service.get_agent_info()
         info_text = Text()
@@ -239,13 +299,13 @@ class CLIBackend:
             style=Style(color=ThemeColors.ACCENT),
         )
 
-        live.console.print(info_text)
-        live.console.print(
+        console.print(info_text)
+        console.print(
             Text(
                 "Type /help for a list of commands", style=Style(color=ThemeColors.DIM)
             )
         )
-        live.console.print()
+        console.print()
 
     def print_help(self):
         """Display help information."""
@@ -273,7 +333,7 @@ class CLIBackend:
         for cmd, desc in commands_info:
             help_table.add_row(cmd, desc)
 
-        live.console.print(help_table)
+        console.print(help_table)
 
     def parse_structured_response(
         self, response_text: str
@@ -332,7 +392,7 @@ class CLIBackend:
                 border_style=Style(color=ThemeColors.SECONDARY),
                 padding=(0, 1),
             )
-            live.console.print(final_response_panel)
+            console.print(final_response_panel)
 
             # Display tool tracing
             tool_tracing_md = Markdown(tool_tracing, style=Style(color=ThemeColors.FG))
@@ -343,8 +403,8 @@ class CLIBackend:
                 border_style=Style(color=ThemeColors.PRIMARY),
                 padding=(0, 1),
             )
-            live.console.print(tool_tracing_panel)
-            live.console.print()
+            console.print(tool_tracing_panel)
+            console.print()
         else:
             # Parse failed - fallback to original strategy
             # Create response panel with markdown
@@ -358,32 +418,159 @@ class CLIBackend:
                 padding=(0, 1),
             )
 
-            live.console.print(response_panel)
-            live.console.print()
+            console.print(response_panel)
+            console.print()
 
     def get_user_input(self) -> Optional[str]:
         """
         Get user input with styled prompt.
 
         Returns:
-            User input string, or None if ESC was pressed to cancel current input
+            User input string, None if ESC was pressed to cancel current input,
+            or "__CTRL+C__" if Ctrl+C was pressed (special marker)
         """
-        prompt_text = [
-            ("class:prompt", "You"),
-            ("class:input", " › "),
-        ]
+        import logging
 
-        user_input: str = self.prompt_session.prompt(
-            prompt_text,
-            completer=(
-                self.command_completer if self._detect_command_start() else None
-            ),
-        )
+        # Temporarily suppress asyncio error logs during prompt
+        # This prevents "Unhandled exception in event loop" messages
+        asyncio_logger = logging.getLogger("asyncio")
+        old_level = asyncio_logger.level
+        asyncio_logger.setLevel(logging.CRITICAL)
 
-        return user_input.strip()
+        prompt_sigint_switched = False
+        if self._custom_sigint_installed:
+            # During prompt_toolkit input, use original SIGINT handler to avoid
+            # nested event-loop unhandled exceptions from our custom handler.
+            self._restore_original_signal_handler()
+            prompt_sigint_switched = True
+
+        try:
+            prompt_text = [
+                ("class:prompt", "You"),
+                ("class:input", " › "),
+            ]
+
+            user_input: str = self.prompt_session.prompt(
+                prompt_text,
+                completer=(
+                    self.command_completer if self._detect_command_start() else None
+                ),
+            )
+
+            if user_input == "__CTRL+C__":
+                return "__CTRL+C__"
+
+            if user_input == "\x03":
+                return None
+
+            return user_input.strip()
+
+        except KeyboardInterrupt:
+            # Return special marker to indicate Ctrl+C was pressed
+            # The outer loop will handle this appropriately
+            return "__CTRL+C__"
+
+        except Exception:
+            # Catch any other exceptions from prompt_toolkit to prevent crash
+            # This handles cases where prompt_toolkit's internal state is corrupted
+            # Recreate prompt_session to ensure clean state
+            self._recreate_prompt_session()
+            return "__CTRL+C__"
+
+        finally:
+            if prompt_sigint_switched:
+                self._setup_signal_handler()
+            # Restore original asyncio logging level
+            asyncio_logger.setLevel(old_level)
+
+    def _recreate_prompt_session(self):
+        """Recreate prompt_session after an exception to ensure clean state."""
+        try:
+            # Create new key bindings
+            kb = KeyBindings()
+
+            @kb.add(Keys.Escape)
+            def _(event):
+                """Handle ESC key to cancel current input."""
+                event.app.exit(result="\x03")
+
+            @kb.add("c-c")
+            def _(event):
+                """Handle Ctrl+C in prompt without bubbling event loop errors."""
+                event.app.exit(result="__CTRL+C__")
+
+            style = PromptStyle.from_dict(
+                {
+                    "prompt": f"fg:{ThemeColors.ACCENT}",
+                    "input": f"fg:{ThemeColors.FG}",
+                }
+            )
+
+            # Create new prompt session
+            self.prompt_session = PromptSession(
+                history=FileHistory(str(self._history_path)),
+                auto_suggest=AutoSuggestFromHistory(),
+                style=style,
+                enable_history_search=True,
+                key_bindings=kb,
+            )
+        except Exception:
+            # If recreation fails, just create a minimal session
+            self.prompt_session = PromptSession()
 
     def _detect_command_start(self) -> bool:
         """Detect if user is typing a command (starts with /)."""
+        return False
+
+    def _is_double_ctrl_c(self) -> bool:
+        """Return True if Ctrl+C is pressed twice within threshold window."""
+        now = time.time()
+        is_double = (now - self._last_interrupt_time) < self._double_press_threshold
+        self._last_interrupt_time = now
+        return is_double
+
+    def _print_exit_message(self):
+        """Print a consistent exit message."""
+        console.print()
+        console.print(
+            Text(
+                "Exiting IntelliSearch CLI. Goodbye!",
+                style=Style(color=ThemeColors.ACCENT),
+            )
+        )
+        console.print()
+
+    def _handle_ctrl_c(self, during_request: bool = False) -> bool:
+        """
+        Handle Ctrl+C uniformly.
+
+        Returns:
+            True if CLI should exit, False to continue running.
+        """
+        # Always clear any active loading state first
+        self.status_manager.clear()
+
+        if self._is_double_ctrl_c():
+            self._print_exit_message()
+            return True
+
+        console.print()
+        if during_request:
+            console.print(Text("Cancelled.", style=Style(color=ThemeColors.WARNING)))
+            console.print(
+                Text(
+                    "Press Ctrl+C again within 0.5s to exit.",
+                    style=Style(color=ThemeColors.WARNING),
+                )
+            )
+        else:
+            console.print(
+                Text(
+                    "Press Ctrl+C again within 0.5s to exit.",
+                    style=Style(color=ThemeColors.WARNING),
+                )
+            )
+        console.print()
         return False
 
     def process_command(self, command: str) -> bool:
@@ -400,7 +587,7 @@ class CLIBackend:
         cmd = cmd_parts[0].lower() if cmd_parts else ""
 
         if cmd in ["quit", "exit"]:
-            live.console.print(
+            console.print(
                 Text(
                     "\nExiting IntelliSearch CLI. Goodbye!\n",
                     style=Style(color=ThemeColors.ACCENT),
@@ -414,31 +601,31 @@ class CLIBackend:
 
         elif cmd == "clear":
             self.service.clear_agent_history()
-            live.console.print(
+            console.print(
                 Text(
                     "Conversation history cleared.",
                     style=Style(color=ThemeColors.SUCCESS),
                 )
             )
-            live.console.print()
+            console.print()
             return True
 
         elif cmd == "export":
             output_path = cmd_parts[1] if len(cmd_parts) > 1 else None
             try:
                 result_path = self.service.export_conversation(output_path)
-                live.console.print(
+                console.print(
                     Text(
                         f"Conversation exported to: {result_path}",
                         style=Style(color=ThemeColors.SUCCESS),
                     )
                 )
-                live.console.print()
+                console.print()
             except Exception as e:
-                live.console.print(
+                console.print(
                     Text(f"Export failed: {e}", style=Style(color=ThemeColors.ERROR))
                 )
-                live.console.print()
+                console.print()
             return True
 
         elif cmd == "config":
@@ -447,7 +634,7 @@ class CLIBackend:
 
         elif cmd == "model":
             if len(cmd_parts) < 2:
-                live.console.print(
+                console.print(
                     Text(
                         f"Current model: {self.service.agent.model_name}",
                         style=Style(color=ThemeColors.INFO),
@@ -457,18 +644,18 @@ class CLIBackend:
 
             new_model = cmd_parts[1]
             self.service.update_agent_config(model_name=new_model)
-            live.console.print(
+            console.print(
                 Text(
                     f"Model changed to: {new_model}",
                     style=Style(color=ThemeColors.SUCCESS),
                 )
             )
-            live.console.print()
+            console.print()
             return True
 
         elif cmd == "max_tools":
             if len(cmd_parts) < 2 or not cmd_parts[1].isdigit():
-                live.console.print(
+                console.print(
                     Text(
                         f"Current max tools: {self.service.agent.max_tool_call}",
                         style=Style(color=ThemeColors.INFO),
@@ -478,26 +665,26 @@ class CLIBackend:
 
             new_max = int(cmd_parts[1])
             self.service.update_agent_config(max_tool_call=new_max)
-            live.console.print(
+            console.print(
                 Text(
                     f"Max tools changed to: {new_max}",
                     style=Style(color=ThemeColors.SUCCESS),
                 )
             )
-            live.console.print()
+            console.print()
             return True
 
         else:
-            live.console.print(
+            console.print(
                 Text(f"Unknown command: /{cmd}", style=Style(color=ThemeColors.ERROR))
             )
-            live.console.print(
+            console.print(
                 Text(
                     "Type /help for available commands",
                     style=Style(color=ThemeColors.DIM),
                 )
             )
-            live.console.print()
+            console.print()
             return True
 
     def _show_config(self):
@@ -522,17 +709,22 @@ class CLIBackend:
         if hasattr(self.service.agent, "max_tool_call"):
             config_table.add_row("Max Tools", str(self.service.agent.max_tool_call))
 
-        live.console.print(config_table)
-        live.console.print()
+        console.print(config_table)
+        console.print()
 
     def run(self):
         """
         Main CLI loop.
 
-        This method runs the interactive REPL until the user exits.
+        This method runs interactive REPL until the user exits.
+        Implements double Ctrl+C detection: first cancels current request,
+        second within 0.5s exits the program.
         """
         self.running = True
         self.cancel_requested = False
+
+        # Track interrupt state
+        self._last_interrupt_time = 0
 
         # Display banner
         self.print_banner()
@@ -541,12 +733,20 @@ class CLIBackend:
         while self.running:
             try:
                 user_input = self.get_user_input()
+
+                # Handle Ctrl+C during input (returns "__CTRL+C__")
+                if user_input == "__CTRL+C__":
+                    if self._handle_ctrl_c(during_request=False):
+                        self.running = False
+                        break
+                    continue
+
                 # Handle ESC key (returns None)
                 if user_input is None or user_input == "^[":
-                    live.console.print(
+                    console.print(
                         Text("[Cancelled]", style=Style(color=ThemeColors.DIM))
                     )
-                    live.console.print()
+                    console.print()
                     continue
 
                 # Handle empty input
@@ -566,56 +766,52 @@ class CLIBackend:
                     border_style=Style(color=ThemeColors.PRIMARY),
                     padding=(0, 1),
                 )
-                live.start()
-                live.console.print(user_panel)
+                start_live()
+                console.print(user_panel)
 
                 # Process request - allow interruption via Ctrl+C
                 try:
                     request = AgentRequest(prompt=user_input)
                     response = self.service.process_request_sync(request)
+
+                    if response.status == "cancelled":
+                        console.print(Text("Cancelled.", style=Style(color=ThemeColors.WARNING)))
+                        console.print()
+                        continue
+
                     self.display_response(response)
 
                 except KeyboardInterrupt:
-                    # Hide loading on interrupt
-                    self.status_manager.clear()
-
-                    live.console.print()
-                    live.console.print(
-                        Text(
-                            "Operation cancelled.",
-                            style=Style(color=ThemeColors.WARNING),
-                        )
-                    )
-                    live.console.print()
+                    if self._handle_ctrl_c(during_request=True):
+                        self.running = False
+                        break
                     continue
 
                 except Exception as e:
                     # Hide loading on error
                     self.status_manager.clear()
 
-                    live.console.print()
-                    live.console.print(
+                    console.print()
+                    console.print(
                         Text(f"Error: {e}", style=Style(color=ThemeColors.ERROR))
                     )
                     self.logger.error(f"Request error: {e}", exc_info=True)
 
             except KeyboardInterrupt:
-                live.console.print("\n\n")
-                live.console.print(
-                    Text(
-                        "Exiting IntelliSearch CLI. Goodbye!",
-                        style=Style(color=ThemeColors.ACCENT),
-                    )
-                )
-                live.console.print()
-                self.running = False
-                break
+                # Ctrl+C pressed outside of request processing
+                if self._handle_ctrl_c(during_request=False):
+                    self.running = False
+                    break
+                continue
 
             except Exception as e:
-                live.console.print(
+                console.print(
                     Text(
                         f"\nUnexpected error: {e}", style=Style(color=ThemeColors.ERROR)
                     )
                 )
                 self.logger.error(f"Unexpected error: {e}", exc_info=True)
                 self.running = False
+
+        # Restore original signal handler when loop exits
+        self._restore_original_signal_handler()

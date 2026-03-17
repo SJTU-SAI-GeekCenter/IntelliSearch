@@ -2,22 +2,45 @@
 """
 IntelliSearch CLI - Interactive command-line interface for Agent inference.
 
-This is the simplified entry point that delegates all logic to the backend layer.
+This is simplified entry point that delegates all logic to backend layer.
 """
 
 import sys
 import os
 import traceback
 import yaml
+import asyncio
+import logging
 from pathlib import Path
 from rich.console import Console
 from rich.text import Text
 from rich.style import Style
 
 from core.UI import UIEngine
+from core.UI.console import console
 from backend.cli_backend import CLIBackend
 from config.config_loader import Config
 from core.exceptions import IntelliSearchError
+
+# Suppress asyncio error logs for unhandled exceptions during Ctrl+C
+# This prevents "Task exception was never retrieved" messages
+logging.getLogger("asyncio").setLevel(logging.CRITICAL)
+
+
+# Set global asyncio exception handler to suppress all unhandled exceptions
+# This prevents "Unhandled exception in event loop" messages
+def suppress_asyncio_exception(loop, context):
+    """Suppress all asyncio exceptions to prevent error output."""
+    pass  # Do nothing - suppress all exceptions
+
+
+# Apply the exception handler to the current event loop
+try:
+    loop = asyncio.get_event_loop()
+    loop.set_exception_handler(suppress_asyncio_exception)
+except RuntimeError:
+    # No event loop yet - will be set when loop is created
+    pass
 
 
 def load_agent_config(config_path: str) -> tuple:
@@ -82,6 +105,28 @@ def load_agent_config(config_path: str) -> tuple:
     return agent_type, final_config
 
 
+def cleanup_async_tasks():
+    """
+    Clean up all asyncio tasks to prevent 'Task exception was never retrieved' errors.
+    """
+    try:
+        loop = asyncio.get_event_loop()
+        if loop and not loop.is_closed():
+            # Cancel all pending tasks
+            pending = asyncio.all_tasks(loop)
+            for task in pending:
+                if not task.done():
+                    task.cancel()
+
+            # Give tasks a chance to clean up
+            if pending:
+                loop.run_until_complete(
+                    asyncio.gather(*pending, return_exceptions=True)
+                )
+    except:
+        pass  # Ignore errors during cleanup
+
+
 def main():
     """
     Entry point for the CLI.
@@ -95,9 +140,6 @@ def main():
     """
     # Parse command line arguments
     config_path = sys.argv[1] if len(sys.argv) > 1 else "config/config.yaml"
-
-    # Initialize console
-    console = Console()
 
     try:
         # Initialize global Config singleton
@@ -113,13 +155,13 @@ def main():
         welcome_ui.display_full_welcome()
 
         # Create and run CLI backend
-        backend = CLIBackend(
-            agent_type=agent_type, agent_config=agent_config, console=console
-        )
+        backend = CLIBackend(agent_type=agent_type, agent_config=agent_config)
         backend.run()
 
-    except KeyboardInterrupt as e:
-        console.print(Text(f"KEYBOARD INTERRUPT", style=Style(color="red")))
+    except KeyboardInterrupt:
+        # Handle Ctrl+C gracefully
+        console.print("\n[bold red]程序已通过 Ctrl+C 终止[/bold red]")
+        cleanup_async_tasks()
         sys.exit(0)
 
     except FileNotFoundError as e:
@@ -139,6 +181,7 @@ def main():
         # Handle unknown errors
         console.print(Text(f"\nFatal error: {e}", style=Style(color="red")))
         traceback.print_exc()
+        cleanup_async_tasks()
         sys.exit(1)
 
 

@@ -43,7 +43,7 @@ class CLIService(BaseService):
         self.logger = get_logger(__name__, "cli_service")
 
         # Inject our status callback into the agent if it supports it
-        if hasattr(self.agent, 'status_callback'):
+        if hasattr(self.agent, "status_callback"):
             # Set up a bridge: service callbacks -> agent callback
             def agent_status_bridge(status_type: str, message: str):
                 """Bridge from agent to service status notifications."""
@@ -78,6 +78,10 @@ class CLIService(BaseService):
 
             if response.status == "success":
                 self._notify_status("completed", "Request completed successfully")
+            elif response.status == "cancelled":
+                # User-triggered cancellation should not be treated as failure
+                self._notify_status("clear", "")
+                self._notify_status("cancelled", "Cancelled.")
             else:
                 self._notify_status("failed", f"Request failed: {response.answer}")
 
@@ -91,7 +95,7 @@ class CLIService(BaseService):
             return AgentResponse(
                 status="failed",
                 answer=error_message,
-                metadata={"error": str(e), "error_type": type(e).__name__}
+                metadata={"error": str(e), "error_type": type(e).__name__},
             )
 
     def process_request_sync(self, request: AgentRequest) -> AgentResponse:
@@ -107,11 +111,23 @@ class CLIService(BaseService):
         Returns:
             AgentResponse with status, answer, and metadata
         """
-        return asyncio.run(self.process_request(request))
+        try:
+            return asyncio.run(self.process_request(request))
+        except (asyncio.CancelledError, KeyboardInterrupt) as e:
+            # Unified user cancellation path
+            self.logger.info(f"Request cancelled by user ({type(e).__name__})")
+            return AgentResponse(
+                status="cancelled",
+                answer="Operation cancelled by user",
+                metadata={
+                    "error": type(e).__name__,
+                    "error_type": type(e).__name__,
+                },
+            )
 
     def clear_agent_history(self) -> None:
         """Clear the agent's conversation history if supported."""
-        if hasattr(self.agent, 'clear_history'):
+        if hasattr(self.agent, "clear_history"):
             self.agent.clear_history()
             self.logger.info("Agent history cleared")
             self._notify_status("info", "Conversation history cleared")
@@ -129,7 +145,7 @@ class CLIService(BaseService):
         Raises:
             RuntimeError: If export fails or agent doesn't support export
         """
-        if not hasattr(self.agent, 'export_conversation'):
+        if not hasattr(self.agent, "export_conversation"):
             raise RuntimeError("Agent does not support conversation export")
 
         try:
