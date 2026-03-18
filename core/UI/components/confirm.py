@@ -43,7 +43,7 @@ class ConfirmControl:
     """
 
     message: str
-    title: str = "确认操作"
+    title: str = "Confirm Action"
     default_choice: bool = False
     cancel_allowed: bool = True
 
@@ -88,18 +88,18 @@ class ConfirmControl:
         content.append("\n\n")
 
         # Add prompt hint
-        hint = "提示："
+        hint = "Hint:"
         if self.default_choice:
-            hint += " [Y] 是 [N] 否"
+            hint += " [Y] Yes [N] No"
         else:
-            hint += " [Y] 是 [N] 否"
+            hint += " [Y] Yes [N] No"
         if self.cancel_allowed:
-            hint += " [C] 取消"
+            hint += " [C] Cancel"
         content.append(hint, style=Style(dim=True))
 
         return Panel(
             content,
-            title="❓ 确认",
+            title="❓ Confirm",
             border_style=Style(color=ThemeColors.WARNING),
             padding=(0, 1),
         )
@@ -157,7 +157,7 @@ class ConfirmComponent(BaseUIComponent):
         console.print(f"[dim]{data.message}[/dim]")
         console.print()
 
-        confirm_options = ["取消", "确认"]
+        confirm_options = ["Cancel", "Confirm"]
         if data.default_choice:
             curr_idx = 1
         else:
@@ -169,10 +169,12 @@ class ConfirmComponent(BaseUIComponent):
                 if i == curr_idx:
                     # 只高亮当前选中的项
                     if i == 1:  # 确认
-                        lines.append("[bold reverse green] > 确认[/bold reverse green]")
+                        lines.append(
+                            "[bold reverse green] > Confirm[/bold reverse green]"
+                        )
                     else:  # 取消
                         lines.append(
-                            "[bold reverse yellow] > 取消[/bold reverse yellow]"
+                            "[bold reverse yellow] > Cancel[/bold reverse yellow]"
                         )
                 else:
                     # 未选中的项正常显示
@@ -198,9 +200,9 @@ class ConfirmComponent(BaseUIComponent):
         confirmed = curr_idx == 1
         console.print()
         if confirmed:
-            console.print("[bold green]✅ 确认操作[/bold green]\n")
+            console.print("[bold green]✅ Confirmed[/bold green]\n")
         else:
-            console.print("[bold yellow]❌ 取消操作[/bold yellow]\n")
+            console.print("[bold yellow]❌ Canceled[/bold yellow]\n")
 
         return ConfirmResult(success=True, confirmed=confirmed)
 

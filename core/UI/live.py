@@ -1,18 +1,62 @@
 from rich.live import Live
-from rich.panel import Panel
 from rich.text import Text
 from rich.console import Console
+from rich.console import Group
+import threading
 
-panel = Text("")
+_layer_lock = threading.RLock()
+_layers = {
+    "status": None,
+    "form": None,
+    "misc": None,
+}
+
+
+def _compose_layers():
+    parts = []
+    # status 在上，form 在下，避免互相覆盖
+    if _layers.get("status") is not None:
+        parts.append(_layers["status"])
+    if _layers.get("form") is not None:
+        parts.append(_layers["form"])
+    if _layers.get("misc") is not None:
+        parts.append(_layers["misc"])
+
+    if not parts:
+        return Text("")
+    return Group(*parts)
+
+
 # Disable auto_refresh to allow KeyboardInterrupt to propagate
 # This enables Ctrl+C to work even when Live is active
 live = Live(
-    panel,
+    _compose_layers(),
     console=Console(),
     refresh_per_second=10,
     transient=True,
     auto_refresh=False,  # Important: allows Ctrl+C to work during Live display
+    vertical_overflow="visible",
 )
+
+
+def set_live_layer(name: str, renderable):
+    """Set one live layer and refresh composed output."""
+    with _layer_lock:
+        _layers[name] = renderable
+        live.update(_compose_layers(), refresh=True)
+
+
+def clear_live_layer(name: str):
+    """Clear one live layer and refresh composed output."""
+    with _layer_lock:
+        _layers[name] = None
+        live.update(_compose_layers(), refresh=True)
+
+
+def has_live_layers() -> bool:
+    """Whether any live layer is active."""
+    with _layer_lock:
+        return any(v is not None for v in _layers.values())
 
 
 def start_live():

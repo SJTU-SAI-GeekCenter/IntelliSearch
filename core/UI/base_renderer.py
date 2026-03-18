@@ -6,8 +6,8 @@ Both CLIRenderer and WebRenderer should inherit from BaseRenderer.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
-from core.UI.components import InputControl, SelectControl, ConfirmControl
+from typing import Any, Dict, Optional
+from core.UI.components import InputControl, SelectControl, ConfirmControl, FormControl
 
 
 class BaseRenderer(ABC):
@@ -56,6 +56,20 @@ class BaseRenderer(ABC):
             True if confirmed, False otherwise
         """
         pass
+
+    def prompt_form(self, control: FormControl) -> Dict[str, Any]:
+        """
+        Prompt user with a multi-page form.
+
+        Args:
+            control: Form control with title and paginated component config
+
+        Returns:
+            JSON-like dictionary result
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support form rendering"
+        )
 
     def display(self, *args, **kwargs):
         """

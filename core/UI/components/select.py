@@ -14,6 +14,8 @@ from rich.panel import Panel
 from rich.style import Style
 from .base_component import BaseUIComponent
 from core.UI.theme import ThemeColors
+from core.UI.console import console
+from core.UI.live import live
 
 if TYPE_CHECKING:
     from core.UI.cli_renderer import CLIRenderer
@@ -156,16 +158,16 @@ class SelectControl:
 
         # Add hint
         content.append("\n")
-        hint = "提示：输入选项编号"
+        hint = "Hint: Enter option index"
         if self.allow_multiple:
-            hint += "（支持多选）"
+            hint += " (multiple selection supported)"
         if self.cancel_allowed:
-            hint += "，Ctrl+C取消"
+            hint += ", Ctrl+C to cancel"
         content.append(hint, style=Style(dim=True))
 
         return Panel(
             content,
-            title="📋 选择",
+            title="📋 Select",
             border_style=Style(color=ThemeColors.PRIMARY),
             padding=(0, 1),
         )
@@ -210,12 +212,14 @@ class TUISelectControl:
             selected_text = ", ".join(
                 [self.options[i] for i in sorted(self.selected_indices)]
             )
-            lines.append(f"[dim]已选择: {selected_text}")
+            lines.append(f"[dim]Selected: {selected_text}")
             lines.append(
-                "[dim yellow]空格键: 切换选择  Enter: 完成  ↑↓: 移动[/dim yellow]"
+                "[dim yellow]Space: Toggle  Enter: Confirm  ↑↓: Move[/dim yellow]"
             )
         else:
-            lines.append("[dim yellow]提示：使用↑↓键选择，Enter确认[/dim yellow]")
+            lines.append(
+                "[dim yellow]Hint: Use ↑↓ to move, Enter to confirm[/dim yellow]"
+            )
 
         return "\n".join(lines)
 
@@ -299,37 +303,32 @@ class SelectComponent(BaseUIComponent):
             default_indices=data.default_indices,
         )
 
-        console = renderer.Console()
-
         console.print(f"[bold]{data.message}[/bold]")
         if tui_select.allow_multiple:
             console.print(
-                "[dim yellow]提示：使用↑↓键选择，Enter确认，已选中的选项会高亮显示"
+                "[dim yellow]Hint: Use ↑↓ to move, Enter to confirm. Selected options are highlighted."
             )
         else:
-            console.print("[dim yellow]提示：使用↑↓键选择，Enter确认")
+            console.print("[dim yellow]Hint: Use ↑↓ to move, Enter to confirm")
         console.print()
 
-        with renderer.Live(
-            tui_select.render(), transient=True, auto_refresh=False
-        ) as live:
-            try:
-                while not tui_select._confirmed:
-                    key = self._get_key()
-                    if key is None:
-                        continue
+        try:
+            while not tui_select._confirmed:
+                key = self._get_key()
+                if key is None:
+                    continue
 
-                    if tui_select.handle_key(key):
-                        if tui_select._confirmed:
-                            break
-                        else:
-                            live.update(tui_select.render(), refresh=True)
+                if tui_select.handle_key(key):
+                    if tui_select._confirmed:
+                        break
                     else:
                         live.update(tui_select.render(), refresh=True)
+                else:
+                    live.update(tui_select.render(), refresh=True)
 
-            except KeyboardInterrupt:
-                if data.cancel_allowed:
-                    return SelectResult(success=False, error="Interrupted by user")
+        except KeyboardInterrupt:
+            if data.cancel_allowed:
+                return SelectResult(success=False, error="Interrupted by user")
 
         if tui_select.allow_multiple:
             selected_indices = sorted(tui_select.selected_indices)

@@ -109,6 +109,22 @@ class CLIRenderer(BaseRenderer):
             return result.confirmed
         return control.default_choice
 
+    def prompt_form(self, control) -> dict:
+        """
+        Prompt user with a multi-page form using FormComponent.
+
+        Args:
+            control: Form control with title and pages
+
+        Returns:
+            JSON-like result dictionary
+        """
+        from core.UI.components import FormComponent
+
+        component = FormComponent()
+        result = component.render_cli(control, self, mode="tui")
+        return result.to_json()
+
     def _render_text_with_formatting(self, text_parts):
         """
         Render text parts with Rich formatting support.
