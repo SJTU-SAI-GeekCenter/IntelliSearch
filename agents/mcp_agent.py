@@ -8,7 +8,6 @@ to enhance search and retrieval capabilities with multi-step reasoning.
 import os
 import asyncio
 import nest_asyncio
-import time
 from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime
 from openai import OpenAI
@@ -170,9 +169,6 @@ class MCPBaseAgent(BaseAgent):
                     )
                 )
 
-            t_total = time.time() - t_total_start
-            self.logger.info(f"[BASE] Total time: {t_total:.2f}s")
-
             # Build response metadata
             response_metadata = {
                 "model_name": self.model_name,
@@ -310,12 +306,9 @@ class MCPBaseAgent(BaseAgent):
                 messages = self.memory.get_view("chat_messages")
 
                 # Get LLM response
-                t_llm_start = time.time()
                 completion = self.client.chat.completions.create(
                     model=self.model_name, messages=messages, tools=available_tools
                 )
-                t_llm = time.time() - t_llm_start
-                self.logger.info(f"[BASE] LLM call: {t_llm:.2f}s")
 
                 tool_call_lists = completion.choices[0].message.tool_calls
                 has_tool_calls = (
