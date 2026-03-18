@@ -1,10 +1,13 @@
 import time
+import sys
+import os
+from pathlib import Path
 from typing import Any, Dict, List
 
 try:
-    from security import validate_path, SecurityError
+    from security_prompt import ensure_path_access
 except ImportError:
-    from .security import validate_path, SecurityError
+    from .security_prompt import ensure_path_access
 
 
 def list_directory_impl(path: str = ".") -> str:
@@ -12,7 +15,7 @@ def list_directory_impl(path: str = ".") -> str:
     列出目录内容 Implementation
     """
     try:
-        target_path = validate_path(path)
+        target_path = ensure_path_access(path, action="read")
 
         if not target_path.exists():
             return f"Error: Path '{path}' does not exist."
@@ -36,7 +39,7 @@ def list_directory_impl(path: str = ".") -> str:
                     else:
                         size_str = f"{size/(1024*1024):.1f}MB"
 
-                # 修改时间
+                    # 修改时间
                 mtime = item.stat().st_mtime
                 time_str = time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime))
 
@@ -44,6 +47,7 @@ def list_directory_impl(path: str = ".") -> str:
                 # 优化格式: 类型 | 大小 | 时间 | 名称
                 items.append(f"{type_str:<6} {size_str:<10} {time_str:<16} {item.name}")
             except PermissionError:
+                # 跳过无权限访问的文件/目录
                 continue
 
         result = f"Directory listing for '{path}':\n"
@@ -54,9 +58,6 @@ def list_directory_impl(path: str = ".") -> str:
             result += "(empty directory)"
 
         return result
-    except SecurityError:
-        # Re-raise security errors to be handled by the client UI
-        raise
     except Exception as e:
         return f"Error listing directory: {str(e)}"
 
@@ -67,7 +68,7 @@ def list_tree_impl(path: str = ".", max_depth: int = -1) -> str:
     max_depth: -1 for unlimited (careful), or integer for specific depth (e.g. 2).
     """
     try:
-        target_path = validate_path(path)
+        target_path = ensure_path_access(path, action="read")
 
         if not target_path.exists():
             return f"Error: Path '{path}' does not exist."
@@ -84,27 +85,30 @@ def list_tree_impl(path: str = ".", max_depth: int = -1) -> str:
                 # iterdir can fail if no permission
                 contents = sorted(list(p.iterdir()))
             except PermissionError:
+                # 显示 (Access Denied) 并继续
                 tree_lines.append(f"{prefix}└── (Access Denied)")
                 return
 
             count = len(contents)
             for index, item in enumerate(contents):
-                is_last = index == count - 1
-                connector = "└── " if is_last else "├── "
+                try:
+                    is_last = index == count - 1
+                    connector = "└── " if is_last else "├── "
 
-                type_mark = "/" if item.is_dir() else ""
-                tree_lines.append(f"{prefix}{connector}{item.name}{type_mark}")
+                    type_mark = "/" if item.is_dir() else ""
+                    tree_lines.append(f"{prefix}{connector}{item.name}{type_mark}")
 
-                if item.is_dir():
-                    extension = "    " if is_last else "│   "
-                    _walk(item, prefix + extension, current_depth + 1)
+                    if item.is_dir():
+                        extension = "    " if is_last else "│   "
+                        _walk(item, prefix + extension, current_depth + 1)
+                except PermissionError:
+                    # 跳过无权限访问的文件/目录
+                    continue
 
         tree_lines.append(f"{target_path.name}/")
         _walk(target_path)
 
         return "\n".join(tree_lines)
 
-    except SecurityError:
-        raise
     except Exception as e:
         return f"Error walking directory tree: {str(e)}"

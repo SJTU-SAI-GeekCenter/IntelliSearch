@@ -1,10 +1,11 @@
 from typing import Any
+from pathlib import Path
+import logging
 
 try:
-    from security import validate_path, SecurityError
+    from security_prompt import ensure_path_access
 except ImportError:
-    from .security import validate_path, SecurityError
-import logging
+    from .security_prompt import ensure_path_access
 
 logger = logging.getLogger("filesystem-write")
 
@@ -12,20 +13,14 @@ logger = logging.getLogger("filesystem-write")
 def write_file_impl(path: str, content: str) -> str:
     """
     写入文件 (覆盖或创建) Implementation
-    Autodetects whether to require 'write' or 'create' permission.
     """
     try:
-        # Check existence to decide permission (simplistic approach)
-        # We catch exceptions in case 'read' is denied but 'write' might be allowed blind (rare but possible)
-        exists = False
-        try:
-            p = validate_path(path, action="read")
-            exists = p.exists()
-        except Exception:
-            pass  # proceed to verify write/create specifically
+        raw_target = Path(path).resolve()
+        action = "write" if raw_target.exists() else "create"
+        target_path = ensure_path_access(path, action=action)
 
-        required_action = "write" if exists else "create"
-        target_path = validate_path(path, action=required_action)
+        # Check if file exists
+        exists = target_path.exists()
 
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -34,8 +29,6 @@ def write_file_impl(path: str, content: str) -> str:
 
         return f"Successfully {'Overwritten' if exists else 'Created'} file '{path}' ({len(content)} chars)."
 
-    except SecurityError:
-        raise
     except Exception as e:
         return f"Error writing file: {str(e)}"
 
@@ -45,16 +38,12 @@ def append_file_impl(path: str, content: str) -> str:
     Append content to a file.
     """
     try:
-        # Check if file exists to determine message
-        exists = False
-        try:
-            p = validate_path(path, action="read")
-            exists = p.exists()
-        except Exception:
-            pass
+        raw_target = Path(path).resolve()
+        action = "write" if raw_target.exists() else "create"
+        target_path = ensure_path_access(path, action=action)
 
-        # Validate path for write permission
-        target_path = validate_path(path, action="write")
+        # Check if file exists
+        exists = target_path.exists()
 
         # Ensure parent directory exists
         target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,7 +54,5 @@ def append_file_impl(path: str, content: str) -> str:
         action = "Appended to" if exists else "Created and appended to"
         return f"Successfully {action} file '{path}' (added {len(content)} chars)."
 
-    except SecurityError:
-        raise
     except Exception as e:
         return f"Error appending to file: {str(e)}"

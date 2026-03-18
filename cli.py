@@ -2,47 +2,76 @@
 """
 IntelliSearch CLI - Interactive command-line interface for Agent inference.
 
-This is the simplified entry point that delegates all logic to the backend layer.
+This is simplified entry point that delegates all logic to backend layer.
 """
 
 import sys
 import os
 import traceback
 import yaml
+import asyncio
+import logging
+import warnings
 from pathlib import Path
 from rich.console import Console
 from rich.text import Text
-from rich.panel import Panel
 from rich.style import Style
 
-from ui.theme import ThemeColors
+from core.UI import UIEngine
+from core.UI.console import console
 from backend.cli_backend import CLIBackend
 from config.config_loader import Config
+from core.exceptions import IntelliSearchError
+
+# Suppress asyncio error logs for unhandled exceptions during Ctrl+C
+# This prevents "Task exception was never retrieved" messages
+logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
 
-def print_logo(console: Console):
-    """Display beautiful SAI-IntelliSearch logo with ASCII art."""
-    logo_art = """
-██╗███╗   ██╗████████╗███████╗██╗     ██╗     ██╗███████╗███████╗ █████╗ ██████╗  ██████╗██╗  ██╗
-██║████╗  ██║╚══██╔══╝██╔════╝██║     ██║     ██║██╔════╝██╔════╝██╔══██╗██╔══██╗██╔════╝██║  ██║
-██║██╔██╗ ██║   ██║   █████╗  ██║     ██║     ██║███████╗█████╗  ███████║██████╔╝██║     ███████║
-██║██║╚██╗██║   ██║   ██╔══╝  ██║     ██║     ██║╚════██║██╔══╝  ██╔══██║██╔══██╗██║     ██╔══██║
-██║██║ ╚████║   ██║   ███████╗███████╗███████╗██║███████║███████╗██║  ██║██║  ██║╚██████╗██║  ██║
-╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝╚══════╝╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
-"""
+# Set global asyncio exception handler to suppress all unhandled exceptions
+# This prevents "Unhandled exception in event loop" messages
+def suppress_asyncio_exception(loop, context):
+    """Suppress all asyncio exceptions to prevent error output."""
+    pass  # Do nothing - suppress all exceptions
 
-    logo_text = Text()
-    logo_text.append(logo_art, style=Style(color=ThemeColors.ACCENT, bold=True))
 
-    logo_panel = Panel(
-        logo_text,
-        border_style=Style(color=ThemeColors.PRIMARY),
-        padding=(1, 2),
-        title="[bold]SJTU-SAI Geek Center[/bold]",
-        title_align="right",
-    )
+def _get_running_loop_safely():
+    """Return current running loop or None (without deprecated API calls)."""
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
 
-    console.print(logo_panel)
+
+def suppress_known_unraisable(unraisable):
+    """
+    Suppress noisy unraisable exceptions on forced exit (Windows asyncio subprocess).
+
+    Typical pattern:
+    - RuntimeError: Event loop is closed
+    - ValueError: I/O operation on closed pipe
+    """
+    try:
+        exc = unraisable.exc_value
+        msg = str(exc) if exc else ""
+        if isinstance(exc, RuntimeError) and "Event loop is closed" in msg:
+            return
+        if isinstance(exc, ValueError) and "closed pipe" in msg.lower():
+            return
+    except Exception:
+        pass
+
+    # Fallback to default behavior for unknown unraisable exceptions
+    sys.__unraisablehook__(unraisable)
+
+
+# Apply the exception handler to the current event loop
+loop = _get_running_loop_safely()
+if loop is not None and not loop.is_closed():
+    loop.set_exception_handler(suppress_asyncio_exception)
+
+# Suppress known unraisable noise during interpreter shutdown on Windows
+sys.unraisablehook = suppress_known_unraisable
 
 
 def load_agent_config(config_path: str) -> tuple:
@@ -99,10 +128,34 @@ def load_agent_config(config_path: str) -> tuple:
     agent_type = agent_config.get("type", "mcp_base_agent")
     # * cli is not async, thus mcp_async_agent is forbidden
     if agent_type == "mcp_async_agent":
-        print("Warning: mcp_async_agent is not suitable for cli_frontend, use `mcp_base_agent` instead.")
+        print(
+            "Warning: mcp_async_agent is not suitable for cli_frontend, use `mcp_base_agent` instead."
+        )
         agent_type = "mcp_base_agent"
 
     return agent_type, final_config
+
+
+def cleanup_async_tasks():
+    """
+    Clean up all asyncio tasks to prevent 'Task exception was never retrieved' errors.
+    """
+    try:
+        loop = _get_running_loop_safely()
+        if loop and not loop.is_closed():
+            # Cancel all pending tasks
+            pending = asyncio.all_tasks(loop)
+            for task in pending:
+                if not task.done():
+                    task.cancel()
+
+            # Give tasks a chance to clean up
+            if pending:
+                loop.run_until_complete(
+                    asyncio.gather(*pending, return_exceptions=True)
+                )
+    except:
+        pass  # Ignore errors during cleanup
 
 
 def main():
@@ -119,9 +172,6 @@ def main():
     # Parse command line arguments
     config_path = sys.argv[1] if len(sys.argv) > 1 else "config/config.yaml"
 
-    # Initialize console
-    console = Console()
-
     try:
         # Initialize global Config singleton
         # This is required for backward compatibility with modules that use Config.get_instance()
@@ -131,31 +181,43 @@ def main():
         # Load configuration
         agent_type, agent_config = load_agent_config(config_path)
 
-        # Print logo
-        print_logo(console)
+        # Display welcome message using WelcomeUI component
+        welcome_ui = UIEngine.get_welcome_ui()
+        welcome_ui.display_full_welcome()
 
         # Create and run CLI backend
-        backend = CLIBackend(
-            agent_type=agent_type, agent_config=agent_config, console=console
-        )
+        backend = CLIBackend(agent_type=agent_type, agent_config=agent_config)
         backend.run()
 
-    except KeyboardInterrupt as e:
-        console.print(Text(f"KEYBOARD INTERRUPT", style=Style(color="red")))
+    except KeyboardInterrupt:
+        # Handle Ctrl+C gracefully
+        console.print("\n[bold red]程序已通过 Ctrl+C 终止[/bold red]")
+        cleanup_async_tasks()
         sys.exit(0)
 
     except FileNotFoundError as e:
         console.print(Text(f"\nError: {e}", style=Style(color="red")))
         sys.exit(1)
 
-    except ValueError as e:
-        console.print(Text(f"\nConfiguration Error: {e}", style=Style(color="red")))
-        sys.exit(1)
+    except IntelliSearchError as e:
+        # Handle IntelliSearch errors with UI display
+        UIEngine.display_exception(e)
+        # Exit based on error severity
+        if e.severity.value in ["FATAL", "CRITICAL"]:
+            sys.exit(1)
+        else:
+            sys.exit(0)
 
     except Exception as e:
+        # Handle unknown errors
         console.print(Text(f"\nFatal error: {e}", style=Style(color="red")))
         traceback.print_exc()
+        cleanup_async_tasks()
         sys.exit(1)
+    finally:
+        # Ensure pending tasks/transports get a final cleanup chance
+        warnings.filterwarnings("ignore", category=ResourceWarning)
+        cleanup_async_tasks()
 
 
 if __name__ == "__main__":

@@ -16,6 +16,9 @@ from config import config_loader
 from tools.connector import MCPConnector
 from tools.tool_cache import get_cache
 from core.logger import get_logger, TOOL_CALL_ERROR
+from core.exceptions import ErrorCodes
+from core.UI import UIEngine
+
 
 class MultiServerManager:
     """Manages multiple MCP server connections and coordinates tool discovery."""
@@ -50,7 +53,9 @@ class MultiServerManager:
                 server_url=config.get("url"),
             )
 
-    def _merge_env_variables(self, config_env: Optional[Dict[str, str]]) -> Dict[str, str]:
+    def _merge_env_variables(
+        self, config_env: Optional[Dict[str, str]]
+    ) -> Dict[str, str]:
         """
         Merge system environment variables with config environment variables.
 
@@ -135,21 +140,14 @@ class MultiServerManager:
                     return tools
 
         except Exception as e:
-            # Special handling for TaskGroup errors to get more details
-            if "TaskGroup" in str(e):
-                self.logger.error(f"Error connecting to STDIO server {server_name}: {e}")
-                self.logger.error(f"Full traceback:\n{traceback.format_exc()}")
-                # Try to extract the actual sub-exception
-                if hasattr(e, "__cause__"):
-                    self.logger.error(f"Cause: {e.__cause__}")
-                if hasattr(e, "__context__"):
-                    self.logger.error(f"Context: {e.__context__}")
-                if hasattr(e, "exceptions"):
-                    for i, sub_exc in enumerate(e.exceptions):
-                        self.logger.error(f"Sub-exception {i+1}: {sub_exc}")
-            else:
-                self.logger.error(f"Error connecting to STDIO server {server_name}: {e}")
-            raise
+            # Display error via UI
+            UIEngine.display_exception(
+                ErrorCodes.MCP_CONNECTION_ERROR.create_error(
+                    message=f"Unable to connect to MCP server {server_name}",
+                    context={"server_name": server_name, "transport": "stdio"},
+                )
+            )
+            return {}
 
     async def _connect_http_server(self, server_name: str) -> Dict[str, Any]:
         """Connects to an HTTP MCP server."""
@@ -168,10 +166,15 @@ class MultiServerManager:
             return tools
 
         except Exception as e:
-            self.logger.error(f"ERROR in connecting to HTTP server {server_name}: {e}")
-            self.logger.error(f"Full traceback: {traceback.format_exc()}")
             await connector.stop_http_server()
-            raise
+            # Display error via UI
+            UIEngine.display_exception(
+                ErrorCodes.MCP_CONNECTION_ERROR.create_error(
+                    message=f"Unable to connect to MCP server {server_name}",
+                    context={"server_name": server_name, "transport": "http"},
+                )
+            )
+            return {}
 
     async def _connect_sse_server(self, server_name: str) -> Dict[str, Any]:
         """Connects to an SSE MCP server."""
@@ -190,10 +193,15 @@ class MultiServerManager:
             return tools
 
         except Exception as e:
-            self.logger.error(f"ERROR in connecting to SSE server {server_name}: {e}")
-            self.logger.error(f"Full traceback: {traceback.format_exc()}")
             await connector.stop_sse_server()
-            raise
+            # Display error via UI
+            UIEngine.display_exception(
+                ErrorCodes.MCP_CONNECTION_ERROR.create_error(
+                    message=f"Unable to connect to MCP server {server_name}",
+                    context={"server_name": server_name, "transport": "sse"},
+                )
+            )
+            return {}
 
     async def _connect_url_server(self, server_name: str) -> Dict[str, Any]:
         """Connects to a URL-based MCP server (HTTP or SSE)."""
@@ -209,10 +217,18 @@ class MultiServerManager:
             return tools
 
         except Exception as e:
-            self.logger.error(f"ERROR in connecting to URL server {server_name}: {e}")
-            self.logger.error(f"Full traceback: {traceback.format_exc()}")
             await connector.stop_url_server()
-            raise
+            # Display error via UI
+            UIEngine.display_exception(
+                ErrorCodes.MCP_CONNECTION_ERROR.create_error(
+                    message=f"Unable to connect to MCP server {server_name}",
+                    context={
+                        "server_name": server_name,
+                        "transport": connector.transport_type,
+                    },
+                )
+            )
+            return {}
 
     async def call_tool(
         self, tool_name: str, parameters: Dict[str, Any], use_cache: bool = True
@@ -287,7 +303,9 @@ class MultiServerManager:
             self.logger.log(
                 TOOL_CALL_ERROR, f"ERROR in calling STDIO tool '{tool_name}': {e}"
             )
-            self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
+            self.logger.log(
+                TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
+            )
             raise
 
     async def _call_tool_http(
@@ -312,7 +330,9 @@ class MultiServerManager:
                         "Content-Type": "application/json",
                         "Accept": "application/json",
                     },
-                    timeout=config_loader.get_mcp_timeout(),
+                    timeout=aiohttp.ClientTimeout(
+                        total=config_loader.get_mcp_timeout()
+                    ),
                 ) as response:
                     if response.status != 200:
                         error_text = await response.text()
@@ -340,7 +360,9 @@ class MultiServerManager:
             self.logger.log(
                 TOOL_CALL_ERROR, f"ERROR in calling HTTP tool '{tool_name}': {e}"
             )
-            self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
+            self.logger.log(
+                TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
+            )
             raise
 
     async def _call_tool_sse(
@@ -350,8 +372,12 @@ class MultiServerManager:
         try:
             return await connector.call_tool_sse(tool_name, parameters)
         except Exception as e:
-            self.logger.log(TOOL_CALL_ERROR, f"ERROR in calling SSE tool '{tool_name}': {e}")
-            self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
+            self.logger.log(
+                TOOL_CALL_ERROR, f"ERROR in calling SSE tool '{tool_name}': {e}"
+            )
+            self.logger.log(
+                TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
+            )
             raise
 
     async def _call_tool_url(
@@ -361,13 +387,19 @@ class MultiServerManager:
         try:
             return await connector.call_tool_url(tool_name, parameters)
         except Exception as e:
-            self.logger.log(TOOL_CALL_ERROR, f"ERROR in calling URL tool '{tool_name}': {e}")
-            self.logger.log(TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}")
+            self.logger.log(
+                TOOL_CALL_ERROR, f"ERROR in calling URL tool '{tool_name}': {e}"
+            )
+            self.logger.log(
+                TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
+            )
             raise
 
     async def close_all_connections(self):
         """Closes all server connections."""
-        self.logger.info(f"Closing connections to {len(self.connectors)} MCP servers...")
+        self.logger.info(
+            f"Closing connections to {len(self.connectors)} MCP servers..."
+        )
 
         # Stop all HTTP/SSE/URL servers concurrently for faster cleanup
         server_cleanup_tasks = []
@@ -379,7 +411,9 @@ class MultiServerManager:
                         self._cleanup_url_server(server_name, connector)
                     )
                 else:
-                    self.logger.info(f"Scheduling cleanup for HTTP server {server_name}")
+                    self.logger.info(
+                        f"Scheduling cleanup for HTTP server {server_name}"
+                    )
                     server_cleanup_tasks.append(
                         self._cleanup_http_server(server_name, connector)
                     )
@@ -408,7 +442,9 @@ class MultiServerManager:
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
                     server_name = list(self.connectors.keys())[i]
-                    self.logger.error(f"Failed to cleanup server {server_name}: {result}")
+                    self.logger.error(
+                        f"Failed to cleanup server {server_name}: {result}"
+                    )
 
         # Clear references
         self.sessions.clear()

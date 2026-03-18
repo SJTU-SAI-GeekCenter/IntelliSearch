@@ -5,6 +5,8 @@ This module defines the color scheme used throughout the application,
 including the dark green primary theme and cyan/blue tool UI theme.
 """
 
+from rich.theme import Theme
+
 
 class ThemeColors:
     """Color scheme for IntelliSearch CLI (Dark Green Theme)."""
@@ -37,7 +39,36 @@ class ThemeColors:
     ERROR = "#EF5350"  # Red
     INFO = "#42A5F5"  # Blue
 
+    # Error severity colors
+    FATAL = "#B71C1C"  # Deep red (fatal)
+    CRITICAL = "#D32F2F"  # Red (critical)
+    NOTICE = "#42A5F5"  # Blue (notice)
+
     # Special colors
     USER_BUBBLE = "#2E5A38"  # User message background
     ASSISTANT_BUBBLE = "#1E3A24"  # Assistant message background
     BORDER = "#3A7A4A"  # Border color
+
+    @classmethod
+    def get_rich_theme(cls) -> Theme:
+        """
+        Get Rich Theme object with custom color styles.
+
+        Returns:
+            Theme: Rich Theme with custom styles
+        """
+        styles = {
+            "primary": f"bold {cls.PRIMARY}",
+            "secondary": cls.SECONDARY,
+            "accent": f"bold {cls.ACCENT}",
+            "success": cls.SUCCESS,
+            "warning": cls.WARNING,
+            "error": f"bold {cls.ERROR}",
+            "info": cls.INFO,
+            "dim": cls.DIM,
+            "tool": cls.TOOL_ACCENT,
+            "summary": cls.SUMMARY_ACCENT,
+            "user": cls.USER_BUBBLE,
+            "assistant": cls.ASSISTANT_BUBBLE,
+        }
+        return Theme(styles)

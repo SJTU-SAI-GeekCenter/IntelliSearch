@@ -213,6 +213,7 @@ pyrightconfig.json
 
 
 .claude
+CLAUDE.md
 /models
 pids
 log

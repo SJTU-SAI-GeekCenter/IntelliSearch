@@ -207,3 +207,52 @@ python api.py
 # 后端 API 文档：http://localhost:8001/docs
 python api.py
 ```
+
+### Code API Service (OpenAI Compatible)
+
+IntelliSearch 提供兼容 OpenAI SDK 的标准 API 接口，支持 IDE 和 AI CLI 工具无缝集成。
+
+```bash
+python code_api.py
+# 服务端口：本地 8002 端口
+# API 文档：http://localhost:8002/docs
+```
+
+**配置说明：**
+
+在 `config/config.yaml` 中配置 `code_backend` 段：
+
+```yaml
+code_backend:
+  host: "0.0.0.0"
+  port: 8002
+  require_api_key: true
+  api_keys:
+    - sk-your-custom-api-key
+  agent:
+    type: mcp_base_agent
+    model_name: intellisearch
+```
+
+**使用示例：**
+
+```python
+import os
+os.environ['no_proxy'] = 'localhost,127.0.0.1'
+
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-your-custom-api-key",
+    base_url="http://localhost:8002/v1"
+)
+
+response = client.chat.completions.create(
+    model="intellisearch",
+    messages=[
+        {"role": "user", "content": "搜索最新的 AI 论文"}
+    ],
+)
+
+print(response.choices[0].message.content)
+```

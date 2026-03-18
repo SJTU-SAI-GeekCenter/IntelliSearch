@@ -11,9 +11,16 @@ from typing import Optional
 from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
-from rich.live import Live
 from rich.style import Style
-
+from core.UI.live import (
+    live,
+    start_live,
+    stop_live,
+    set_live_layer,
+    clear_live_layer,
+    has_live_layers,
+)
+from core.UI.console import console
 from .theme import ThemeColors
 
 
@@ -28,28 +35,23 @@ class StatusManager:
     _instance: Optional["StatusManager"] = None
     _lock = object()
 
-    def __new__(cls, console: Optional[Console] = None):
+    def __new__(cls):
         """Implement singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self):
         """
         Initialize the StatusManager.
 
-        Args:
-            console: Rich console instance
         """
         if self._initialized:
             return
-
-        self.console = console or Console()
         self._current_status = None
         self._status_type = "idle"
         self._spinner_frame = 0
-        self._live = None
         self._active = False
         self._initialized = True
 
@@ -58,6 +60,10 @@ class StatusManager:
         self._spinner_arrows = ["←", "↖", "↑", "↗", "→", "↘", "↓", "↙"]
         self._spinner_stars = ["✶", "✷", "✸", "✹", "✺", "✴", "✳", "✲"]
         self._current_spinner = self._spinner_dots
+
+        # Animation thread management
+        self._animation_thread = None
+        self._stop_event = threading.Event()  # Signal to stop animation
 
     def _get_spinner_char(self) -> str:
         """Get current spinner character."""
@@ -75,7 +81,9 @@ class StatusManager:
         if self._status_type == "processing":
             # Green theme for processing
             title = Text()
-            title.append(spinner + " ", style=Style(color=ThemeColors.ACCENT, bold=True))
+            title.append(
+                spinner + " ", style=Style(color=ThemeColors.ACCENT, bold=True)
+            )
             title.append("PROCESSING", style=Style(color=ThemeColors.ACCENT, bold=True))
 
             content = Text()
@@ -93,8 +101,12 @@ class StatusManager:
         elif self._status_type == "executing":
             # Cyan theme for tool execution
             title = Text()
-            title.append(spinner + " ", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
-            title.append("EXECUTING TOOL", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True))
+            title.append(
+                spinner + " ", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True)
+            )
+            title.append(
+                "EXECUTING TOOL", style=Style(color=ThemeColors.TOOL_ACCENT, bold=True)
+            )
 
             content = Text()
             content.append(self._current_status, style=Style(color=ThemeColors.FG))
@@ -147,8 +159,12 @@ class StatusManager:
         elif self._status_type == "summarizing":
             # Pink-orange theme for final response generation
             title = Text()
-            title.append(spinner + " ", style=Style(color=ThemeColors.SUMMARY_ACCENT, bold=True))
-            title.append("SUMMARIZING", style=Style(color=ThemeColors.SUMMARY_ACCENT, bold=True))
+            title.append(
+                spinner + " ", style=Style(color=ThemeColors.SUMMARY_ACCENT, bold=True)
+            )
+            title.append(
+                "SUMMARIZING", style=Style(color=ThemeColors.SUMMARY_ACCENT, bold=True)
+            )
 
             content = Text()
             content.append(self._current_status, style=Style(color=ThemeColors.FG))
@@ -166,9 +182,31 @@ class StatusManager:
 
     def _animate(self) -> None:
         """Animation loop for live display."""
-        while self._active and self._live:
-            self._live.update(self._get_status_panel())
-            time.sleep(0.1)  # 100ms per frame for smooth animation
+        while self._active and not self._stop_event.is_set() and live:
+            panel = self._get_status_panel()
+            set_live_layer("status", panel)
+            # Use shorter sleep to be responsive to stop event
+            if self._stop_event.wait(timeout=0.1):
+                break
+
+    def _start_animation(self) -> None:
+        """Start animation if not already running."""
+        if not self._active:
+            self._active = True
+            self._stop_event.clear()
+
+            start_live()
+
+            # Stop any existing animation thread
+            if self._animation_thread and self._animation_thread.is_alive():
+                self._stop_event.set()
+                # Wait a bit for thread to exit
+                self._animation_thread.join(timeout=0.2)
+                self._stop_event.clear()
+
+            # Start animation in background thread
+            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
+            self._animation_thread.start()
 
     def set_processing(self, message: str = "Processing your request...") -> None:
         """
@@ -180,19 +218,9 @@ class StatusManager:
         self._current_status = message
         self._status_type = "processing"
         self._current_spinner = self._spinner_dots
+        self._spinner_frame = 0  # Reset frame index when changing spinner
 
-        if not self._active:
-            self._active = True
-            self._live = Live(
-                self._get_status_panel(),
-                console=self.console,
-                refresh_per_second=10,
-            )
-            self._live.start()
-
-            # Start animation in background thread
-            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
-            self._animation_thread.start()
+        self._start_animation()
 
     def set_executing(self, message: str = "Executing tool...") -> None:
         """
@@ -204,19 +232,9 @@ class StatusManager:
         self._current_status = message
         self._status_type = "executing"
         self._current_spinner = self._spinner_arrows
+        self._spinner_frame = 0  # Reset frame index when changing spinner
 
-        if not self._active:
-            self._active = True
-            self._live = Live(
-                self._get_status_panel(),
-                console=self.console,
-                refresh_per_second=10,
-            )
-            self._live.start()
-
-            # Start animation in background thread
-            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
-            self._animation_thread.start()
+        self._start_animation()
 
     def set_summarizing(self, message: str = "Generating final response...") -> None:
         """
@@ -228,19 +246,9 @@ class StatusManager:
         self._current_status = message
         self._status_type = "summarizing"
         self._current_spinner = self._spinner_stars
+        self._spinner_frame = 0  # Reset frame index when changing spinner
 
-        if not self._active:
-            self._active = True
-            self._live = Live(
-                self._get_status_panel(),
-                console=self.console,
-                refresh_per_second=10,
-            )
-            self._live.start()
-
-            # Start animation in background thread
-            self._animation_thread = threading.Thread(target=self._animate, daemon=True)
-            self._animation_thread.start()
+        self._start_animation()
 
     def set_error(self, message: str = "Error occurred") -> None:
         """
@@ -252,8 +260,8 @@ class StatusManager:
         self._current_status = message
         self._status_type = "error"
 
-        if self._active and self._live:
-            self._live.update(self._get_status_panel())
+        if self._active and live:
+            set_live_layer("status", self._get_status_panel())
 
     def set_success(self, message: str = "Operation completed") -> None:
         """
@@ -265,20 +273,35 @@ class StatusManager:
         self._current_status = message
         self._status_type = "success"
 
-        if self._active and self._live:
-            self._live.update(self._get_status_panel())
+        if self._active and live:
+            set_live_layer("status", self._get_status_panel())
             time.sleep(0.5)  # Show success briefly
 
     def clear(self) -> None:
-        """Clear the status display."""
+        """Clear the status display and stop animation thread."""
         if self._active:
             self._active = False
-            if self._live:
-                self._live.stop()
-                self._live = None
+
+            # Signal animation thread to stop
+            if self._stop_event:
+                self._stop_event.set()
+
+            # Wait for animation thread to exit
+            if self._animation_thread and self._animation_thread.is_alive():
+                self._animation_thread.join(timeout=0.5)
+
+            # Stop Live display
+            clear_live_layer("status")
+            if not has_live_layers():
+                stop_live()
+
+            # Reset state
             self._current_status = None
             self._status_type = "idle"
             self._spinner_frame = 0
+
+            # Clear stop event for next use
+            self._stop_event.clear()
 
     def print_and_clear(self, content: str = "") -> None:
         """
@@ -289,7 +312,7 @@ class StatusManager:
         """
         self.clear()
         if content:
-            self.console.print(content)
+            console.print(content)
 
     def finish(self) -> None:
         """Finish current status and clear display."""
@@ -303,14 +326,10 @@ _global_status: Optional[StatusManager] = None
 def get_status_manager(console: Optional[Console] = None) -> StatusManager:
     """
     Get the global StatusManager instance.
-
-    Args:
-        console: Optional console to initialize with
-
     Returns:
         StatusManager instance
     """
     global _global_status
     if _global_status is None:
-        _global_status = StatusManager(console)
+        _global_status = StatusManager()
     return _global_status

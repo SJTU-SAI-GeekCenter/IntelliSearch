@@ -12,7 +12,7 @@ import socket
 import subprocess
 import aiohttp
 import traceback
-from config.config_loader import Config
+import config.config_loader as config_loader
 from typing import List, Dict, Any, Optional
 from mcp import ClientSession, StdioServerParameters
 from core.logger import get_logger, TOOL_CALL_ERROR
@@ -37,7 +37,7 @@ class MCPConnector:
         self.port = port
         self.endpoint = endpoint
         self.server_url = server_url  # Full URL for URL-based connections
-        self.logger = get_logger(__name__, "tool")
+        self.logger = get_logger(__name__)
 
         if transport_type == "stdio":
             if server_command is None:
@@ -76,9 +76,9 @@ class MCPConnector:
     def find_available_port(start_port: int = None, max_attempts: int = None) -> int:
         """Find an available port starting from start_port."""
         if start_port is None:
-            start_port = Config.get_instance().get("mcp.ports.default_port", 3001)
+            start_port = config_loader.config.get("mcp.ports.default_port", 3001)
         if max_attempts is None:
-            max_attempts = Config.get_instance().get(
+            max_attempts = config_loader.config.get(
                 "mcp.ports.port_search_attempts", 100
             )
 
@@ -95,7 +95,7 @@ class MCPConnector:
 
     async def discover_tools(self, session: ClientSession) -> Dict[str, Any]:
         """Discovers all available tools and their capabilities from the server (STDIO mode)."""
-        self.logger.debug(f"Discovering available tools from {self.server_name}...")
+        self.logger.info(f"Discovering available tools from {self.server_name}...")
         tools_response = await session.list_tools()
 
         server_tools = {}
@@ -109,7 +109,7 @@ class MCPConnector:
                 "input_schema": tool.inputSchema,
             }
 
-        self.logger.debug(
+        self.logger.info(
             f"Discovered {len(server_tools)} tools from {self.server_name}"
         )
         self.discovered_tools = server_tools
@@ -121,7 +121,7 @@ class MCPConnector:
             raise ValueError("This method is only for HTTP transport")
 
         original_port = self.port
-        max_port_attempts = Config.get_instance().get(
+        max_port_attempts = config_loader.config.get(
             "mcp.ports.port_search_attempts", 100
         )
 
@@ -146,8 +146,8 @@ class MCPConnector:
                 else:
                     # Subsequent attempts or no configured port: use random ports
                     current_port = random.randint(
-                        Config.get_instance().get("mcp.ports.random_port_min", 10000),
-                        Config.get_instance().get("mcp.ports.random_port_max", 50000),
+                        config_loader.config.get("mcp.ports.random_port_min", 10000),
+                        config_loader.config.get("mcp.ports.random_port_max", 50000),
                     )
                     if attempt == 0:
                         self.logger.info(
@@ -185,7 +185,7 @@ class MCPConnector:
                             test_url = f"http://localhost:{self.port}{self.endpoint}"
                             async with session.get(
                                 test_url,
-                                timeout=Config.get_instance().get(
+                                timeout=config_loader.config.get(
                                     "mcp.connection.health_check_timeout", 2
                                 ),
                             ) as response:
@@ -286,7 +286,7 @@ class MCPConnector:
                         "Content-Type": "application/json",
                         "Accept": "application/json, text/event-stream",
                     },
-                    timeout=Config.get_instance().get(
+                    timeout=config_loader.config.get(
                         "mcp.connection.tool_discovery_timeout", 10
                     ),
                 ) as response:
@@ -326,7 +326,7 @@ class MCPConnector:
                     base_url,
                     json=tools_request,
                     headers=headers,
-                    timeout=Config.get_instance().get(
+                    timeout=config_loader.config.get(
                         "mcp.connection.tool_discovery_timeout", 10
                     ),
                 ) as response:
@@ -412,7 +412,7 @@ class MCPConnector:
                     "Content-Type": "application/json",
                     "Accept": "text/event-stream",
                 },
-                timeout=Config.get_instance().get(
+                timeout=config_loader.config.get(
                     "mcp.connection.tool_discovery_timeout", 10
                 ),
             ) as response:
@@ -454,7 +454,7 @@ class MCPConnector:
                 base_url,
                 json=tools_request,
                 headers=headers,
-                timeout=Config.get_instance().get(
+                timeout=config_loader.config.get(
                     "mcp.connection.tool_discovery_timeout", 10
                 ),
             ) as response:
@@ -548,7 +548,7 @@ class MCPConnector:
                 base_url,
                 json=init_request,
                 headers={"Content-Type": "application/json", "Accept": accept_header},
-                timeout=Config.get_instance().get(
+                timeout=config_loader.config.get(
                     "mcp.connection.tool_discovery_timeout", 10
                 ),
             ) as response:
@@ -601,7 +601,7 @@ class MCPConnector:
                 base_url,
                 json=tools_request,
                 headers=headers,
-                timeout=Config.get_instance().get(
+                timeout=config_loader.config.get(
                     "mcp.connection.tool_discovery_timeout", 10
                 ),
             ) as response:
@@ -696,7 +696,7 @@ class MCPConnector:
                 # Wait for process to fully exit
                 try:
                     self.server_process.wait(
-                        timeout=Config.get_instance().get(
+                        timeout=config_loader.config.get(
                             "mcp.connection.process_wait_timeout", 5
                         )
                     )
@@ -764,7 +764,7 @@ class MCPConnector:
                 # Wait for process to fully exit
                 try:
                     self.server_process.wait(
-                        timeout=Config.get_instance().get(
+                        timeout=config_loader.config.get(
                             "mcp.connection.process_wait_timeout", 5
                         )
                     )
@@ -897,7 +897,7 @@ class MCPConnector:
                 base_url,
                 json=tool_request,
                 headers=headers,
-                timeout=Config.get_instance().get(
+                timeout=config_loader.config.get(
                     "mcp.connection.tool_call_timeout", 30
                 ),
             ) as response:
@@ -940,6 +940,7 @@ class MCPConnector:
             self.logger.log(
                 TOOL_CALL_ERROR, f"ERROR in calling SSE tool '{tool_name}': {e}"
             )
+
             self.logger.log(
                 TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
             )
@@ -980,7 +981,7 @@ class MCPConnector:
                 base_url,
                 json=tool_request,
                 headers=headers,
-                timeout=Config.get_instance().get(
+                timeout=config_loader.config.get(
                     "mcp.connection.tool_call_timeout", 30
                 ),
             ) as response:
@@ -1043,6 +1044,7 @@ class MCPConnector:
             self.logger.log(
                 TOOL_CALL_ERROR, f"ERROR in calling URL tool '{tool_name}': {e}"
             )
+
             self.logger.log(
                 TOOL_CALL_ERROR, f"Full traceback: {traceback.format_exc()}"
             )
@@ -1065,5 +1067,6 @@ class MCPConnector:
             self.logger.error(
                 f"ERROR in stopping URL server for {self.server_name}: {e}"
             )
+
             self.logger.error(f"Full traceback: {traceback.format_exc()}")
             raise

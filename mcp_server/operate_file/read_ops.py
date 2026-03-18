@@ -1,10 +1,13 @@
-from typing import Any
+from typing import Any, Optional
 from pathlib import Path
+import sys
+import os
+import time
 
 try:
-    from security import validate_path, SecurityError
+    from security_prompt import ensure_path_access
 except ImportError:
-    from .security import validate_path, SecurityError
+    from .security_prompt import ensure_path_access
 
 
 def read_pdf(file_path) -> str:
@@ -38,7 +41,7 @@ def read_file_impl(path: str) -> str:
     智能读取文件 Implementation
     """
     try:
-        target_path = validate_path(path)
+        target_path = ensure_path_access(path, action="read")
 
         if not target_path.exists():
             return f"Error: File '{path}' does not exist."
@@ -82,8 +85,6 @@ def read_file_impl(path: str) -> str:
         except Exception as e:
             return f"Error reading file content: {str(e)}"
 
-    except SecurityError:
-        raise
     except Exception as e:
         return f"Error reading file: {str(e)}"
 
@@ -93,7 +94,7 @@ def search_files_impl(path: str, pattern: str) -> str:
     Search for a text pattern in files within a directory (recursive).
     """
     try:
-        target_path = validate_path(path)
+        target_path = ensure_path_access(path, action="read")
 
         if not target_path.exists():
             return f"Error: Path '{path}' does not exist."
@@ -175,7 +176,5 @@ def search_files_impl(path: str, pattern: str) -> str:
         )
         return header + "\n".join(results) + footer
 
-    except SecurityError:
-        raise
     except Exception as e:
         return f"Error searching files: {str(e)}"

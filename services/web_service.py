@@ -10,7 +10,7 @@ from typing import Optional, Dict, AsyncGenerator, Any
 from services.base_service import BaseService
 from core.schema import AgentRequest, AgentResponse
 from core.logger import get_logger
-from ui.tool_ui import ToolUIManager
+from core.UI.tool_ui import ToolUIManager
 from config.config_loader import Config
 
 
@@ -129,8 +129,7 @@ class WebService(BaseService):
                 try:
                     # Wait for next event with timeout
                     event = await asyncio.wait_for(
-                        stream_generator.__anext__(),
-                        timeout=backend_timeout
+                        stream_generator.__anext__(), timeout=backend_timeout
                     )
                     yield event
                 except StopAsyncIteration:
@@ -140,7 +139,9 @@ class WebService(BaseService):
             self._notify_status("completed", "Request completed successfully")
 
         except asyncio.TimeoutError:
-            error_message = f"Request processing timeout after {backend_timeout} seconds"
+            error_message = (
+                f"Request processing timeout after {backend_timeout} seconds"
+            )
             self.logger.error(error_message)
             self._notify_status("error", error_message)
             yield {"type": "error", "data": error_message}
