@@ -45,10 +45,13 @@ class PermissionRule:
     scope: int = AccessScope.DENIED
 
     # Granular Permissions
-    allow_read: bool = True
-    allow_create: bool = False
-    allow_write: bool = False  # 修改现有文件
-    allow_delete: bool = False
+    # None = UNSET (未决，需要询问)
+    # True = Allow
+    # False = Explicit Deny
+    allow_read: Optional[bool] = None
+    allow_create: Optional[bool] = None
+    allow_write: Optional[bool] = None  # 修改现有文件
+    allow_delete: Optional[bool] = None
 
     # TTL (Unix Timestamp, None = Forever)
     expires_at: Optional[float] = None
@@ -59,6 +62,7 @@ class PermissionRule:
 
     def to_dict(self):
         data = asdict(self)
+        data["version"] = 2
         if self.expires_at is not None:
             # 保留2位小数即可，不必微秒级精确
             data["expires_at"] = round(self.expires_at, 2)
@@ -66,12 +70,22 @@ class PermissionRule:
 
     @staticmethod
     def from_dict(data: dict):
+        scope = data.get("scope", 0)
+        version = int(data.get("version", 1))
+
+        def _normalize_permission(v: Optional[bool]) -> Optional[bool]:
+            # 兼容旧版本：在非 DENIED scope 下，历史上的 False 多数是“未设置”的副作用
+            # 新版本使用 None 表示 UNSET。
+            if version < 2 and scope != AccessScope.DENIED and v is False:
+                return None
+            return v
+
         return PermissionRule(
-            scope=data.get("scope", 0),
-            allow_read=data.get("allow_read", True),
-            allow_create=data.get("allow_create", False),
-            allow_write=data.get("allow_write", False),
-            allow_delete=data.get("allow_delete", False),
+            scope=scope,
+            allow_read=_normalize_permission(data.get("allow_read", None)),
+            allow_create=_normalize_permission(data.get("allow_create", None)),
+            allow_write=_normalize_permission(data.get("allow_write", None)),
+            allow_delete=_normalize_permission(data.get("allow_delete", None)),
             expires_at=data.get("expires_at"),
             whitelist_patterns=data.get("whitelist_patterns", []),
             blacklist_patterns=data.get("blacklist_patterns", []),
@@ -165,11 +179,12 @@ class SecurityManager:
         self,
         path: Union[str, Path],
         scope: int,
-        allow_read: bool = True,
-        allow_write: bool = False,
-        allow_create: bool = False,
-        allow_delete: bool = False,
+        allow_read: Optional[bool] = None,
+        allow_write: Optional[bool] = None,
+        allow_create: Optional[bool] = None,
+        allow_delete: Optional[bool] = None,
         ttl_seconds: Optional[int] = None,
+        merge_existing: bool = True,
     ):
         """
         Add or update a permission rule with granular controls.
@@ -182,14 +197,38 @@ class SecurityManager:
         if ttl_seconds:
             expires_at = time.time() + ttl_seconds
 
-        new_rule = PermissionRule(
-            scope=scope,
-            allow_read=allow_read,
-            allow_write=allow_write,
-            allow_create=allow_create,
-            allow_delete=allow_delete,
-            expires_at=expires_at,
-        )
+        existing_rule = self.permissions.get(abs_path)
+
+        if merge_existing and existing_rule is not None:
+            new_rule = PermissionRule(
+                scope=scope,
+                allow_read=(
+                    existing_rule.allow_read if allow_read is None else allow_read
+                ),
+                allow_write=(
+                    existing_rule.allow_write if allow_write is None else allow_write
+                ),
+                allow_create=(
+                    existing_rule.allow_create if allow_create is None else allow_create
+                ),
+                allow_delete=(
+                    existing_rule.allow_delete if allow_delete is None else allow_delete
+                ),
+                expires_at=(
+                    expires_at if ttl_seconds is not None else existing_rule.expires_at
+                ),
+                whitelist_patterns=existing_rule.whitelist_patterns,
+                blacklist_patterns=existing_rule.blacklist_patterns,
+            )
+        else:
+            new_rule = PermissionRule(
+                scope=scope,
+                allow_read=allow_read,
+                allow_write=allow_write,
+                allow_create=allow_create,
+                allow_delete=allow_delete,
+                expires_at=expires_at,
+            )
 
         # Python dictionary automatically handles overwrite if key exists
         action_type = "Updated" if abs_path in self.permissions else "Added"
@@ -293,23 +332,42 @@ class SecurityManager:
                     f"Access Denied (Scope 1 - Shallow): Cannot access deep path {target}. Root: {rule_path}"
                 )
 
-        # 3. Check Granular Action
-        if action == "read" and not rule.allow_read:
-            raise ExplicitDenyError(
-                f"Read Denied: Rule {rule_path} does not allow reading."
-            )
-        if action == "write" and not rule.allow_write:
-            raise ExplicitDenyError(
-                f"Write Denied: Rule {rule_path} does not allow modification."
-            )
-        if action == "create" and not rule.allow_create:
-            raise ExplicitDenyError(
-                f"Create Denied: Rule {rule_path} does not allow creating files."
-            )
-        if action == "delete" and not rule.allow_delete:
-            raise ExplicitDenyError(
-                f"Delete Denied: Rule {rule_path} does not allow deletion."
-            )
+        # 3. Check Granular Action (Tri-state: True/False/None[UNSET])
+        action_perm_map = {
+            "read": (
+                rule.allow_read,
+                "Read Denied: Rule {rule_path} does not allow reading.",
+            ),
+            "write": (
+                rule.allow_write,
+                "Write Denied: Rule {rule_path} does not allow modification.",
+            ),
+            "create": (
+                rule.allow_create,
+                "Create Denied: Rule {rule_path} does not allow creating files.",
+            ),
+            "delete": (
+                rule.allow_delete,
+                "Delete Denied: Rule {rule_path} does not allow deletion.",
+            ),
+        }
+
+        if action in action_perm_map:
+            perm_value, denied_tmpl = action_perm_map[action]
+
+            if perm_value is False:
+                raise ExplicitDenyError(denied_tmpl.format(rule_path=rule_path))
+
+            if perm_value is None:
+                states = {
+                    "allow_read": rule.allow_read,
+                    "allow_create": rule.allow_create,
+                    "allow_write": rule.allow_write,
+                    "allow_delete": rule.allow_delete,
+                }
+                raise ImplicitDenyError(
+                    f"Access requires '{action}' but permission is UNSET under rule {rule_path}. Current states={states}."
+                )
 
         return target
 
