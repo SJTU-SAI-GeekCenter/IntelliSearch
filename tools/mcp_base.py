@@ -213,33 +213,20 @@ class MCPBase:
             "2小时": 2 * 60 * 60,
         }
 
-        action = str(values.get("action", "read"))
-        profile = str(values.get("perm_profile", ""))
-        if not profile:
-            # Auto-infer profile by requested action
-            if action == "read":
-                profile = "Read only"
-            elif action == "create":
-                profile = "Read + Create"
-            elif action == "write":
-                profile = "Read + Write + Create"
-            elif action == "delete":
-                profile = "Full Control (with Delete)"
-            else:
-                profile = "Read + Write + Create"
-        allow_read = True
-        allow_create = False
-        allow_write = False
-        allow_delete = False
+        action = str(values.get("action", "read")).lower()
+        allow_read = None
+        allow_create = None
+        allow_write = None
+        allow_delete = None
 
-        if profile in ("读+创建", "Read + Create"):
+        # 仅修改本次请求涉及的权限；其余权限保持 UNSET / 原值
+        if action == "read":
+            allow_read = True
+        elif action == "create":
             allow_create = True
-        elif profile in ("读+写+创建", "Read + Write + Create"):
-            allow_create = True
+        elif action == "write":
             allow_write = True
-        elif profile in ("完全控制(含删除)", "Full Control (with Delete)"):
-            allow_create = True
-            allow_write = True
+        elif action == "delete":
             allow_delete = True
 
         from pathlib import Path
@@ -258,11 +245,14 @@ class MCPBase:
             allow_write=allow_write,
             allow_delete=allow_delete,
             ttl_seconds=ttl_map.get(ttl_key, None),
+            merge_existing=True,
         )
 
     @staticmethod
-    def _apply_deny_from_form(values: Dict[str, Any], target_path: str) -> None:
-        """Persist explicit deny rule when user selects reject."""
+    def _apply_deny_from_form(
+        values: Dict[str, Any], target_path: str, action: str
+    ) -> None:
+        """Persist explicit deny for current action when user selects reject."""
         try:
             from mcp_server.operate_file.security import security_manager, AccessScope
         except ImportError:
@@ -281,14 +271,40 @@ class MCPBase:
         from pathlib import Path
 
         target = Path(target_path).resolve()
+        rule_target = target if target.is_dir() else target.parent
+
+        allow_read = None
+        allow_create = None
+        allow_write = None
+        allow_delete = None
+
+        action = str(action).lower()
+        if action == "read":
+            allow_read = False
+        elif action == "create":
+            allow_create = False
+        elif action == "write":
+            allow_write = False
+        elif action == "delete":
+            allow_delete = False
+
+        scope_map = {
+            "Shallow": AccessScope.SHALLOW,
+            "Recursive": AccessScope.RECURSIVE,
+            "当前层级(Shallow)": AccessScope.SHALLOW,
+            "递归(Recursive)": AccessScope.RECURSIVE,
+        }
+        scope_key = str(values.get("scope", "Recursive"))
+
         security_manager.add_permission(
-            path=target,
-            scope=AccessScope.DENIED,
-            allow_read=False,
-            allow_create=False,
-            allow_write=False,
-            allow_delete=False,
+            path=rule_target,
+            scope=scope_map.get(scope_key, AccessScope.RECURSIVE),
+            allow_read=allow_read,
+            allow_create=allow_create,
+            allow_write=allow_write,
+            allow_delete=allow_delete,
             ttl_seconds=ttl_map.get(ttl_key, None),
+            merge_existing=True,
         )
 
     async def _handle_permission_request(
@@ -300,8 +316,16 @@ class MCPBase:
         from core.UI.live import clear_live_layer
 
         target_path = payload.get("target_path", "")
-        action = payload.get("action", "read")
+        action = str(payload.get("action", "read")).lower()
         reason = payload.get("reason", "")
+
+        action_label_map = {
+            "read": "allow_read",
+            "create": "allow_create",
+            "write": "allow_write",
+            "delete": "allow_delete",
+        }
+        action_label = action_label_map.get(action, f"allow_{action}")
 
         pages = [
             [
@@ -312,7 +336,13 @@ class MCPBase:
                     "description": (
                         f"Target path: {target_path}\n"
                         f"Requested action: {action}\n"
-                        f"Reason: {reason}"
+                        f"Reason: {reason}\n\n"
+                        "If you choose Allow, this form will modify ONLY:\n"
+                        f"  - {action_label} = True\n"
+                        "Other permissions remain UNSET/original values (not auto-denied).\n\n"
+                        "If you choose Deny, this form will modify ONLY:\n"
+                        f"  - {action_label} = False\n"
+                        "Other permissions remain UNSET/original values."
                     ),
                     "options": ["Allow", "Deny"],
                     "default_index": 0,
@@ -354,8 +384,8 @@ class MCPBase:
 
         values = form_result.get("values", {})
         if values.get("decision") not in ("Allow", "允许"):
-            # 用户拒绝也应持久化到 permissions.json（显式拒绝规则）
-            self._apply_deny_from_form(values, target_path)
+            # 用户拒绝时，仅写入本次 action 的显式拒绝，不影响其他权限
+            self._apply_deny_from_form(values, target_path, action)
             return False
 
         # Let apply layer auto-infer permission profile from requested action

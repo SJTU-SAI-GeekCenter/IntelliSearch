@@ -2,9 +2,9 @@
   "example_path": {
     "scope": 2,
     "allow_read": true,
-    "allow_create": false,
-    "allow_write": false,
-    "allow_delete": false,
+    "allow_create": null,
+    "allow_write": null,
+    "allow_delete": null,
     "expires_at": null,
     "whitelist_patterns": [],
     "blacklist_patterns": []
