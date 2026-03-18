@@ -2,11 +2,16 @@ import os
 import shutil
 from pathlib import Path
 
+try:
+    from security_prompt import ensure_path_access
+except ImportError:
+    from .security_prompt import ensure_path_access
+
 
 def mkdir_impl(path: str) -> str:
     """Create a new directory (recursive)."""
     try:
-        target_path = Path(path).resolve()
+        target_path = ensure_path_access(path, action="create")
         os.makedirs(target_path, exist_ok=True)
         return f"Successfully created directory: {target_path}"
     except Exception as e:
@@ -16,7 +21,7 @@ def mkdir_impl(path: str) -> str:
 def rm_impl(path: str) -> str:
     """Run delete command on path (file or folder)."""
     try:
-        target_path = Path(path).resolve()
+        target_path = ensure_path_access(path, action="delete")
 
         if not target_path.exists():
             return f"Error: Path '{path}' does not exist."
@@ -35,11 +40,11 @@ def rm_impl(path: str) -> str:
 def mv_impl(src: str, dest: str) -> str:
     """Move file or directory."""
     try:
-        src_path = Path(src).resolve()
+        src_path = ensure_path_access(src, action="delete")
         if not src_path.exists():
             return f"Error: Source '{src}' does not exist."
 
-        dest_path = Path(dest).resolve()
+        dest_path = ensure_path_access(dest, action="create")
 
         shutil.move(str(src_path), str(dest_path))
         return f"Successfully moved '{src}' to '{dest}'"
@@ -50,11 +55,11 @@ def mv_impl(src: str, dest: str) -> str:
 def copy_impl(src: str, dest: str) -> str:
     """Copy file or directory."""
     try:
-        src_path = Path(src).resolve()
+        src_path = ensure_path_access(src, action="read")
         if not src_path.exists():
             return f"Error: Source '{src}' does not exist."
 
-        dest_path = Path(dest).resolve()
+        dest_path = ensure_path_access(dest, action="create")
 
         if src_path.is_dir():
             shutil.copytree(src_path, dest_path, dirs_exist_ok=True)

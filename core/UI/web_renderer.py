@@ -6,7 +6,7 @@ Currently a placeholder - will be implemented when web frontend is ready.
 """
 
 from core.UI.base_renderer import BaseRenderer
-from core.UI.components import InputControl, SelectControl, ConfirmControl
+from core.UI.components import InputControl, SelectControl, ConfirmControl, FormControl
 
 
 class WebRenderer(BaseRenderer):
@@ -59,3 +59,27 @@ class WebRenderer(BaseRenderer):
         # TODO: Implement web confirm prompt
         # This will communicate with frontend via WebSocket or SSE
         return control.default_choice
+
+    def prompt_form(self, control: FormControl) -> dict:
+        """
+        Prompt user with a multi-page form in web UI.
+
+        Args:
+            control: Form control with title and pages
+
+        Returns:
+            JSON-like result dictionary (placeholder for now)
+        """
+        # TODO: Implement web form prompt
+        return {
+            "success": True,
+            "completed": False,
+            "title": control.title,
+            "values": {},
+            "pages_total": len(control.pages),
+            "page_results": [
+                {"page": i + 1, "values": {}} for i in range(len(control.pages))
+            ],
+            "cancelled": False,
+            "error": None,
+        }

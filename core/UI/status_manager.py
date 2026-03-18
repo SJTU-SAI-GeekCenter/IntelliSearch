@@ -12,7 +12,14 @@ from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
 from rich.style import Style
-from core.UI.live import live, stop_live
+from core.UI.live import (
+    live,
+    start_live,
+    stop_live,
+    set_live_layer,
+    clear_live_layer,
+    has_live_layers,
+)
 from core.UI.console import console
 from .theme import ThemeColors
 
@@ -177,8 +184,7 @@ class StatusManager:
         """Animation loop for live display."""
         while self._active and not self._stop_event.is_set() and live:
             panel = self._get_status_panel()
-            live.update(panel)
-            live.refresh()  # Manual refresh since auto_refresh is disabled
+            set_live_layer("status", panel)
             # Use shorter sleep to be responsive to stop event
             if self._stop_event.wait(timeout=0.1):
                 break
@@ -189,7 +195,7 @@ class StatusManager:
             self._active = True
             self._stop_event.clear()
 
-            live.start()
+            start_live()
 
             # Stop any existing animation thread
             if self._animation_thread and self._animation_thread.is_alive():
@@ -255,7 +261,7 @@ class StatusManager:
         self._status_type = "error"
 
         if self._active and live:
-            live.update(self._get_status_panel())
+            set_live_layer("status", self._get_status_panel())
 
     def set_success(self, message: str = "Operation completed") -> None:
         """
@@ -268,7 +274,7 @@ class StatusManager:
         self._status_type = "success"
 
         if self._active and live:
-            live.update(self._get_status_panel())
+            set_live_layer("status", self._get_status_panel())
             time.sleep(0.5)  # Show success briefly
 
     def clear(self) -> None:
@@ -285,7 +291,9 @@ class StatusManager:
                 self._animation_thread.join(timeout=0.5)
 
             # Stop Live display
-            stop_live()
+            clear_live_layer("status")
+            if not has_live_layers():
+                stop_live()
 
             # Reset state
             self._current_status = None

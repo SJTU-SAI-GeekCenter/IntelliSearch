@@ -9,6 +9,7 @@ import yaml
 import json
 import os
 import asyncio
+import re
 from typing import List, Dict, Any, Optional
 
 from tools.server_manager import MultiServerManager
@@ -155,6 +156,214 @@ class MCPBase:
         finally:
             await self.server_manager.close_all_connections()
 
+    @staticmethod
+    def _extract_tool_result_text(result: Any) -> str:
+        """Extract text from MCP tool result in a tolerant way."""
+        if hasattr(result, "model_dump"):
+            dumped = result.model_dump()
+            if dumped.get("content") and len(dumped["content"]) > 0:
+                return dumped["content"][0].get("text", "")
+            return "(No string content returned)"
+
+        if isinstance(result, dict):
+            if "content" in result and len(result["content"]) > 0:
+                return result["content"][0].get("text", "")
+            if "error" in result:
+                return f"Error: {result['error']}"
+            return str(result)
+
+        return str(result)
+
+    @staticmethod
+    def _extract_permission_request_payload(text: str) -> Optional[Dict[str, Any]]:
+        """Parse PERMISSION_REQUEST marker payload from tool text."""
+        marker = "PERMISSION_REQUEST::"
+        if marker not in text:
+            return None
+
+        match = re.search(r"PERMISSION_REQUEST::(\{.*\})", text, re.DOTALL)
+        if not match:
+            return None
+
+        try:
+            return json.loads(match.group(1))
+        except Exception:
+            return None
+
+    @staticmethod
+    def _apply_permission_from_form(values: Dict[str, Any], target_path: str) -> None:
+        """Apply selected permission rule to operate_file security manager."""
+        try:
+            from mcp_server.operate_file.security import security_manager, AccessScope
+        except ImportError:
+            from .operate_file.security import security_manager, AccessScope  # type: ignore
+
+        scope_map = {
+            "Shallow": AccessScope.SHALLOW,
+            "Recursive": AccessScope.RECURSIVE,
+            "当前层级(Shallow)": AccessScope.SHALLOW,
+            "递归(Recursive)": AccessScope.RECURSIVE,
+        }
+        ttl_map = {
+            "Forever": None,
+            "30 minutes": 30 * 60,
+            "2 hours": 2 * 60 * 60,
+            "永久": None,
+            "30分钟": 30 * 60,
+            "2小时": 2 * 60 * 60,
+        }
+
+        action = str(values.get("action", "read"))
+        profile = str(values.get("perm_profile", ""))
+        if not profile:
+            # Auto-infer profile by requested action
+            if action == "read":
+                profile = "Read only"
+            elif action == "create":
+                profile = "Read + Create"
+            elif action == "write":
+                profile = "Read + Write + Create"
+            elif action == "delete":
+                profile = "Full Control (with Delete)"
+            else:
+                profile = "Read + Write + Create"
+        allow_read = True
+        allow_create = False
+        allow_write = False
+        allow_delete = False
+
+        if profile in ("读+创建", "Read + Create"):
+            allow_create = True
+        elif profile in ("读+写+创建", "Read + Write + Create"):
+            allow_create = True
+            allow_write = True
+        elif profile in ("完全控制(含删除)", "Full Control (with Delete)"):
+            allow_create = True
+            allow_write = True
+            allow_delete = True
+
+        from pathlib import Path
+
+        target = Path(target_path).resolve()
+        rule_target = target if target.is_dir() else target.parent
+
+        scope_key = str(values.get("scope", "Recursive"))
+        ttl_key = str(values.get("ttl", "Forever"))
+
+        security_manager.add_permission(
+            path=rule_target,
+            scope=scope_map.get(scope_key, AccessScope.RECURSIVE),
+            allow_read=allow_read,
+            allow_create=allow_create,
+            allow_write=allow_write,
+            allow_delete=allow_delete,
+            ttl_seconds=ttl_map.get(ttl_key, None),
+        )
+
+    @staticmethod
+    def _apply_deny_from_form(values: Dict[str, Any], target_path: str) -> None:
+        """Persist explicit deny rule when user selects reject."""
+        try:
+            from mcp_server.operate_file.security import security_manager, AccessScope
+        except ImportError:
+            from .operate_file.security import security_manager, AccessScope  # type: ignore
+
+        ttl_map = {
+            "Forever": None,
+            "30 minutes": 30 * 60,
+            "2 hours": 2 * 60 * 60,
+            "永久": None,
+            "30分钟": 30 * 60,
+            "2小时": 2 * 60 * 60,
+        }
+        ttl_key = str(values.get("ttl", "Forever"))
+
+        from pathlib import Path
+
+        target = Path(target_path).resolve()
+        security_manager.add_permission(
+            path=target,
+            scope=AccessScope.DENIED,
+            allow_read=False,
+            allow_create=False,
+            allow_write=False,
+            allow_delete=False,
+            ttl_seconds=ttl_map.get(ttl_key, None),
+        )
+
+    async def _handle_permission_request(
+        self,
+        payload: Dict[str, Any],
+    ) -> bool:
+        """Open Form in main CLI process and apply permission if granted."""
+        from core.UI import UIEngine
+        from core.UI.live import clear_live_layer
+
+        target_path = payload.get("target_path", "")
+        action = payload.get("action", "read")
+        reason = payload.get("reason", "")
+
+        pages = [
+            [
+                {
+                    "type": "select",
+                    "key": "decision",
+                    "message": "Authorize this filesystem request?",
+                    "description": (
+                        f"Target path: {target_path}\n"
+                        f"Requested action: {action}\n"
+                        f"Reason: {reason}"
+                    ),
+                    "options": ["Allow", "Deny"],
+                    "default_index": 0,
+                }
+            ],
+            [
+                {
+                    "type": "select",
+                    "key": "scope",
+                    "message": "Permission scope",
+                    "description": "Tip: use Recursive for directories, Shallow for a narrow path.",
+                    "options": ["Shallow", "Recursive"],
+                    "default_index": 1,
+                }
+            ],
+            [
+                {
+                    "type": "select",
+                    "key": "ttl",
+                    "message": "Permission duration",
+                    "description": "Forever = no expiration; temporary grants expire automatically.",
+                    "options": ["Forever", "30 minutes", "2 hours"],
+                    "default_index": 0,
+                }
+            ],
+        ]
+
+        form_result = UIEngine.prompt_form(
+            title="Filesystem Permission Request",
+            pages=pages,
+            allow_cancel=True,
+        )
+
+        # 立即释放表单占据空间，避免后续区域残留空白
+        clear_live_layer("form")
+
+        if not form_result.get("success") or not form_result.get("completed"):
+            return False
+
+        values = form_result.get("values", {})
+        if values.get("decision") not in ("Allow", "允许"):
+            # 用户拒绝也应持久化到 permissions.json（显式拒绝规则）
+            self._apply_deny_from_form(values, target_path)
+            return False
+
+        # Let apply layer auto-infer permission profile from requested action
+        values["action"] = action
+
+        self._apply_permission_from_form(values, target_path)
+        return True
+
     async def execute_tool_calls(
         self, tool_calls: List[Any], available_tools: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -174,6 +383,7 @@ class MCPBase:
 
         for tool_call in tool_calls:
             tool_name = tool_call.function.name
+            tool_args: Dict[str, Any] = {}
             tool_ui.display_tool_call(tool_name)
             self.logger.info(f"Executing tool: {tool_call}")
 
@@ -216,7 +426,9 @@ class MCPBase:
                         # 尝试从内容中提取错误信息
                         content = result.content if hasattr(result, "content") else []
                         error_texts = [
-                            item.text for item in content if hasattr(item, "text")
+                            str(getattr(item, "text", ""))
+                            for item in content
+                            if getattr(item, "text", None) is not None
                         ]
                         full_error_msg = (
                             "\n".join(error_texts)
@@ -225,32 +437,30 @@ class MCPBase:
                         )
 
                     # Safe result extraction
-                    result_text = ""
                     try:
-                        if hasattr(result, "model_dump"):
-                            dumped = result.model_dump()
-                            # Ensure content exists and has items
-                            if dumped.get("content") and len(dumped["content"]) > 0:
-                                result_text = dumped["content"][0]["text"]
-                            else:
-                                result_text = "(No string content returned)"
-                        elif isinstance(result, dict):
-                            # Fallback for dict-like results (e.g. from HTTP/SSE if not using Pydantic models)
-                            if "content" in result and len(result["content"]) > 0:
-                                result_text = result["content"][0].get("text", "")
-                            elif "error" in result:
-                                raise Exception(result["error"])
-                            else:
-                                result_text = str(result)
-                        else:
-                            result_text = str(result)
-
+                        result_text = self._extract_tool_result_text(result)
                     except Exception as extract_err:
-                        error_msg = str(extract_err)
                         self.logger.error(
                             f"Error extracting tool result: {extract_err} | Result type: {type(result)} | Result: {result}"
                         )
                         result_text = f"Error processing tool output: {extract_err}"
+
+                    # Intercept permission request marker from operate_file and prompt user via Form in main process
+                    permission_payload = self._extract_permission_request_payload(
+                        result_text
+                    )
+                    if permission_payload:
+                        granted = await self._handle_permission_request(
+                            permission_payload
+                        )
+                        if granted:
+                            retry_result = await self.get_tool_response(
+                                call_params=tool_args, tool_name=tool_name_long
+                            )
+                            result_text = self._extract_tool_result_text(retry_result)
+                        else:
+                            result_text = "Permission denied by user."
+
                     # Display result with styled UI
                     tool_ui.display_execution_status("completed")
                     tool_ui.display_tool_result(result_text, max_length=500)
@@ -320,6 +530,9 @@ class MCPBase:
 
             if tool_name and tool_name not in all_tools:
                 raise ValueError(f"Tool '{tool_name}' not found")
+
+            if not tool_name:
+                raise ValueError("tool_name is required")
 
             result = await self.server_manager.call_tool(
                 tool_name, call_params or {}, use_cache=False

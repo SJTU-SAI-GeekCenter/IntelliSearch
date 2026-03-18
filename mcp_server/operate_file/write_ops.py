@@ -2,6 +2,11 @@ from typing import Any
 from pathlib import Path
 import logging
 
+try:
+    from security_prompt import ensure_path_access
+except ImportError:
+    from .security_prompt import ensure_path_access
+
 logger = logging.getLogger("filesystem-write")
 
 
@@ -10,7 +15,9 @@ def write_file_impl(path: str, content: str) -> str:
     写入文件 (覆盖或创建) Implementation
     """
     try:
-        target_path = Path(path).resolve()
+        raw_target = Path(path).resolve()
+        action = "write" if raw_target.exists() else "create"
+        target_path = ensure_path_access(path, action=action)
 
         # Check if file exists
         exists = target_path.exists()
@@ -31,7 +38,9 @@ def append_file_impl(path: str, content: str) -> str:
     Append content to a file.
     """
     try:
-        target_path = Path(path).resolve()
+        raw_target = Path(path).resolve()
+        action = "write" if raw_target.exists() else "create"
+        target_path = ensure_path_access(path, action=action)
 
         # Check if file exists
         exists = target_path.exists()

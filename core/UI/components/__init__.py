@@ -34,6 +34,7 @@ from .select import (
     create_select,
 )
 from .confirm import ConfirmControl, ConfirmResult, ConfirmComponent, create_confirm
+from .form import FormControl, FormResult, FormComponent, create_form
 from .base_component import BaseUIComponent
 from .registry import (
     ComponentRegistry,
@@ -84,6 +85,12 @@ __all__ = [
     "ConfirmComponent",
     # Confirm Factory Functions
     "create_confirm",
+    # Form Controls and Components
+    "FormControl",
+    "FormResult",
+    "FormComponent",
+    # Form Factory Functions
+    "create_form",
     # Registry
     "ComponentRegistry",
     "register_component",

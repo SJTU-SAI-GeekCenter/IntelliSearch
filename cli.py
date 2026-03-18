@@ -11,6 +11,7 @@ import traceback
 import yaml
 import asyncio
 import logging
+import warnings
 from pathlib import Path
 from rich.console import Console
 from rich.text import Text
@@ -34,13 +35,43 @@ def suppress_asyncio_exception(loop, context):
     pass  # Do nothing - suppress all exceptions
 
 
+def _get_running_loop_safely():
+    """Return current running loop or None (without deprecated API calls)."""
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
+
+def suppress_known_unraisable(unraisable):
+    """
+    Suppress noisy unraisable exceptions on forced exit (Windows asyncio subprocess).
+
+    Typical pattern:
+    - RuntimeError: Event loop is closed
+    - ValueError: I/O operation on closed pipe
+    """
+    try:
+        exc = unraisable.exc_value
+        msg = str(exc) if exc else ""
+        if isinstance(exc, RuntimeError) and "Event loop is closed" in msg:
+            return
+        if isinstance(exc, ValueError) and "closed pipe" in msg.lower():
+            return
+    except Exception:
+        pass
+
+    # Fallback to default behavior for unknown unraisable exceptions
+    sys.__unraisablehook__(unraisable)
+
+
 # Apply the exception handler to the current event loop
-try:
-    loop = asyncio.get_event_loop()
+loop = _get_running_loop_safely()
+if loop is not None and not loop.is_closed():
     loop.set_exception_handler(suppress_asyncio_exception)
-except RuntimeError:
-    # No event loop yet - will be set when loop is created
-    pass
+
+# Suppress known unraisable noise during interpreter shutdown on Windows
+sys.unraisablehook = suppress_known_unraisable
 
 
 def load_agent_config(config_path: str) -> tuple:
@@ -110,7 +141,7 @@ def cleanup_async_tasks():
     Clean up all asyncio tasks to prevent 'Task exception was never retrieved' errors.
     """
     try:
-        loop = asyncio.get_event_loop()
+        loop = _get_running_loop_safely()
         if loop and not loop.is_closed():
             # Cancel all pending tasks
             pending = asyncio.all_tasks(loop)
@@ -183,6 +214,10 @@ def main():
         traceback.print_exc()
         cleanup_async_tasks()
         sys.exit(1)
+    finally:
+        # Ensure pending tasks/transports get a final cleanup chance
+        warnings.filterwarnings("ignore", category=ResourceWarning)
+        cleanup_async_tasks()
 
 
 if __name__ == "__main__":

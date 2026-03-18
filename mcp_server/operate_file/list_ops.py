@@ -4,13 +4,18 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
+try:
+    from security_prompt import ensure_path_access
+except ImportError:
+    from .security_prompt import ensure_path_access
+
 
 def list_directory_impl(path: str = ".") -> str:
     """
     列出目录内容 Implementation
     """
     try:
-        target_path = Path(path).resolve()
+        target_path = ensure_path_access(path, action="read")
 
         if not target_path.exists():
             return f"Error: Path '{path}' does not exist."
@@ -63,7 +68,7 @@ def list_tree_impl(path: str = ".", max_depth: int = -1) -> str:
     max_depth: -1 for unlimited (careful), or integer for specific depth (e.g. 2).
     """
     try:
-        target_path = Path(path).resolve()
+        target_path = ensure_path_access(path, action="read")
 
         if not target_path.exists():
             return f"Error: Path '{path}' does not exist."

@@ -63,7 +63,7 @@ class InputControl:
 
         # Add placeholder if provided
         if self.placeholder:
-            content.append(f"提示: {self.placeholder}", style=Style(dim=True))
+            content.append(f"Hint: {self.placeholder}", style=Style(dim=True))
             content.append("\n")
 
         # Add default value if provided
@@ -73,7 +73,7 @@ class InputControl:
             else:
                 display_value = self.default_value
             content.append(
-                f"默认: {display_value}", style=Style(color=ThemeColors.INFO)
+                f"Default: {display_value}", style=Style(color=ThemeColors.INFO)
             )
             content.append("\n")
 
@@ -81,15 +81,17 @@ class InputControl:
         if self.min_length > 0 or self.max_length < 1000:
             constraints = []
             if self.min_length > 0:
-                constraints.append(f"最少 {self.min_length} 字符")
+                constraints.append(f"Min {self.min_length} chars")
             if self.max_length < 1000:
-                constraints.append(f"最多 {self.max_length} 字符")
+                constraints.append(f"Max {self.max_length} chars")
             if constraints:
-                content.append(f"限制: {', '.join(constraints)}", style=Style(dim=True))
+                content.append(
+                    f"Constraints: {', '.join(constraints)}", style=Style(dim=True)
+                )
 
         return Panel(
             content,
-            title="📝 输入",
+            title="📝 Input",
             border_style=Style(color=ThemeColors.PRIMARY),
             padding=(0, 1),
         )
@@ -133,9 +135,9 @@ class InputComponent(BaseUIComponent):
             # Basic fallback
             print(f"{data.message}")
             if data.placeholder:
-                print(f"(提示: {data.placeholder})")
+                print(f"(Hint: {data.placeholder})")
             if data.default_value:
-                print(f"(默认: {data.default_value})")
+                print(f"(Default: {data.default_value})")
             result = input("> ")
             return result if result else data.default_value
 
@@ -153,7 +155,7 @@ class InputComponent(BaseUIComponent):
         elif data.multiline:
             print(f"{data.message}")
             if data.placeholder:
-                print(f"(提示: {data.placeholder})")
+                print(f"(Hint: {data.placeholder})")
             lines = []
             while True:
                 line = input("> ")
@@ -174,7 +176,7 @@ class InputComponent(BaseUIComponent):
         # Validate
         is_valid, error_msg = data.validate(result)
         if not is_valid:
-            renderer.display_error(f"验证失败: {error_msg}")
+            renderer.display_error(f"Validation failed: {error_msg}")
             return data.default_value or ""
 
         return result

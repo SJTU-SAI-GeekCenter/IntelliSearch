@@ -285,6 +285,45 @@ class UIEngine:
         return cls.get_renderer().prompt_confirm(control)
 
     @classmethod
+    def prompt_form(
+        cls,
+        form_control=None,
+        title: Optional[str] = None,
+        pages: Optional[list] = None,
+        **kwargs,
+    ) -> dict:
+        """
+        Prompt user with a multi-page dynamic form.
+
+        Supports three calling methods:
+        1. UIEngine.prompt_form(title="用户信息", pages=[[...], [...]])
+        2. UIEngine.prompt_form(**{"title": "用户信息", "pages": [[...], [...]], "allow_cancel": True})
+        3. UIEngine.prompt_form(FormControl(...))
+
+        Args:
+            form_control: FormControl object (optional)
+            title: Fixed form title
+            pages: JSON list, each sub-list is one page of components
+            **kwargs: Additional FormControl parameters
+
+        Returns:
+            JSON-like dictionary result
+        """
+        from core.UI.components import FormControl
+
+        if form_control is not None:
+            control = form_control
+        else:
+            control = FormControl(
+                title=title or "动态表单",
+                pages=pages or [],
+                **kwargs,
+            )
+
+        renderer = cls.get_renderer()
+        return renderer.prompt_form(control)
+
+    @classmethod
     def get_welcome_ui(cls):
         """
         Get a WelcomeUI instance for the current environment.

@@ -117,6 +117,7 @@ def register_default_components():
     from .input import InputComponent
     from .select import SelectComponent
     from .confirm import ConfirmComponent
+    from .form import FormComponent
 
     # Register display components
     register_component("display", DisplayComponent)
@@ -132,6 +133,9 @@ def register_default_components():
 
     # Register confirm component
     register_component("confirm", ConfirmComponent)
+
+    # Register form component
+    register_component("form", FormComponent)
 
 
 # Auto-register default components
