@@ -921,7 +921,9 @@ class MCPConnector:
                     raise Exception("No valid response received from SSE server")
 
                 if "error" in result:
-                    raise Exception(f"MCP Error: {result['error']}")
+                    raise Exception(
+                        f"MCP Error: {result.get('error', 'Unknown MCP error')}"
+                    )
 
                 # Check if we got a valid result
                 tool_result = result.get("result")
@@ -1025,7 +1027,9 @@ class MCPConnector:
                     raise Exception("No valid response received from URL server")
 
                 if "error" in result:
-                    raise Exception(f"MCP Error: {result['error']}")
+                    raise Exception(
+                        f"MCP Error: {result.get('error', 'Unknown MCP error')}"
+                    )
 
                 # Check if we got a valid result
                 tool_result = result.get("result")

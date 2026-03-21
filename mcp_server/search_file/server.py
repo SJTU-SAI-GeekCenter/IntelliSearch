@@ -135,9 +135,13 @@ async def search_semantic_local(
     result = await client.search(query, limit, threshold)
 
     if not result.get("success") and "Cannot connect" in result.get("error", ""):
-        result["error"] += f" Start it with: python backend/tool_backend/rag_service.py"
+        result["error"] = (
+            result.get("error", "Cannot connect to RAG service")
+            + " Start it with: python backend/tool_backend/rag_service.py"
+        )
 
     return result
+
 
 @mcp.tool()
 def search_semantic_remote(query: str):
@@ -190,6 +194,7 @@ def search_semantic_remote(query: str):
     res = requests.post(url=url, headers=headers, data=json.dumps(data))
     result = res.json()
     return json.dumps(result, ensure_ascii=False, indent=2)
+
 
 # Precise search tools
 @mcp.tool()
@@ -645,7 +650,7 @@ async def get_markdown_structure(path: str):
 
         # Format heading with line number
         heading_marker = "#" * level
-        formatted_line = f'{indent}{heading_marker} {text} (line {line_number})'
+        formatted_line = f"{indent}{heading_marker} {text} (line {line_number})"
         structure_lines.append(formatted_line)
 
     structure_string = "\n".join(structure_lines)

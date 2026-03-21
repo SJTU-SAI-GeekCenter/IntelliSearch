@@ -71,13 +71,13 @@ class CLIService(BaseService):
         Raises:
             RuntimeError: If agent inference fails critically
         """
-        self._notify_status("processing", "Processing your request...")
+        self._notify_status("processing", "正在思索...")
 
         try:
             response = self.agent.inference(request)
 
             if response.status == "success":
-                self._notify_status("completed", "Request completed successfully")
+                self._notify_status("completed", "得出答案！")
             elif response.status == "cancelled":
                 # User-triggered cancellation should not be treated as failure
                 self._notify_status("clear", "")

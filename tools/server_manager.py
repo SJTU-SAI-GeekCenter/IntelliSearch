@@ -341,7 +341,9 @@ class MultiServerManager:
                     result = await response.json(encoding="utf-8")
 
                     if "error" in result:
-                        raise Exception(f"MCP Error: {result['error']}")
+                        raise Exception(
+                            f"MCP Error: {result.get('error', 'Unknown MCP error')}"
+                        )
 
                     # Check if we got a valid result
                     tool_result = result.get("result")

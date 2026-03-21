@@ -348,21 +348,61 @@ class CLIBackend:
             Tuple of (final_response, tool_tracing) if both tags found,
             None if parsing fails
         """
-        # Try to extract <final_response> tag
-        final_response_match = re.search(
-            r"<final_response>\s*(.*?)\s*</final_response>", response_text, re.DOTALL
-        )
+        def _extract_block(text: str, tag: str) -> Optional[str]:
+            # Preferred: normal open/close block
+            block_match = re.search(
+                rf"<\s*{tag}\s*>\s*(.*?)\s*<\s*/\s*{tag}\s*>",
+                text,
+                re.DOTALL | re.IGNORECASE,
+            )
+            if block_match:
+                return block_match.group(1).strip()
 
-        # Try to extract <tool_tracing> tag
-        tool_tracing_match = re.search(
-            r"<tool_tracing>\s*(.*?)\s*</tool_tracing>", response_text, re.DOTALL
-        )
+            # Fallback: opening tag exists but closing tag is missing
+            open_match = re.search(
+                rf"<\s*{tag}\s*>",
+                text,
+                re.IGNORECASE,
+            )
+            if open_match:
+                return text[open_match.end() :].strip()
 
-        # Check if both tags are present
-        if final_response_match and tool_tracing_match:
-            final_response = final_response_match.group(1).strip()
-            tool_tracing = tool_tracing_match.group(1).strip()
+            return None
+
+        final_response = _extract_block(response_text, "final_response")
+        tool_tracing = _extract_block(response_text, "tool_tracing")
+
+        # Preferred path: both tags are present
+        if final_response and tool_tracing:
             return (final_response, tool_tracing)
+
+        # Fallback path: final_response exists but tool_tracing is missing
+        if final_response and not tool_tracing:
+            tool_tracing = "模型本轮未返回 <tool_tracing> 区块，已自动降级显示。"
+            return (final_response, tool_tracing)
+
+        # Fallback path: tool_tracing exists but final_response is missing
+        if tool_tracing and not final_response:
+            # Remove tool_tracing block from original response as best-effort正文提取
+            remaining_text = re.sub(
+                r"<\s*tool_tracing\s*>[\s\S]*?(<\s*/\s*tool_tracing\s*>|$)",
+                "",
+                response_text,
+                flags=re.IGNORECASE,
+            ).strip()
+
+            # Clean potentially leaked wrapper tags
+            remaining_text = re.sub(
+                r"<\s*/?\s*final_response\s*>",
+                "",
+                remaining_text,
+                flags=re.IGNORECASE,
+            ).strip()
+
+            if not remaining_text:
+                remaining_text = "（本轮未返回 <final_response> 区块，已降级展示正文）"
+
+            return (remaining_text, tool_tracing)
 
         # If tags are not found, return None to indicate fallback needed
         return None
@@ -387,7 +427,7 @@ class CLIBackend:
             )
             final_response_panel = Panel(
                 final_response_md,
-                title="[bold]Final Response[/bold]",
+                title="[bold]最终回复[/bold]",
                 title_align="left",
                 border_style=Style(color=ThemeColors.SECONDARY),
                 padding=(0, 1),
@@ -398,7 +438,7 @@ class CLIBackend:
             tool_tracing_md = Markdown(tool_tracing, style=Style(color=ThemeColors.FG))
             tool_tracing_panel = Panel(
                 tool_tracing_md,
-                title="[bold dim]Tool Tracing[/bold dim]",
+                title="[bold dim]探究足迹[/bold dim]",
                 title_align="left",
                 border_style=Style(color=ThemeColors.PRIMARY),
                 padding=(0, 1),

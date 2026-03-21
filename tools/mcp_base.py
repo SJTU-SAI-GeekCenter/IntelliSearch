@@ -169,7 +169,7 @@ class MCPBase:
             if "content" in result and len(result["content"]) > 0:
                 return result["content"][0].get("text", "")
             if "error" in result:
-                return f"Error: {result['error']}"
+                return f"Error: {result.get('error', 'Unknown error')}"
             return str(result)
 
         return str(result)
