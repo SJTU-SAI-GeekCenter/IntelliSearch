@@ -71,6 +71,7 @@ env:
   ZHIPU_API_KEY: your-api-key
   ZHIPU_BASE_URL: "https://open.bigmodel.cn/api/paas/v4/"
   SERPER_API_KEY: your-api-key
+  TAVILY_API_KEY: your-api-key
   MEMOS_API_KEY: your-api-key
   MEMOS_BASE_URL: "https://memos.memtensor.cn/api/openmem/v1"
   MEMOS_USER_ID: your_user_id
