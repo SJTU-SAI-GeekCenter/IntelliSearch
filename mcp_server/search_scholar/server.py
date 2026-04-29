@@ -6,10 +6,13 @@ import httpx
 import asyncio
 from typing import List, Dict, Union
 from mcp.server.fastmcp import FastMCP
+from tavily import TavilyClient
 
 
 client = arxiv.Client()
 mcp = FastMCP("scholar-search")
+
+tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY", ""))
 
 
 @mcp.tool()
@@ -106,6 +109,37 @@ def google_scholar_search(query: str) -> str:
     conn.request("POST", "/scholar", payload, headers)
     data = conn.getresponse().read().decode("utf-8")
     return data
+
+
+@mcp.tool()
+def tavily_academic_search(query: str, max_results: int = 5) -> str:
+    """Perform an academic/scholarly web search using Tavily as an alternative to Google Scholar.
+
+    Uses Tavily's advanced search depth for higher relevance on academic queries.
+
+    Args:
+        query (str): Search query for academic papers, authors, or topics.
+        max_results (int): Maximum number of results to return, default 5.
+
+    Returns:
+        str: JSON string with search results including title, url, and content snippet.
+    !ATTENTION! You can read the pdf url with web parse tools after you have searched the pdf_url
+    """
+    response = tavily_client.search(
+        query=query,
+        max_results=max_results,
+        search_depth="advanced",
+        topic="general",
+    )
+    results = []
+    for r in response.get("results", []):
+        results.append({
+            "title": r.get("title", ""),
+            "url": r.get("url", ""),
+            "content": r.get("content", ""),
+            "score": r.get("score", 0),
+        })
+    return json.dumps(results, ensure_ascii=False, indent=2)
 
 
 # dblp内部辅助函数
