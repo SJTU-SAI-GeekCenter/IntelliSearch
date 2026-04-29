@@ -3,6 +3,7 @@ import os
 import http.client
 import json
 from mcp.server.fastmcp import FastMCP
+from tavily import TavilyClient
 
 mcp = FastMCP("web-search")
 
@@ -100,6 +101,65 @@ def web_parse(url: str) -> str:
     conn.request("POST", "/", payload, headers)
     data = conn.getresponse().read().decode("utf-8")
     return data
+
+
+@mcp.tool()
+def tavily_search(query: str, search_depth: str = "basic", topic: str = "general", max_results: int = 5) -> str:
+    """
+    [Tavily Web Search] Perform a web search using Tavily, an AI-optimized search engine.
+
+    Returns comprehensive search results including titles, URLs, content snippets, and relevance scores.
+    Tavily results are optimized for LLM consumption and include clean, relevant content.
+
+    **AI Usage Guideline:**
+    1.  Use this as an alternative to `google_search` for general web queries.
+    2.  Results include content snippets directly, but for full page content use `tavily_extract` or `web_parse`.
+
+    Args:
+        query: The search query, which can be in any language.
+        search_depth: Search depth - "basic" (fast, 1 credit) or "advanced" (thorough, 2 credits). Defaults to "basic".
+        topic: Search topic category - "general", "news", or "finance". Defaults to "general".
+        max_results: Maximum number of results to return (1-20). Defaults to 5.
+
+    Returns:
+        A JSON string containing search results with titles, URLs, content, and relevance scores.
+    """
+    client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+    response = client.search(
+        query=query,
+        search_depth=search_depth,
+        topic=topic,
+        max_results=max_results,
+    )
+    return json.dumps(response, ensure_ascii=False)
+
+
+@mcp.tool()
+def tavily_extract(urls: list[str], query: str = "") -> str:
+    """
+    [Tavily Content Extractor] Extract clean, readable content from one or more web page URLs using Tavily.
+
+    This tool retrieves the full content of specified web pages, stripped of irrelevant elements.
+    It can be used as an alternative to `web_parse` for extracting page content.
+
+    **AI Usage Guideline:**
+    1.  Use after `tavily_search` or `google_search` to get full content from specific URLs.
+    2.  Optionally provide a query to rerank extracted content chunks by relevance.
+    3.  Accepts up to 20 URLs at once for batch extraction.
+
+    Args:
+        urls: A list of URLs to extract content from (max 20).
+        query: Optional query to rerank extracted chunks by relevance.
+
+    Returns:
+        A JSON string containing the extracted content for each URL.
+    """
+    client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+    kwargs = {"urls": urls}
+    if query:
+        kwargs["query"] = query
+    response = client.extract(**kwargs)
+    return json.dumps(response, ensure_ascii=False)
 
 
 if __name__ == "__main__":
